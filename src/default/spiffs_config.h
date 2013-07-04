@@ -78,7 +78,7 @@ typedef u16_t spiffs_span_ix;
 typedef u8_t spiffs_obj_type;
 
 // enable if only one spiffs instance with constant configuration will exist
-// on the system
+// on the target, this will remove calculations and memory accesses
 //#define SPIFFS_SINGLETON
 
 #ifdef SPIFFS_SINGLETON
