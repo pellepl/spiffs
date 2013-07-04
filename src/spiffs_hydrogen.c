@@ -482,3 +482,12 @@ s32_t SPIFFS_closedir(spiffs_DIR *d) {
   return SPIFFS_OK;
 }
 
+s32_t SPIFFS_check(spiffs *fs) {
+  s32_t res;
+  SPIFFS_LOCK(fs);
+
+  res = spiffs_area_check(fs, 0);
+
+  SPIFFS_UNLOCK(fs);
+  return res;
+}

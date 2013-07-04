@@ -579,6 +579,6 @@ spiffs_cache_page *spiffs_cache_page_get_by_fd(spiffs *fs, spiffs_fd *fd);
 #endif
 #endif
 
-void spiffs_test_list_objects(spiffs *fs);
+s32_t spiffs_area_check(spiffs *fs, u8_t check_all_objects);
 
 #endif /* SPIFFS_NUCLEUS_H_ */

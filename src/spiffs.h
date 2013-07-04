@@ -203,4 +203,6 @@ spiffs_DIR *SPIFFS_opendir(spiffs *fs, const char *name, spiffs_DIR *d);
 s32_t SPIFFS_closedir(spiffs_DIR *d);
 struct spiffs_dirent *SPIFFS_readdir(spiffs_DIR *d, struct spiffs_dirent *e);
 
+s32_t SPIFFS_check(spiffs *fs);
+
 #endif /* SPIFFS_H_ */

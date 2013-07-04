@@ -1932,6 +1932,10 @@ static s32_t spiffs_obj_lu_find_free_obj_id_compact_v(spiffs *fs, spiffs_obj_id 
   return SPIFFS_COUNTINUE;
 }
 
+// Scans thru all object lookup for object index header pages. If total possible number of
+// object ids cannot fit into a work buffer, these are grouped. When a group containing free
+// object ids is found, the object lu is again scanned for object ids within group and bitmasked.
+// Finally, the bitmasked is searched for a free id
 s32_t spiffs_obj_lu_find_free_obj_id(spiffs *fs, spiffs_obj_id *obj_id) {
   s32_t res = SPIFFS_OK;
   u32_t max_objects = (SPIFFS_CFG_PHYS_SZ(fs) / (u32_t)SPIFFS_CFG_LOG_PAGE_SZ(fs)) / 2;
@@ -2060,4 +2064,98 @@ s32_t spiffs_fd_get(spiffs *fs, spiffs_file f, spiffs_fd **fd) {
     return SPIFFS_ERR_FILE_CLOSED;
   }
   return SPIFFS_OK;
+}
+
+// Scans all object look up. For each entry, corresponding page header is checked for validity.
+// If an object index header page is found, this is checked
+s32_t spiffs_area_check(spiffs *fs, u8_t check_all_objects) {
+  s32_t res = SPIFFS_OK;
+  s32_t entry_count = fs->block_count * SPIFFS_OBJ_LOOKUP_MAX_ENTRIES(fs);
+  spiffs_block_ix cur_block = 0;
+  u32_t cur_block_addr = SPIFFS_BLOCK_TO_PADDR(fs, 0);
+
+  spiffs_obj_id *obj_lu_buf = (spiffs_obj_id *)fs->lu_work;
+  int cur_entry = 0;
+  spiffs_page_ix cur_pix;
+  u32_t entries_per_page = (SPIFFS_CFG_LOG_PAGE_SZ(fs) / sizeof(spiffs_obj_id));
+
+  // check each block
+  while (res == SPIFFS_OK && entry_count > 0) {
+    int obj_lookup_page = cur_entry / entries_per_page;
+    // check each object lookup page
+    while (res == SPIFFS_OK && obj_lookup_page < SPIFFS_OBJ_LOOKUP_PAGES(fs)) {
+      int entry_offset = obj_lookup_page * entries_per_page;
+      res = _spiffs_rd(fs, SPIFFS_OP_T_OBJ_LU2 | SPIFFS_OP_C_READ,
+          0, cur_block_addr + SPIFFS_PAGE_TO_PADDR(fs, obj_lookup_page), SPIFFS_CFG_LOG_PAGE_SZ(fs), fs->lu_work);
+      // check each entry
+      while (res == SPIFFS_OK &&
+          cur_entry - entry_offset < entries_per_page && // for non-last obj lookup pages
+          cur_entry < SPIFFS_OBJ_LOOKUP_MAX_ENTRIES(fs)) // for last obj lookup page
+      {
+        spiffs_obj_id obj_id = obj_lu_buf[cur_entry-entry_offset];
+        spiffs_page_header p_hdr;
+        cur_pix = SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(fs, cur_block, cur_entry);
+
+        // load header
+        res = _spiffs_rd(fs, SPIFFS_OP_T_OBJ_LU2 | SPIFFS_OP_C_READ,
+            0, SPIFFS_PAGE_TO_PADDR(fs, cur_pix), sizeof(spiffs_page_header), (u8_t*)&p_hdr);
+        SPIFFS_CHECK_RES(res);
+
+        if (obj_id == SPIFFS_OBJ_ID_ERASED) {
+            // TODO
+          if (p_hdr.flags & SPIFFS_PH_FLAG_DELET) {
+            print("WARNING: pix %04x deleted in lu but not on page\n", cur_pix);
+          }
+        } else if (obj_id == SPIFFS_OBJ_ID_FREE) {
+          // TODO
+          if (p_hdr.flags != 0xff) {
+            print("WARNING: pix %04x free in lu but not on page\n", cur_pix);
+          }
+        } else {
+          // TODO
+          if ((p_hdr.flags & SPIFFS_PH_FLAG_DELET) == 0) {
+            print("WARNING: pix %04x busy in lu but free on page\n", cur_pix);
+          }
+          if ((p_hdr.flags & SPIFFS_PH_FLAG_FINAL)) {
+            print("WARNING: pix %04x busy but not final\n", cur_pix);
+          }
+          if (p_hdr.obj_id != obj_id) {
+            print("WARNING: pix %04x has id %04x in lu but %04x on page\n", cur_pix, obj_id, p_hdr.obj_id);
+          }
+          if (obj_id & SPIFFS_OBJ_ID_IX_FLAG) {
+            // index page
+            if (p_hdr.flags & SPIFFS_PH_FLAG_INDEX) {
+              print("WARNING: pix %04x marked as index in lu but as data on page\n", cur_pix);
+            }
+          } else {
+            // data page
+            if ((p_hdr.flags & SPIFFS_PH_FLAG_INDEX) == 0) {
+              print("WARNING: pix %04x as data in lu but as index on page\n", cur_pix);
+            }
+          }
+        }
+
+        entry_count--;
+        cur_entry++;
+      } // per entry
+      obj_lookup_page++;
+    } // per object lookup page
+    cur_entry = 0;
+    cur_block++;
+    cur_block_addr += SPIFFS_CFG_LOG_BLOCK_SZ(fs);
+  } // per block
+
+  SPIFFS_CHECK_RES(res);
+
+  return SPIFFS_OK;
+}
+
+// Scans all object look up for consistency within given object id. When an index is found, it is loaded
+// and checked for validity against each referenced page. When an object index header is found, size is
+// checked.
+// When an index points to a bad page (deleted, other id, bad span index, etc), the whole area is searched
+// for correct page, followed by an index update. If no such page is found, a free page is allocated and
+// referenced instead meaning there will be a "hole" with 0xff in the file.
+s32_t spiffs_object_check(spiffs *fs, spiffs_obj_id objid) {
+
 }
