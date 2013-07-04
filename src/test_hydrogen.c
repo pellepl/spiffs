@@ -172,7 +172,7 @@ u32_t tfile_get_size(tfile_size s) {
   return 0;
 }
 
-int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concurrent_files) {
+int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concurrent_files, int dbg) {
   int res;
   tfile *tfiles = malloc(sizeof(tfile) * max_concurrent_files);
   memset(tfiles, 0, sizeof(tfile) * max_concurrent_files);
@@ -180,7 +180,7 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
   int cur_config_ix = 0;
   char name[32];
   while (run < max_runs)  {
-    printf(" run %i/%i\n", run, max_runs);
+    if (dbg) printf(" run %i/%i\n", run, max_runs);
     int i;
     for (i = 0; i < max_concurrent_files; i++) {
       sprintf(name, "file%i_%i", (1+run), i);
@@ -188,7 +188,7 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
       if (tf->state == 0 && cur_config_ix < cfg_count) {
 // create a new file
         strcpy(tf->name, name);
-        printf("   create new %s with cfg %i/%i\n", name, (1+cur_config_ix), cfg_count);
+        if (dbg) printf("   create new %s with cfg %i/%i\n", name, (1+cur_config_ix), cfg_count);
         tf->state = 1;
         tf->cfg = cfgs[cur_config_ix];
         if (tf->cfg.tsize == EMPTY) {
@@ -227,7 +227,7 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
           break;
         }
         case APPENDED: {
-          printf("   appending %s\n", tf->name);
+          if (dbg) printf("   appending %s\n", tf->name);
           int size = SPIFFS_DATA_PAGE_SIZE(FS)*3;
           u8_t *buf = malloc(size);
           memrand(buf, size);
@@ -242,7 +242,7 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
           break;
         }
         case MODIFIED: {
-          printf("   modify %s\n", tf->name);
+          if (dbg) printf("   modify %s\n", tf->name);
           spiffs_stat stat;
           res = SPIFFS_fstat(FS, tf->fd, &stat);
           CHECK_RES(res);
@@ -267,7 +267,7 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
           if (tf->fd > 0) {
             SPIFFS_close(FS, tf->fd);
           }
-          printf("   rewriting %s\n", tf->name);
+          if (dbg) printf("   rewriting %s\n", tf->name);
           spiffs_file fd = SPIFFS_open(FS, tf->name, 0, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR);
           CHECK(fd > 0);
           int pfd = open(make_test_fname(tf->name), O_TRUNC | O_CREAT | O_RDWR);
@@ -291,7 +291,7 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
           if (tf->fd > 0) {
             SPIFFS_close(FS, tf->fd);
           }
-          printf("   removing %s\n", tf->name);
+          if (dbg) printf("   removing %s\n", tf->name);
           res = read_and_verify(tf->name);
           CHECK_RES(res);
           res = SPIFFS_remove(FS, tf->name);
@@ -1140,7 +1140,7 @@ TEST(long_run_config_many_small_one_long)
       },
   };
 
-  int res = run_file_config(sizeof(cfgs)/sizeof(cfgs[0]), &cfgs[0], 206, 5);
+  int res = run_file_config(sizeof(cfgs)/sizeof(cfgs[0]), &cfgs[0], 206, 5, 0);
   TEST_CHECK(res >= 0);
   return TEST_RES_OK;
 }
@@ -1181,7 +1181,7 @@ TEST(long_run_config_many_medium)
       },
   };
 
-  int res = run_file_config(sizeof(cfgs)/sizeof(cfgs[0]), &cfgs[0], 305, 5);
+  int res = run_file_config(sizeof(cfgs)/sizeof(cfgs[0]), &cfgs[0], 305, 5, 0);
   TEST_CHECK(res >= 0);
   return TEST_RES_OK;
 }
@@ -1325,11 +1325,41 @@ TEST(long_run_config_many_small)
       },
   };
 
-  int res = run_file_config(sizeof(cfgs)/sizeof(cfgs[0]), &cfgs[0], 115, 6);
+  int res = run_file_config(sizeof(cfgs)/sizeof(cfgs[0]), &cfgs[0], 115, 6, 0);
   TEST_CHECK(res >= 0);
   return TEST_RES_OK;
 }
 TEST_END(long_run_config_many_small)
+
+
+TEST(long_run)
+{
+  tfile_conf cfgs[] = {
+      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = MEDIUM
+      },
+      {   .tsize = SMALL,     .ttype = REWRITTEN,     .tlife = SHORT
+      },
+      {   .tsize = MEDIUM,    .ttype = MODIFIED,      .tlife = SHORT
+      },
+      {   .tsize = MEDIUM,    .ttype = APPENDED,      .tlife = SHORT
+      },
+  };
+
+  int macro_runs = 500;
+  printf("  ");
+  while (macro_runs--) {
+    //printf("  ---- run %i ----\n", macro_runs);
+    if ((macro_runs % 20) == 0) {
+      printf(".");
+      fflush(stdout);
+    }
+    int res = run_file_config(sizeof(cfgs)/sizeof(cfgs[0]), &cfgs[0], 11, 2, 0);
+    TEST_CHECK(res >= 0);
+  }
+  printf("\n");
+  return TEST_RES_OK;
+}
+TEST_END(long_run)
 
 SUITE_END(hydrogen_tests)
 
@@ -1504,7 +1534,7 @@ TEST(long_run_config_many_small)
       },
   };
 
-  int res = run_file_config(sizeof(cfgs)/sizeof(cfgs[0]), &cfgs[0], 115, 6);
+  int res = run_file_config(sizeof(cfgs)/sizeof(cfgs[0]), &cfgs[0], 115, 6, 1);
   TEST_CHECK(res >= 0);
   return TEST_RES_OK;
 }
