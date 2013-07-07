@@ -1370,175 +1370,41 @@ void setup() {
 void teardown() {
   _teardown();
 }
-#if 0
-TEST(write_small_file_chunks_1)
-{
-  int res = test_create_and_write_file("smallfile", 600, 1);
+TEST(check1) {
+  int size = SPIFFS_DATA_PAGE_SIZE(FS)*3;
+  int res = test_create_and_write_file("file", size, size);
   TEST_CHECK(res >= 0);
-  res = read_and_verify("smallfile");
+  res = read_and_verify("file");
   TEST_CHECK(res >= 0);
+
+  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
+  TEST_CHECK(fd > 0);
+  spiffs_stat s;
+  res = SPIFFS_fstat(FS, fd, &s);
+  TEST_CHECK(res >= 0);
+  SPIFFS_close(FS, fd);
+
+  // modify lu entry data page index 1
+  spiffs_page_ix pix;
+  res = spiffs_obj_lu_find_id_and_index(FS, s.obj_id & ~SPIFFS_OBJ_ID_IX_FLAG, 1, &pix);
+  TEST_CHECK(res >= 0);
+
+  // reset lu entry to being erased, but keep page data
+  spiffs_obj_id obj_id = SPIFFS_OBJ_ID_ERASED;
+  spiffs_block_ix bix = SPIFFS_BLOCK_FOR_PAGE(FS, pix);
+  int entry = SPIFFS_OBJ_LOOKUP_ENTRY_FOR_PAGE(FS, pix);
+  u32_t addr = SPIFFS_BLOCK_TO_PADDR(FS, bix) + entry*sizeof(spiffs_obj_id);
+
+  area_write(addr, (u8_t*)&obj_id, sizeof(spiffs_obj_id));
+
+  spiffs_cache *cache = get_cache(FS);
+  cache->cpage_use_map = 0;
+
+  SPIFFS_check(FS);
+
 
   return TEST_RES_OK;
-}
-TEST_END(write_small_file_chunks_1)
+} TEST_END(check1)
 
-TEST(write_big_file_chunks_page)
-{
-  int size = ((50*(FS)->cfg.phys_size)/100);
-  printf("  filesize %i\n", size);
-  int res = test_create_and_write_file("bigfile", size, SPIFFS_DATA_PAGE_SIZE(FS));
-  TEST_CHECK(res >= 0);
-  res = read_and_verify("bigfile");
-  TEST_CHECK(res >= 0);
-
-  return TEST_RES_OK;
-}
-TEST_END(write_big_file_chunks_page)
-#else
-
-
-TEST(long_run_config_many_small)
-{
-  tfile_conf cfgs[] = {
-      {   .tsize = SMALL,     .ttype = APPENDED,      .tlife = LONG
-      },
-      {   .tsize = SMALL,     .ttype = MODIFIED,      .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = MODIFIED,      .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = APPENDED,      .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = APPENDED,      .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,      .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,      .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = REWRITTEN,     .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = REWRITTEN,     .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = UNTAMPERED,    .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = UNTAMPERED,    .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,    .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,    .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = MODIFIED,      .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = MODIFIED,      .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = APPENDED,      .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = APPENDED,      .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = APPENDED,      .tlife = LONG
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,      .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,      .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = REWRITTEN,     .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = REWRITTEN,     .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = UNTAMPERED,    .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = UNTAMPERED,    .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,    .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,    .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = MODIFIED,      .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = MODIFIED,      .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = APPENDED,      .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = APPENDED,      .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,      .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,      .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = REWRITTEN,     .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = REWRITTEN,     .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = UNTAMPERED,    .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = UNTAMPERED,    .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,    .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,    .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = MODIFIED,      .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = MODIFIED,      .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = APPENDED,      .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = APPENDED,      .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,      .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,      .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = REWRITTEN,     .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = REWRITTEN,     .tlife = SHORT
-      },
-      {   .tsize = SMALL,     .ttype = UNTAMPERED,    .tlife = MEDIUM
-      },
-      {   .tsize = SMALL,     .ttype = UNTAMPERED,    .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = APPENDED,      .tlife = SHORT
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,    .tlife = MEDIUM
-      },
-      {   .tsize = EMPTY,     .ttype = UNTAMPERED,    .tlife = SHORT
-      },
-  };
-
-  int res = run_file_config(sizeof(cfgs)/sizeof(cfgs[0]), &cfgs[0], 115, 6, 1);
-  TEST_CHECK(res >= 0);
-  return TEST_RES_OK;
-}
-TEST_END(long_run_config_many_small)
-#endif
 SUITE_END(dev_tests)
 

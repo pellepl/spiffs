@@ -110,6 +110,9 @@
 #ifndef SPIFFS_NUCLEUS_H_
 #define SPIFFS_NUCLEUS_H_
 
+#define SPIFFS_VIS_COUNTINUE            -11000
+#define SPIFFS_VIS_END                  -11001
+
 #define SPIFFS_EV_IX_UPD                0
 #define SPIFFS_EV_IX_NEW                1
 #define SPIFFS_EV_IX_DEL                2
@@ -217,11 +220,19 @@
 // if 0, this is an index page, else a data page
 #define SPIFFS_PH_FLAG_INDEX  (1<<3)
 
+#define SPIFFS_CHECK_MOUNT(fs) \
+  ((fs)->block_count > 0)
 
 #define SPIFFS_CHECK_RES(res) \
   do { \
     if ((res) < SPIFFS_OK) return (res); \
   } while (0);
+
+#define SPIFFS_API_CHECK_MOUNT(fs) \
+  if (!SPIFFS_CHECK_MOUNT((fs))) { \
+    (fs)->errno = SPIFFS_ERR_NOT_MOUNTED; \
+    return -1; \
+  }
 
 #define SPIFFS_API_CHECK_RES(fs, res) \
   if ((res) < SPIFFS_OK) { \
@@ -235,6 +246,22 @@
     SPIFFS_UNLOCK(fs); \
     return -1; \
   }
+
+
+#define SPIFFS_VALIDATE_OBJIX(ph, objid, spix) \
+    if (((ph).flags & SPIFFS_PH_FLAG_DELET) == 0) return SPIFFS_ERR_DELETED; \
+    if (((ph).flags & SPIFFS_PH_FLAG_FINAL) != 0) return SPIFFS_ERR_NOT_FINALIZED; \
+    if (((ph).flags & SPIFFS_PH_FLAG_INDEX) != 0) return SPIFFS_ERR_NOT_INDEX; \
+    if ((ph).span_ix != (spix)) return SPIFFS_ERR_INDEX_SPAN_MISMATCH;\
+    if (((ph).obj_id & ~SPIFFS_OBJ_ID_IX_FLAG) != ((objid) & ~SPIFFS_OBJ_ID_IX_FLAG)) return SPIFFS_ERR_INDEX_WRONG_ID;
+
+#define SPIFFS_VALIDATE_DATA(ph, objid, spix) \
+    if (((ph).flags & SPIFFS_PH_FLAG_DELET) == 0) return SPIFFS_ERR_DELETED; \
+    if (((ph).flags & SPIFFS_PH_FLAG_FINAL) != 0) return SPIFFS_ERR_NOT_FINALIZED; \
+    if (((ph).flags & SPIFFS_PH_FLAG_INDEX) == 0) return SPIFFS_ERR_IS_INDEX; \
+    if ((ph).span_ix != (spix)) return SPIFFS_ERR_DATA_SPAN_MISMATCH; \
+    if (((ph).obj_id & ~SPIFFS_OBJ_ID_IX_FLAG) != ((objid) & ~SPIFFS_OBJ_ID_IX_FLAG)) return SPIFFS_ERR_DATA_WRONG_ID;
+
 
 #define SPIFFS_VIS_CHECK_ID     (1<<0)
 #define SPIFFS_VIS_NO_WRAP      (1<<1)
@@ -390,14 +417,14 @@ s32_t spiffs_phys_wr(
     u32_t addr,
     u32_t len,
     u8_t *src);
-
+#if 0
 s32_t spiffs_phys_cpy(
     spiffs *fs,
     spiffs_file fh,
     u32_t dst,
     u32_t src,
     u32_t len);
-
+#endif
 s32_t spiffs_phys_count_free_blocks(
     spiffs *fs);
 
@@ -570,12 +597,25 @@ s32_t spiffs_fd_get(
     spiffs_fd **fd);
 
 #if SPIFFS_CACHE
-void spiffs_cache_init(spiffs *fs);
-void spiffs_cache_drop_page(spiffs *fs, spiffs_page_ix pix);
+void spiffs_cache_init(
+    spiffs *fs);
+
+void spiffs_cache_drop_page(
+    spiffs *fs,
+    spiffs_page_ix pix);
+
 #if SPIFFS_CACHE_WR
-spiffs_cache_page *spiffs_cache_page_allocate_by_fd(spiffs *fs, spiffs_fd *fd);
-void spiffs_cache_fh_release(spiffs *fs, spiffs_cache_page *cp);
-spiffs_cache_page *spiffs_cache_page_get_by_fd(spiffs *fs, spiffs_fd *fd);
+spiffs_cache_page *spiffs_cache_page_allocate_by_fd(
+    spiffs *fs,
+    spiffs_fd *fd);
+
+void spiffs_cache_fd_release(
+    spiffs *fs,
+    spiffs_cache_page *cp);
+
+spiffs_cache_page *spiffs_cache_page_get_by_fd(
+    spiffs *fs,
+    spiffs_fd *fd);
 #endif
 #endif
 

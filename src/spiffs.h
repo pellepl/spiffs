@@ -13,23 +13,23 @@
 #include "spiffs_config.h"
 
 #define SPIFFS_OK                       0
-#define SPIFFS_ERR_FULL                 -10000
-#define SPIFFS_ERR_NOT_FOUND            -10001
-#define SPIFFS_ERR_END_OF_OBJECT        -10002
-#define SPIFFS_ERR_DELETED              -10003
-#define SPIFFS_ERR_NOT_FINALIZED        -10004
-#define SPIFFS_ERR_NOT_INDEX            -10005
-#define SPIFFS_ERR_INDEX_SPAN_MISMATCH  -10006
+#define SPIFFS_ERR_NOT_MOUNTED          -10000
+#define SPIFFS_ERR_FULL                 -10001
+#define SPIFFS_ERR_NOT_FOUND            -10002
+#define SPIFFS_ERR_END_OF_OBJECT        -10003
+#define SPIFFS_ERR_DELETED              -10004
+#define SPIFFS_ERR_NOT_FINALIZED        -10005
+#define SPIFFS_ERR_NOT_INDEX            -10006
 #define SPIFFS_ERR_OUT_OF_FILE_DESCS    -10007
 #define SPIFFS_ERR_FILE_CLOSED          -10008
 #define SPIFFS_ERR_FILE_DELETED         -10009
 #define SPIFFS_ERR_BAD_DESCRIPTOR       -10010
 #define SPIFFS_ERR_IS_INDEX             -10011
-#define SPIFFS_ERR_INDEX_WRONG_ID       -10012
-#define SPIFFS_ERR_DATA_SPAN_MISMATCH   -10013
-#define SPIFFS_ERR_DATA_WRONG_ID        -10014
+#define SPIFFS_ERR_INDEX_SPAN_MISMATCH  -10012
+#define SPIFFS_ERR_INDEX_WRONG_ID       -10013
+#define SPIFFS_ERR_DATA_SPAN_MISMATCH   -10014
+#define SPIFFS_ERR_DATA_WRONG_ID        -10015
 
-#define SPIFFS_COUNTINUE                -11000
 
 // spi read call type
 typedef s32_t (*spiffs_read)(u32_t addr, u32_t size, u8_t *dst);
@@ -173,7 +173,7 @@ typedef struct {
 // functions
 
 /**
- * Initializes the file system dynamic parameters
+ * Initializes the file system dynamic parameters and mounts the filesystem
  * @param fs            the file system struct
  * @param config        the physical and logical configuration of the file system
  * @param work          a memory work buffer comprising 2*config->log_page_size
@@ -183,9 +183,11 @@ typedef struct {
  * @param cache         memory for cache, may be null
  * @param cache_size    memory size of cache
  */
-s32_t SPIFFS_init(spiffs *fs, spiffs_config *config, u8_t *work,
+s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
     u8_t *fd_space, u32_t fd_space_size,
     void *cache, u32_t cache_size);
+
+void SPIFFS_unmount(spiffs *fs);
 
 s32_t SPIFFS_creat(spiffs *fs, const char *path, spiffs_attr attr);
 spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_attr attr, spiffs_mode mode);

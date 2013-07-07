@@ -244,6 +244,13 @@ int read_and_verify(char *name) {
   return 0;
 }
 
+void area_write(u32_t addr, u8_t *buf, u32_t size) {
+  int i;
+  for (i = 0; i < size; i++) {
+    area[addr + i] = *buf++;
+  }
+}
+
 void fs_reset() {
   memset(area, 0xff, sizeof(area));
   spiffs_config c;
@@ -257,7 +264,7 @@ void fs_reset() {
   c.phys_size = sizeof(area);
   memset(erases,0,sizeof(erases));
   memset(_cache,0,sizeof(_cache));
-  SPIFFS_init(&__fs, &c, _work, _fds, sizeof(_fds), _cache, sizeof(_cache));
+  SPIFFS_mount(&__fs, &c, _work, _fds, sizeof(_fds), _cache, sizeof(_cache));
 }
 
 void real_assert(int c, const char *n, const char *file, int l) {

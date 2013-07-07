@@ -236,7 +236,7 @@ spiffs_cache_page *spiffs_cache_page_allocate_by_fd(spiffs *fs, spiffs_fd *fd) {
   return cp;
 }
 
-void spiffs_cache_fh_release(spiffs *fs, spiffs_cache_page *cp) {
+void spiffs_cache_fd_release(spiffs *fs, spiffs_cache_page *cp) {
   if (cp == 0) return;
   int i;
   spiffs_fd *fds = (spiffs_fd *)fs->fd_space;
