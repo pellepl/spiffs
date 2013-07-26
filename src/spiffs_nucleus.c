@@ -255,8 +255,8 @@ s32_t spiffs_obj_lu_scan(
 
   bix = 0;
   spiffs_obj_id erase_count_final;
-  spiffs_obj_id erase_count_min = 0;
-  spiffs_obj_id erase_count_max = SPIFFS_OBJ_ID_FREE;
+  spiffs_obj_id erase_count_min = SPIFFS_OBJ_ID_FREE;
+  spiffs_obj_id erase_count_max = 0;
   while (bix < fs->block_count) {
     spiffs_obj_id erase_count;
     res = _spiffs_rd(fs,

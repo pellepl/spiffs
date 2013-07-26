@@ -693,12 +693,28 @@ s32_t SPIFFS_vis(spiffs *fs) {
       } // per entry
       obj_lookup_page++;
     } // per object lookup page
-    if ((cur_entry & 0x1f) != 0) {
-      spiffs_printf("\n");
+
+    spiffs_obj_id erase_count;
+    res = _spiffs_rd(fs, SPIFFS_OP_C_READ | SPIFFS_OP_T_OBJ_LU2, 0,
+        SPIFFS_ERASE_COUNT_PADDR(fs, bix),
+        sizeof(spiffs_obj_id), (u8_t *)&erase_count);
+    SPIFFS_CHECK_RES(res);
+
+    if (erase_count != (spiffs_obj_id)-1) {
+      spiffs_printf("\tera_cnt: %i\n", erase_count);
+    } else {
+      spiffs_printf("\tera_cnt: N/A\n");
     }
 
     bix++;
   } // per block
+
+  spiffs_printf("era_cnt_max: %i\n", fs->max_erase_count);
+  spiffs_printf("last_errno:  %i\n", fs->errno);
+  spiffs_printf("blocks:      %i\n", fs->block_count);
+  spiffs_printf("free_blocks: %i\n", fs->free_blocks);
+  spiffs_printf("page_alloc:  %i\n", fs->stats_p_allocated);
+  spiffs_printf("page_delet:  %i\n", fs->stats_p_deleted);
 
   SPIFFS_UNLOCK(fs);
   return res;

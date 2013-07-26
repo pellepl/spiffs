@@ -20,7 +20,7 @@ static s32_t spiffs_gc_erase_block(
   fs->free_blocks++;
 
   // register erase count for this block
-  res = _spiffs_wr(fs, SPIFFS_OP_C_UPDT | SPIFFS_OP_T_OBJ_LU2, 0,
+  res = _spiffs_wr(fs, SPIFFS_OP_C_WRTHRU | SPIFFS_OP_T_OBJ_LU2, 0,
       SPIFFS_ERASE_COUNT_PADDR(fs, bix),
       sizeof(spiffs_obj_id), (u8_t *)&fs->max_erase_count);
   SPIFFS_CHECK_RES(res);
