@@ -20,6 +20,10 @@
 
 static void test_on_stop(test *t) {
   printf("  spiffs errno:%i\n", SPIFFS_errno(&__fs));
+#if SPIFFS_TEST_VISUALISATION
+  SPIFFS_vis(FS);
+#endif
+
 }
 
 #define CHECK(r) if (!(r)) return -1;
@@ -56,8 +60,14 @@ int test_create_and_write_file(char *name, int size, int chunk_size) {
   spiffs_file fd;
   printf("    create and write %s", name);
   res = test_create_file(name);
+  if (res < 0) {
+    printf(" failed creation, %i\n",res);
+  }
   CHECK(res >= 0);
   fd = SPIFFS_open(FS, name, 0, SPIFFS_APPEND | SPIFFS_RDWR);
+  if (res < 0) {
+    printf(" failed open, %i\n",res);
+  }
   CHECK(fd >= 0);
   int pfd = open(make_test_fname(name), O_APPEND | O_TRUNC | O_CREAT | O_RDWR);
   int offset = 0;
@@ -85,7 +95,13 @@ int test_create_and_write_file(char *name, int size, int chunk_size) {
 
   spiffs_stat stat;
   res = SPIFFS_fstat(FS, fd, &stat);
+  if (res < 0) {
+    printf(" failed fstat, %i\n",res);
+  }
   CHECK(res >= 0);
+  if (stat.size != size) {
+    printf(" failed size, %i != %i\n", stat.size, size);
+  }
   CHECK(stat.size == size);
 
   SPIFFS_close(FS, fd);
@@ -101,11 +117,11 @@ static u32_t cmiss_tot = 0;
 
 void _setup() {
   fs_reset();
+  fs_set_validate_flashing(1);
   test_init(test_on_stop);
 }
 
 void _teardown() {
-  clear_test_path();
   printf("  free blocks     : %i of %i\n", (FS)->free_blocks, (FS)->block_count);
   printf("  pages allocated : %i\n", (FS)->stats_p_allocated);
   printf("  pages deleted   : %i\n", (FS)->stats_p_deleted);
@@ -121,8 +137,13 @@ void _teardown() {
   printf("  cache utiliz    : %f\n", ((float)chits_tot/(float)(chits_tot + cmiss_tot)));
 #endif
 #endif
-
-
+#if SPIFFS_GC_STATS
+  if ((FS)->stats_gc_runs > 0)
+#endif
+  dump_erase_counts(FS);
+  printf("  fs consistency check:\n");
+  SPIFFS_check(FS);
+  clear_test_path();
 }
 
 typedef enum {
@@ -508,7 +529,7 @@ TEST(list_dir)
 
   SPIFFS_opendir(FS, "/", &d);
   while ((pe = SPIFFS_readdir(&d, pe))) {
-    printf("  %s\n", pe->name);
+    printf("  %s [%04x] size:%i\n", pe->name, pe->obj_id, pe->size);
     // TODO verify
   }
   SPIFFS_closedir(&d);
@@ -693,13 +714,103 @@ TEST(truncate_big_file)
 TEST_END(truncate_big_file)
 
 
+TEST(simultaneous_write) {
+  int res = SPIFFS_creat(FS, "simul1", 0);
+  TEST_CHECK(res >= 0);
+
+  spiffs_file fd1 = SPIFFS_open(FS, "simul1", 0, SPIFFS_RDWR);
+  TEST_CHECK(fd1 > 0);
+  spiffs_file fd2 = SPIFFS_open(FS, "simul1", 0, SPIFFS_RDWR);
+  TEST_CHECK(fd2 > 0);
+  spiffs_file fd3 = SPIFFS_open(FS, "simul1", 0, SPIFFS_RDWR);
+  TEST_CHECK(fd3 > 0);
+
+  u8_t data1 = 1;
+  u8_t data2 = 2;
+  u8_t data3 = 3;
+
+  res = SPIFFS_write(FS, fd1, &data1, 1);
+  TEST_CHECK(res >= 0);
+  SPIFFS_close(FS, fd1);
+  res = SPIFFS_write(FS, fd2, &data2, 1);
+  TEST_CHECK(res >= 0);
+  SPIFFS_close(FS, fd2);
+  res = SPIFFS_write(FS, fd3, &data3, 1);
+  TEST_CHECK(res >= 0);
+  SPIFFS_close(FS, fd3);
+
+  spiffs_stat s;
+  res = SPIFFS_stat(FS, "simul1", &s);
+  TEST_CHECK(res >= 0);
+
+  TEST_CHECK(s.size == 1);
+
+  u8_t rdata;
+  spiffs_file fd = SPIFFS_open(FS, "simul1", 0, SPIFFS_RDONLY);
+  TEST_CHECK(fd > 0);
+  res = SPIFFS_read(FS, fd, &rdata, 1);
+  TEST_CHECK(res >= 0);
+
+  TEST_CHECK(rdata == data3);
+
+  return TEST_RES_OK;
+}
+TEST_END(simultaneous_write)
+
+
+TEST(simultaneous_write_append) {
+  int res = SPIFFS_creat(FS, "simul2", 0);
+  TEST_CHECK(res >= 0);
+
+  spiffs_file fd1 = SPIFFS_open(FS, "simul2", 0, SPIFFS_RDWR | SPIFFS_APPEND);
+  TEST_CHECK(fd1 > 0);
+  spiffs_file fd2 = SPIFFS_open(FS, "simul2", 0, SPIFFS_RDWR | SPIFFS_APPEND);
+  TEST_CHECK(fd2 > 0);
+  spiffs_file fd3 = SPIFFS_open(FS, "simul2", 0, SPIFFS_RDWR | SPIFFS_APPEND);
+  TEST_CHECK(fd3 > 0);
+
+  u8_t data1 = 1;
+  u8_t data2 = 2;
+  u8_t data3 = 3;
+
+  res = SPIFFS_write(FS, fd1, &data1, 1);
+  TEST_CHECK(res >= 0);
+  SPIFFS_close(FS, fd1);
+  res = SPIFFS_write(FS, fd2, &data2, 1);
+  TEST_CHECK(res >= 0);
+  SPIFFS_close(FS, fd2);
+  res = SPIFFS_write(FS, fd3, &data3, 1);
+  TEST_CHECK(res >= 0);
+  SPIFFS_close(FS, fd3);
+
+  spiffs_stat s;
+  res = SPIFFS_stat(FS, "simul2", &s);
+  TEST_CHECK(res >= 0);
+
+  TEST_CHECK(s.size == 3);
+
+  u8_t rdata[3];
+  spiffs_file fd = SPIFFS_open(FS, "simul2", 0, SPIFFS_RDONLY);
+  TEST_CHECK(fd > 0);
+  res = SPIFFS_read(FS, fd, &rdata, 3);
+  TEST_CHECK(res >= 0);
+
+  TEST_CHECK(rdata[0] == data1);
+  TEST_CHECK(rdata[1] == data2);
+  TEST_CHECK(rdata[2] == data3);
+
+  return TEST_RES_OK;
+}
+TEST_END(simultaneous_write_append)
+
 
 TEST(file_uniqueness)
 {
   int res;
   spiffs_file fd;
   char fname[32];
-  int files = (FS_PURE_DATA_PAGES(FS) / 2) - SPIFFS_PAGES_PER_BLOCK(FS)*3;
+  int files = ((SPIFFS_CFG_PHYS_SZ(FS) * 75) / 100) / 2 / SPIFFS_CFG_LOG_PAGE_SZ(FS);
+      //(FS_PURE_DATA_PAGES(FS) / 2) - SPIFFS_PAGES_PER_BLOCK(FS)*8;
   int i;
   printf("  creating %i files\n", files);
   for (i = 0; i < files; i++) {
@@ -847,6 +958,80 @@ TEST(read_chunk_huge)
   return TEST_RES_OK;
 }
 TEST_END(read_chunk_huge)
+
+
+TEST(bad_index_1) {
+  int size = SPIFFS_DATA_PAGE_SIZE(FS)*3;
+  int res = test_create_and_write_file("file", size, size);
+  TEST_CHECK(res >= 0);
+  res = read_and_verify("file");
+  TEST_CHECK(res >= 0);
+
+  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
+  TEST_CHECK(fd > 0);
+  spiffs_stat s;
+  res = SPIFFS_fstat(FS, fd, &s);
+  TEST_CHECK(res >= 0);
+  SPIFFS_close(FS, fd);
+
+  // modify object index, find object index header
+  spiffs_page_ix pix;
+  res = spiffs_obj_lu_find_id_and_span(FS, s.obj_id | SPIFFS_OBJ_ID_IX_FLAG, 0, 0, &pix);
+  TEST_CHECK(res >= 0);
+
+  // set object index entry 2 to a bad page, free
+  u32_t addr = SPIFFS_PAGE_TO_PADDR(FS, pix) + sizeof(spiffs_page_object_ix_header) + 2 * sizeof(spiffs_page_ix);
+  spiffs_page_ix bad_pix_ref = (spiffs_page_ix)-1;
+  area_write(addr, (u8_t*)&bad_pix_ref, sizeof(spiffs_page_ix));
+
+#if SPIFFS_CACHE
+  // delete all cache
+  spiffs_cache *cache = spiffs_get_cache(FS);
+  cache->cpage_use_map = 0;
+#endif
+
+  res = read_and_verify("file");
+  TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_INDEX_REF_FREE);
+
+  return TEST_RES_OK;
+} TEST_END(bad_index_1)
+
+
+TEST(bad_index_2) {
+  int size = SPIFFS_DATA_PAGE_SIZE(FS)*3;
+  int res = test_create_and_write_file("file", size, size);
+  TEST_CHECK(res >= 0);
+  res = read_and_verify("file");
+  TEST_CHECK(res >= 0);
+
+  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
+  TEST_CHECK(fd > 0);
+  spiffs_stat s;
+  res = SPIFFS_fstat(FS, fd, &s);
+  TEST_CHECK(res >= 0);
+  SPIFFS_close(FS, fd);
+
+  // modify object index, find object index header
+  spiffs_page_ix pix;
+  res = spiffs_obj_lu_find_id_and_span(FS, s.obj_id | SPIFFS_OBJ_ID_IX_FLAG, 0, 0, &pix);
+  TEST_CHECK(res >= 0);
+
+  // set object index entry 2 to a bad page, lu
+  u32_t addr = SPIFFS_PAGE_TO_PADDR(FS, pix) + sizeof(spiffs_page_object_ix_header) + 2 * sizeof(spiffs_page_ix);
+  spiffs_page_ix bad_pix_ref = SPIFFS_OBJ_LOOKUP_PAGES(FS)-1;
+  area_write(addr, (u8_t*)&bad_pix_ref, sizeof(spiffs_page_ix));
+
+#if SPIFFS_CACHE
+  // delete all cache
+  spiffs_cache *cache = spiffs_get_cache(FS);
+  cache->cpage_use_map = 0;
+#endif
+
+  res = read_and_verify("file");
+  TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_INDEX_REF_LU);
+
+  return TEST_RES_OK;
+} TEST_END(bad_index_2)
 
 
 TEST(lseek_simple_modification) {
@@ -1011,7 +1196,7 @@ TEST(lseek_read) {
     }
     offs += sizeof(buf);
 
-    res = SPIFFS_lseek(FS, fd, -(sizeof(buf)+11), SPIFFS_SEEK_CUR);
+    res = SPIFFS_lseek(FS, fd, -((u32_t)sizeof(buf)+11), SPIFFS_SEEK_CUR);
     TEST_CHECK(res >= 0);
     offs -= (sizeof(buf)+11);
     res = SPIFFS_read(FS, fd, buf, sizeof(buf));
@@ -1345,7 +1530,7 @@ TEST(long_run)
       },
   };
 
-  int macro_runs = 500;
+  int macro_runs = 1000;
   printf("  ");
   while (macro_runs--) {
     //printf("  ---- run %i ----\n", macro_runs);
@@ -1357,54 +1542,13 @@ TEST(long_run)
     TEST_CHECK(res >= 0);
   }
   printf("\n");
+
+  int res = SPIFFS_check(FS);
+  TEST_CHECK(res >= 0);
+
   return TEST_RES_OK;
 }
 TEST_END(long_run)
 
 SUITE_END(hydrogen_tests)
-
-SUITE(dev_tests)
-void setup() {
-  _setup();
-}
-void teardown() {
-  _teardown();
-}
-TEST(check1) {
-  int size = SPIFFS_DATA_PAGE_SIZE(FS)*3;
-  int res = test_create_and_write_file("file", size, size);
-  TEST_CHECK(res >= 0);
-  res = read_and_verify("file");
-  TEST_CHECK(res >= 0);
-
-  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
-  TEST_CHECK(fd > 0);
-  spiffs_stat s;
-  res = SPIFFS_fstat(FS, fd, &s);
-  TEST_CHECK(res >= 0);
-  SPIFFS_close(FS, fd);
-
-  // modify lu entry data page index 1
-  spiffs_page_ix pix;
-  res = spiffs_obj_lu_find_id_and_index(FS, s.obj_id & ~SPIFFS_OBJ_ID_IX_FLAG, 1, &pix);
-  TEST_CHECK(res >= 0);
-
-  // reset lu entry to being erased, but keep page data
-  spiffs_obj_id obj_id = SPIFFS_OBJ_ID_ERASED;
-  spiffs_block_ix bix = SPIFFS_BLOCK_FOR_PAGE(FS, pix);
-  int entry = SPIFFS_OBJ_LOOKUP_ENTRY_FOR_PAGE(FS, pix);
-  u32_t addr = SPIFFS_BLOCK_TO_PADDR(FS, bix) + entry*sizeof(spiffs_obj_id);
-
-  area_write(addr, (u8_t*)&obj_id, sizeof(spiffs_obj_id));
-
-  spiffs_cache *cache = get_cache(FS);
-  cache->cpage_use_map = 0;
-
-  SPIFFS_check(FS);
-
-
-  return TEST_RES_OK;
-} TEST_END(check1)
-
-SUITE_END(dev_tests)
 

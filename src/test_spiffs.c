@@ -24,22 +24,26 @@
 #include <dirent.h>
 #include <unistd.h>
 
+
+
 #define SECTOR_SIZE 65536  //(0x10000)
 #define PAGE_SIZE   256    //256
-#define LOG_BLOCK   65536
-#define LOG_PAGE    PAGE_SIZE
+#define LOG_BLOCK   1*65536
+#define LOG_PAGE    1*PAGE_SIZE
 
-static unsigned char area[1024*1024*1];
+static unsigned char area[1*1024*1024];
 
 static int erases[sizeof(area)/SECTOR_SIZE];
 static char _path[256];
 
 spiffs __fs;
 static u8_t _work[LOG_PAGE*2];
-static u8_t _fds[256+128];
-static u8_t _cache[256*5];
+static u8_t _fds[LOG_PAGE+LOG_PAGE/2];
+static u8_t _cache[LOG_PAGE*5];
 
-#define TEST_PATH "/home/petera/proj/spiffs_test_/test_data/"
+static int check_valid_flash = 1;
+
+#define TEST_PATH "../test_data/"
 
 char *make_test_fname(const char *name) {
   sprintf(_path, "%s%s", TEST_PATH, name);
@@ -72,7 +76,7 @@ static s32_t _write(u32_t addr, u32_t size, u8_t *src) {
   //printf("wr %08x %i\n", addr, size);
   for (i = 0; i < size; i++) {
     if (((addr + i) & (PAGE_SIZE-1)) != offsetof(spiffs_page_header, flags)) {
-      if (((area[addr + i] ^ src[i]) & src[i])) {
+      if (check_valid_flash && ((area[addr + i] ^ src[i]) & src[i])) {
         printf("trying to write %02x to %02x at addr %08x\n", src[i], area[addr + i], addr+i);
         spiffs_page_ix pix = (addr + i) / PAGE_SIZE;
         dump_page(&__fs, pix);
@@ -149,14 +153,18 @@ void dump_page(spiffs *fs, spiffs_page_ix p) {
     // obj lu page
     printf("OBJ_LU");
   } else {
+    u32_t obj_id_addr = SPIFFS_BLOCK_TO_PADDR(fs, SPIFFS_BLOCK_FOR_PAGE(fs , p)) +
+        SPIFFS_OBJ_LOOKUP_ENTRY_FOR_PAGE(fs, p) * sizeof(spiffs_obj_id);
+    spiffs_obj_id obj_id = *((spiffs_obj_id *)&area[obj_id_addr]);
     // data page
     spiffs_page_header *ph = (spiffs_page_header *)&area[addr];
-    printf("DATA %04x:%04x  ", ph->obj_id & ~SPIFFS_OBJ_ID_IX_FLAG, ph->span_ix);
-    printf("%s", ((ph->flags & SPIFFS_PH_FLAG_FINAL) == 0) ? "F" : "f");
-    printf("%s", ((ph->flags & SPIFFS_PH_FLAG_DELET) == 0) ? "D" : "d");
-    printf("%s", ((ph->flags & SPIFFS_PH_FLAG_INDEX) == 0) ? "I" : "i");
-    printf("%s  ", ((ph->flags & SPIFFS_PH_FLAG_CORRU) == 0) ? "C" : "c");
-    if (ph->obj_id & SPIFFS_OBJ_ID_IX_FLAG) {
+    printf("DATA %04x:%04x  ", obj_id, ph->span_ix);
+    printf("%s", ((ph->flags & SPIFFS_PH_FLAG_FINAL) == 0) ? "FIN " : "fin ");
+    printf("%s", ((ph->flags & SPIFFS_PH_FLAG_DELET) == 0) ? "DEL " : "del ");
+    printf("%s", ((ph->flags & SPIFFS_PH_FLAG_INDEX) == 0) ? "IDX " : "idx ");
+    printf("%s", ((ph->flags & SPIFFS_PH_FLAG_USED) == 0) ? "USD " : "usd ");
+    printf("%s  ", ((ph->flags & SPIFFS_PH_FLAG_IXDELE) == 0) ? "IDL " : "idl ");
+    if (obj_id & SPIFFS_OBJ_ID_IX_FLAG) {
       // object index
       printf("OBJ_IX");
       if (ph->span_ix == 0) {
@@ -251,6 +259,54 @@ void area_write(u32_t addr, u8_t *buf, u32_t size) {
   }
 }
 
+void area_read(u32_t addr, u8_t *buf, u32_t size) {
+  int i;
+  for (i = 0; i < size; i++) {
+    *buf++ = area[addr + i];
+  }
+}
+
+void dump_erase_counts(spiffs *fs) {
+  spiffs_block_ix bix;
+  printf("  BLOCK     |\n");
+  printf("   AGE COUNT|\n");
+  for (bix = 0; bix < fs->block_count; bix++) {
+    printf("----%3i ----|", bix);
+  }
+  printf("\n");
+  for (bix = 0; bix < fs->block_count; bix++) {
+    spiffs_obj_id erase_mark;
+    _spiffs_rd(fs, 0, 0, SPIFFS_ERASE_COUNT_PADDR(fs, bix), sizeof(spiffs_obj_id), (u8_t *)&erase_mark);
+    if (erases[bix] == 0) {
+      printf("            |", bix);
+    } else {
+      printf("%7i %4i|", (fs->max_erase_count - erase_mark), erases[bix]);
+    }
+  }
+  printf("\n");
+}
+
+static u32_t old_perc = 999;
+static void spiffs_check_cb_f(spiffs_check_type type, spiffs_check_report report,
+    u32_t arg1, u32_t arg2) {
+/*  if (report == SPIFFS_CHECK_PROGRESS && old_perc != arg1) {
+    old_perc = arg1;
+    printf("CHECK REPORT: ");
+    switch(type) {
+    case SPIFFS_CHECK_LOOKUP:
+      printf("LU "); break;
+    case SPIFFS_CHECK_INDEX:
+      printf("IX "); break;
+    case SPIFFS_CHECK_PAGE:
+      printf("PA "); break;
+    }
+    printf("%i%%\n", arg1 * 100 / 256);
+  }*/
+  if (report != SPIFFS_CHECK_PROGRESS) {
+    printf("   check cb f: %i %i %08x (%i) %08x\n", type, report, arg1, arg1, arg2);
+  }
+}
+
 void fs_reset() {
   memset(area, 0xff, sizeof(area));
   spiffs_config c;
@@ -264,7 +320,11 @@ void fs_reset() {
   c.phys_size = sizeof(area);
   memset(erases,0,sizeof(erases));
   memset(_cache,0,sizeof(_cache));
-  SPIFFS_mount(&__fs, &c, _work, _fds, sizeof(_fds), _cache, sizeof(_cache));
+  SPIFFS_mount(&__fs, &c, _work, _fds, sizeof(_fds), _cache, sizeof(_cache), spiffs_check_cb_f);
+}
+
+void fs_set_validate_flashing(int i) {
+  check_valid_flash = i;
 }
 
 void real_assert(int c, const char *n, const char *file, int l) {
