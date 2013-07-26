@@ -13,7 +13,8 @@ static s32_t spiffs_fflush_cache(spiffs *fs, spiffs_file fh);
 
 s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
     u8_t *fd_space, u32_t fd_space_size,
-    void *cache, u32_t cache_size) {
+    void *cache, u32_t cache_size,
+    spiffs_check_callback check_cb_f) {
   SPIFFS_LOCK(fs);
   memset(fs, 0, sizeof(spiffs));
   memcpy(&fs->cfg, config, sizeof(spiffs_config));
@@ -63,6 +64,8 @@ s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
   SPIFFS_DBG("object index entries:        %i\n", SPIFFS_OBJ_IX_LEN(fs));
   SPIFFS_DBG("available file descriptors:  %i\n", fs->fd_count);
   SPIFFS_DBG("free blocks:                 %i\n", fs->free_blocks);
+
+  fs->check_cb_f = check_cb_f;
 
   SPIFFS_UNLOCK(fs);
 
@@ -270,7 +273,8 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
           SPIFFS_CACHE_DBG("CACHE_WR_DUMP: dumping cache page %i for fd %i:&04x, boundary viol, offs:%i size:%i\n",
               fd->cache_page->ix, fd->file_nbr, fd->obj_id, fd->cache_page->offset, fd->cache_page->size);
           res = spiffs_hydro_write(fs, fd,
-              get_cache_page(fs, get_cache(fs), fd->cache_page->ix), fd->cache_page->offset, fd->cache_page->size);
+              spiffs_get_cache_page(fs, spiffs_get_cache(fs), fd->cache_page->ix),
+              fd->cache_page->offset, fd->cache_page->size);
           spiffs_cache_fd_release(fs, fd->cache_page);
         } else {
           // writing within cache
@@ -293,8 +297,8 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
         SPIFFS_CACHE_DBG("CACHE_WR_WRITE: storing to cache page %i for fd %i:%04x, offs %i:%i len %i\n",
             fd->cache_page->ix, fd->file_nbr, fd->obj_id,
             offset, offset_in_cpage, len);
-        spiffs_cache *cache = get_cache(fs);
-        u8_t *cpage_data = get_cache_page(fs, cache, fd->cache_page->ix);
+        spiffs_cache *cache = spiffs_get_cache(fs);
+        u8_t *cpage_data = spiffs_get_cache_page(fs, cache, fd->cache_page->ix);
         memcpy(&cpage_data[offset_in_cpage], buf, len);
         fd->cache_page->size = MAX(fd->cache_page->size, offset_in_cpage + len);
         fd->fdoffset += len;
@@ -314,7 +318,8 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
         SPIFFS_CACHE_DBG("CACHE_WR_DUMP: dumping cache page %i for fd %i:%04x, big write, offs:%i size:%i\n",
             fd->cache_page->ix, fd->file_nbr, fd->obj_id, fd->cache_page->offset, fd->cache_page->size);
         res = spiffs_hydro_write(fs, fd,
-            get_cache_page(fs, get_cache(fs), fd->cache_page->ix), fd->cache_page->offset, fd->cache_page->size);
+            spiffs_get_cache_page(fs, spiffs_get_cache(fs), fd->cache_page->ix),
+            fd->cache_page->offset, fd->cache_page->size);
         spiffs_cache_fd_release(fs, fd->cache_page);
         res = spiffs_hydro_write(fs, fd, buf, offset, len);
         SPIFFS_API_CHECK_RES(fs, res);
@@ -363,8 +368,8 @@ s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence) {
   spiffs_span_ix objix_spix = SPIFFS_OBJ_IX_ENTRY_SPAN_IX(fs, data_spix);
   if (fd->cursor_objix_spix != objix_spix) {
     spiffs_page_ix pix;
-    res = spiffs_obj_lu_find_id_and_index(
-        fs, fd->obj_id | SPIFFS_OBJ_ID_IX_FLAG, objix_spix, &pix);
+    res = spiffs_obj_lu_find_id_and_span(
+        fs, fd->obj_id | SPIFFS_OBJ_ID_IX_FLAG, objix_spix, 0, &pix);
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
     fd->cursor_objix_spix = objix_spix;
     fd->cursor_objix_pix = pix;
@@ -380,16 +385,29 @@ s32_t SPIFFS_remove(spiffs *fs, const char *path) {
   SPIFFS_API_CHECK_MOUNT(fs);
   SPIFFS_LOCK(fs);
 
-  spiffs_fd fd;
+  spiffs_fd *fd;
   spiffs_page_ix pix;
   s32_t res;
-  fd.file_nbr = 0;
-  fd.fs = fs;
+
+  res = spiffs_fd_find_new(fs, &fd);
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
   res = spiffs_object_find_object_index_header_by_name(fs, (u8_t*)path, &pix);
+  if (res != SPIFFS_OK) {
+    spiffs_fd_return(fs, fd->file_nbr);
+  }
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
-  res = spiffs_object_open_by_page(fs, pix, &fd, 0,0);
+
+  res = spiffs_object_open_by_page(fs, pix, fd, 0,0);
+  if (res != SPIFFS_OK) {
+    spiffs_fd_return(fs, fd->file_nbr);
+  }
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
-  res = spiffs_object_truncate(&fd, 0, 1);
+
+  res = spiffs_object_truncate(fd, 0, 1);
+  if (res != SPIFFS_OK) {
+    spiffs_fd_return(fs, fd->file_nbr);
+  }
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
   SPIFFS_UNLOCK(fs);
@@ -418,13 +436,50 @@ s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh) {
   return 0;
 }
 
+static s32_t spiffs_stat_pix(spiffs *fs, spiffs_page_ix pix, spiffs_file fh, spiffs_stat *s) {
+  spiffs_page_object_ix_header objix_hdr;
+  spiffs_obj_id obj_id;
+  s32_t res =_spiffs_rd(fs,  SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ, fh,
+      SPIFFS_PAGE_TO_PADDR(fs, pix), sizeof(spiffs_page_object_ix_header), (u8_t *)&objix_hdr);
+  SPIFFS_API_CHECK_RES(fs, res);
+
+  u32_t obj_id_addr = SPIFFS_BLOCK_TO_PADDR(fs, SPIFFS_BLOCK_FOR_PAGE(fs , pix)) +
+      SPIFFS_OBJ_LOOKUP_ENTRY_FOR_PAGE(fs, pix) * sizeof(spiffs_obj_id);
+  res =_spiffs_rd(fs,  SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ, fh,
+      obj_id_addr, sizeof(spiffs_obj_id), (u8_t *)&obj_id);
+  SPIFFS_API_CHECK_RES(fs, res);
+
+  s->obj_id = obj_id;
+  s->type = objix_hdr.type;
+  s->size = objix_hdr.size == SPIFFS_UNDEFINED_LEN ? 0 : objix_hdr.size;
+  strncpy((char *)s->name, (char *)objix_hdr.name, SPIFFS_OBJ_NAME_LEN);
+
+  return res;
+}
+
+s32_t SPIFFS_stat(spiffs *fs, const char *path, spiffs_stat *s) {
+  SPIFFS_API_CHECK_MOUNT(fs);
+  SPIFFS_LOCK(fs);
+
+  s32_t res;
+  spiffs_page_ix pix;
+
+  res = spiffs_object_find_object_index_header_by_name(fs, (u8_t*)path, &pix);
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  res = spiffs_stat_pix(fs, pix, 0, s);
+
+  SPIFFS_UNLOCK(fs);
+
+  return res;
+}
+
 s32_t SPIFFS_fstat(spiffs *fs, spiffs_file fh, spiffs_stat *s) {
   SPIFFS_API_CHECK_MOUNT(fs);
   SPIFFS_LOCK(fs);
 
   spiffs_fd *fd;
   s32_t res;
-  spiffs_page_object_ix_header objix_hdr;
 
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
@@ -433,17 +488,7 @@ s32_t SPIFFS_fstat(spiffs *fs, spiffs_file fh, spiffs_stat *s) {
   spiffs_fflush_cache(fs, fh);
 #endif
 
-  res = spiffs_phys_rd(fs,
-#if SPIFFS_CACHE
-      SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ, fh,
-#endif
-      SPIFFS_PAGE_TO_PADDR(fs, fd->objix_hdr_pix), sizeof(spiffs_page_object_ix_header), (u8_t *)&objix_hdr);
-  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
-
-  s->obj_id = objix_hdr.p_hdr.obj_id;
-  s->type = objix_hdr.type;
-  s->size = objix_hdr.size == SPIFFS_UNDEFINED_LEN ? 0 : objix_hdr.size;
-  strncpy((char *)s->name, (char *)objix_hdr.name, SPIFFS_OBJ_NAME_LEN);
+  res = spiffs_stat_pix(fs, fd->objix_hdr_pix, fh, s);
 
   SPIFFS_UNLOCK(fs);
 
@@ -467,7 +512,8 @@ static s32_t spiffs_fflush_cache(spiffs *fs, spiffs_file fh) {
       SPIFFS_CACHE_DBG("CACHE_WR_DUMP: dumping cache page %i for fd %i:%04x, flush, offs:%i size:%i\n",
           fd->cache_page->ix, fd->file_nbr,  fd->obj_id, fd->cache_page->offset, fd->cache_page->size);
       res = spiffs_hydro_write(fs, fd,
-          get_cache_page(fs, get_cache(fs), fd->cache_page->ix), fd->cache_page->offset, fd->cache_page->size);
+          spiffs_get_cache_page(fs, spiffs_get_cache(fs), fd->cache_page->ix),
+          fd->cache_page->offset, fd->cache_page->size);
       spiffs_cache_fd_release(fs, fd->cache_page);
     }
   }
@@ -524,7 +570,7 @@ static s32_t spiffs_read_dir_v(
     void *user_p) {
   s32_t res;
   spiffs_page_object_ix_header objix_hdr;
-  if (obj_id == SPIFFS_OBJ_ID_FREE || obj_id == SPIFFS_OBJ_ID_ERASED ||
+  if (obj_id == SPIFFS_OBJ_ID_FREE || obj_id == SPIFFS_OBJ_ID_DELETED ||
       (obj_id & SPIFFS_OBJ_ID_IX_FLAG) == 0) {
     return SPIFFS_VIS_COUNTINUE;
   }
@@ -533,11 +579,12 @@ static s32_t spiffs_read_dir_v(
   res = _spiffs_rd(fs, SPIFFS_OP_T_OBJ_LU2 | SPIFFS_OP_C_READ,
       0, SPIFFS_PAGE_TO_PADDR(fs, pix), sizeof(spiffs_page_object_ix_header), (u8_t *)&objix_hdr);
   if (res != SPIFFS_OK) return res;
-  if ((objix_hdr.p_hdr.obj_id & SPIFFS_OBJ_ID_IX_FLAG) &&
+  if ((obj_id & SPIFFS_OBJ_ID_IX_FLAG) &&
       objix_hdr.p_hdr.span_ix == 0 &&
-      (objix_hdr.p_hdr.flags& (SPIFFS_PH_FLAG_DELET | SPIFFS_PH_FLAG_FINAL)) == SPIFFS_PH_FLAG_DELET) {
+      (objix_hdr.p_hdr.flags& (SPIFFS_PH_FLAG_DELET | SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_IXDELE)) ==
+          (SPIFFS_PH_FLAG_DELET | SPIFFS_PH_FLAG_IXDELE)) {
     struct spiffs_dirent *e = (struct spiffs_dirent *)user_p;
-    e->obj_id = objix_hdr.p_hdr.obj_id;
+    e->obj_id = obj_id;
     strcpy((char *)e->name, (char *)objix_hdr.name);
     e->type = objix_hdr.type;
     e->size = objix_hdr.size == SPIFFS_UNDEFINED_LEN ? 0 : objix_hdr.size;
@@ -590,8 +637,70 @@ s32_t SPIFFS_check(spiffs *fs) {
   SPIFFS_API_CHECK_MOUNT(fs);
   SPIFFS_LOCK(fs);
 
-  res = spiffs_area_check(fs, 0);
+  res = spiffs_lookup_consistency_check(fs, 0);
+
+  res = spiffs_object_index_consistency_check(fs);
+
+  res = spiffs_page_consistency_check(fs);
+
+  res = spiffs_obj_lu_scan(fs);
 
   SPIFFS_UNLOCK(fs);
   return res;
 }
+
+#if SPIFFS_TEST_VISUALISATION
+s32_t SPIFFS_vis(spiffs *fs) {
+  s32_t res = SPIFFS_OK;
+  SPIFFS_API_CHECK_MOUNT(fs);
+  SPIFFS_LOCK(fs);
+
+  u32_t entries_per_page = (SPIFFS_CFG_LOG_PAGE_SZ(fs) / sizeof(spiffs_obj_id));
+  spiffs_obj_id *obj_lu_buf = (spiffs_obj_id *)fs->lu_work;
+  spiffs_block_ix bix = 0;
+
+  while (bix < fs->block_count) {
+    // check each object lookup page
+    int obj_lookup_page = 0;
+    int cur_entry = 0;
+
+    while (res == SPIFFS_OK && obj_lookup_page < SPIFFS_OBJ_LOOKUP_PAGES(fs)) {
+      int entry_offset = obj_lookup_page * entries_per_page;
+      res = _spiffs_rd(fs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ,
+          0, SPIFFS_BLOCK_TO_PADDR(fs, bix) + SPIFFS_PAGE_TO_PADDR(fs, obj_lookup_page), SPIFFS_CFG_LOG_PAGE_SZ(fs), fs->lu_work);
+      // check each entry
+      while (res == SPIFFS_OK &&
+          cur_entry - entry_offset < entries_per_page && cur_entry < SPIFFS_PAGES_PER_BLOCK(fs)-SPIFFS_OBJ_LOOKUP_PAGES(fs)) {
+        spiffs_obj_id obj_id = obj_lu_buf[cur_entry-entry_offset];
+        if (cur_entry == 0) {
+          spiffs_printf("%4i ", bix);
+        } else if ((cur_entry & 0x3f) == 0) {
+          spiffs_printf("     ");
+        }
+        if (obj_id == SPIFFS_OBJ_ID_FREE) {
+          spiffs_printf(SPIFFS_TEST_VIS_FREE_STR);
+        } else if (obj_id == SPIFFS_OBJ_ID_DELETED) {
+          spiffs_printf(SPIFFS_TEST_VIS_DELE_STR);
+        } else if (obj_id & SPIFFS_OBJ_ID_IX_FLAG){
+          spiffs_printf(SPIFFS_TEST_VIS_INDX_STR(obj_id));
+        } else {
+          spiffs_printf(SPIFFS_TEST_VIS_DATA_STR(obj_id));
+        }
+        cur_entry++;
+        if ((cur_entry & 0x3f) == 0) {
+          spiffs_printf("\n");
+        }
+      } // per entry
+      obj_lookup_page++;
+    } // per object lookup page
+    if ((cur_entry & 0x1f) != 0) {
+      spiffs_printf("\n");
+    }
+
+    bix++;
+  } // per block
+
+  SPIFFS_UNLOCK(fs);
+  return res;
+}
+#endif

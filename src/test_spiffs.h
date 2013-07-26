@@ -20,8 +20,8 @@ void dump_page(spiffs *fs, spiffs_page_ix p);
 void hexdump(u32_t addr, u32_t len);
 char *make_test_fname(const char *name);
 void clear_test_path();
-u8_t area_read(u32_t addr);
 void area_write(u32_t addr, u8_t *buf, u32_t size);
+void area_read(u32_t addr, u8_t *buf, u32_t size);
 
 
 #endif /* TEST_SPIFFS_H_ */

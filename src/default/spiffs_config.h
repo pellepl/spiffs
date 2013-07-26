@@ -20,6 +20,7 @@
 #define SPIFFS_DBG(...)
 #define SPIFFS_GC_DBG(...)
 #define SPIFFS_CACHE_DBG(...)
+#define SPIFFS_CHECK_DBG(...)
 
 // define maximum number of gc runs to perform to reach desired free pages
 #define SPIFFS_GC_MAX_RUNS              3
@@ -49,6 +50,9 @@
 #define SPIFFS_GC_HEUR_W_DELET          (10)
 // garbage collecting heuristics - weight used for used pages
 #define SPIFFS_GC_HEUR_W_USED           (-1)
+// garbage collecting heuristics - weight used for time between
+// last erased and erase of this block
+#define SPIFFS_GC_HEUR_W_ERASE_AGE      (30)
 
 // object name length
 #define SPIFFS_OBJ_NAME_LEN (32 - sizeof(spiffs_obj_type))
@@ -78,7 +82,7 @@ typedef u16_t spiffs_span_ix;
 typedef u8_t spiffs_obj_type;
 
 // enable if only one spiffs instance with constant configuration will exist
-// on the target, this will remove calculations and memory accesses
+// on the target, this will reduce calculations, flash and memory accesses
 //#define SPIFFS_SINGLETON
 
 #ifdef SPIFFS_SINGLETON
@@ -89,6 +93,15 @@ typedef u8_t spiffs_obj_type;
 #define SPIFFS_CFG_PHYS_ADDR(ignore)      (0)
 #define SPIFFS_CFG_LOG_PAGE_SZ(ignore)    (256)
 #define SPIFFS_CFG_LOG_BLOCK_SZ(ignore)   (65536)
+#endif
+
+#define SPIFFS_TEST_VISUALISATION         1
+#if SPIFFS_TEST_VISUALISATION
+#define spiffs_printf(...)                printf(__VA_ARGS__)
+#define SPIFFS_TEST_VIS_FREE_STR          "_"
+#define SPIFFS_TEST_VIS_DELE_STR          "/"
+#define SPIFFS_TEST_VIS_INDX_STR(id)      "i"
+#define SPIFFS_TEST_VIS_DATA_STR(id)      "d"
 #endif
 
 #endif /* SPIFFS_CONFIG_H_ */

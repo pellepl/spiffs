@@ -32,6 +32,8 @@ MKDIR = mkdir -p
 
 FILES = main.c \
 	test_spiffs.c \
+	test_dev.c \
+	test_check.c \
 	test_hydrogen.c \
 	testsuites.c \
 	testrunner.c

@@ -25,10 +25,17 @@
 #define SPIFFS_ERR_FILE_DELETED         -10009
 #define SPIFFS_ERR_BAD_DESCRIPTOR       -10010
 #define SPIFFS_ERR_IS_INDEX             -10011
-#define SPIFFS_ERR_INDEX_SPAN_MISMATCH  -10012
-#define SPIFFS_ERR_INDEX_WRONG_ID       -10013
+#define SPIFFS_ERR_IS_FREE              -10012
+#define SPIFFS_ERR_INDEX_SPAN_MISMATCH  -10013
 #define SPIFFS_ERR_DATA_SPAN_MISMATCH   -10014
-#define SPIFFS_ERR_DATA_WRONG_ID        -10015
+#define SPIFFS_ERR_INDEX_REF_FREE       -10015
+#define SPIFFS_ERR_INDEX_REF_LU         -10016
+#define SPIFFS_ERR_INDEX_REF_INVALID    -10017
+#define SPIFFS_ERR_INDEX_FREE           -10018
+#define SPIFFS_ERR_INDEX_LU             -10019
+#define SPIFFS_ERR_INDEX_INVALID        -10020
+
+#define SPIFFS_ERR_INTERNAL             -10050
 
 
 // spi read call type
@@ -37,6 +44,25 @@ typedef s32_t (*spiffs_read)(u32_t addr, u32_t size, u8_t *dst);
 typedef s32_t (*spiffs_write)(u32_t addr, u32_t size, u8_t *src);
 // spi erase call type
 typedef s32_t (*spiffs_erase)(u32_t addr, u32_t size);
+
+
+typedef enum {
+  SPIFFS_CHECK_LOOKUP = 0,
+  SPIFFS_CHECK_INDEX,
+  SPIFFS_CHECK_PAGE
+} spiffs_check_type;
+
+typedef enum {
+  SPIFFS_CHECK_PROGRESS = 0,
+  SPIFFS_CHECK_ERROR,
+  SPIFFS_CHECK_FIX_INDEX,
+  SPIFFS_CHECK_DELETE_ORPHANED_INDEX,
+  SPIFFS_CHECK_DELETE_PAGE,
+  SPIFFS_CHECK_DELETE_BAD_FILE,
+} spiffs_check_report;
+
+typedef void (*spiffs_check_callback)(spiffs_check_type type, spiffs_check_report report,
+    u32_t arg1, u32_t arg2);
 
 // size of buffer on stack used when copying data
 #define SPIFFS_COPY_BUFFER_STACK        (64)
@@ -50,6 +76,9 @@ typedef s32_t (*spiffs_erase)(u32_t addr, u32_t size);
 #endif
 #ifndef SPIFFS_CACHE_DBG
 #define SPIFFS_CACHE_DBG(...) printf(__VA_ARGS__)
+#endif
+#ifndef SPIFFS_CHECK_DBG
+#define SPIFFS_CHECK_DBG(...) printf(__VA_ARGS__)
 #endif
 
 #define SPIFFS_APPEND                   (1<<0)
@@ -130,24 +159,37 @@ typedef struct {
   // available file descriptors
   u32_t fd_count;
 
+  // last error
   s32_t errno;
 
+  // current number of free blocks
   u32_t free_blocks;
-
+  // current number of busy pages
   u32_t stats_p_allocated;
+  // current number of deleted pages
   u32_t stats_p_deleted;
+  // flag indicating that garbage collector is cleaning
+  u8_t cleaning;
+  // max erase count amongst all blocks
+  spiffs_obj_id max_erase_count;
+
 #if SPIFFS_GC_STATS
   u32_t stats_gc_runs;
 #endif
 
 #if SPIFFS_CACHE
+  // cache memory
   void *cache;
+  // cache size
   u32_t cache_size;
 #if SPIFFS_CACHE_STATS
   u32_t cache_hits;
   u32_t cache_misses;
 #endif
 #endif
+
+  // check callback function
+  spiffs_check_callback check_cb_f;
 } spiffs;
 
 typedef struct {
@@ -185,7 +227,8 @@ typedef struct {
  */
 s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
     u8_t *fd_space, u32_t fd_space_size,
-    void *cache, u32_t cache_size);
+    void *cache, u32_t cache_size,
+    spiffs_check_callback check_cb_f);
 
 void SPIFFS_unmount(spiffs *fs);
 
@@ -196,6 +239,7 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len);
 s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence);
 s32_t SPIFFS_remove(spiffs *fs, const char *path);
 s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh);
+s32_t SPIFFS_stat(spiffs *fs, const char *path, spiffs_stat *s);
 s32_t SPIFFS_fstat(spiffs *fs, spiffs_file fh, spiffs_stat *s);
 s32_t SPIFFS_fflush(spiffs *fs, spiffs_file fh);
 void SPIFFS_close(spiffs *fs, spiffs_file fh);
@@ -206,5 +250,9 @@ s32_t SPIFFS_closedir(spiffs_DIR *d);
 struct spiffs_dirent *SPIFFS_readdir(spiffs_DIR *d, struct spiffs_dirent *e);
 
 s32_t SPIFFS_check(spiffs *fs);
+
+#if SPIFFS_TEST_VISUALISATION
+s32_t SPIFFS_vis(spiffs *fs);
+#endif
 
 #endif /* SPIFFS_H_ */
