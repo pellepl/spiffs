@@ -31,7 +31,7 @@
 #define LOG_BLOCK   1*65536
 #define LOG_PAGE    1*PAGE_SIZE
 
-static unsigned char area[2*1024*1024];
+static unsigned char area[8*1024*1024];
 
 static int erases[sizeof(area)/SECTOR_SIZE];
 static char _path[256];

@@ -1283,10 +1283,6 @@ s32_t spiffs_object_find_object_index_header_by_name(
   return res;
 }
 
-void stop() {
-  printf("break");
-}
-
 // Truncates object to new size. If new size is null, object may be removed totally
 s32_t spiffs_object_truncate(
     spiffs_fd *fd,
