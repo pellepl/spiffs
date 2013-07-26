@@ -26,6 +26,9 @@ static s32_t spiffs_gc_erase_block(
   SPIFFS_CHECK_RES(res);
 
   fs->max_erase_count++;
+  if (fs->max_erase_count == SPIFFS_OBJ_ID_IX_FLAG) {
+    fs->max_erase_count = 0;
+  }
 
 #if SPIFFS_CACHE
   {
