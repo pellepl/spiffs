@@ -8,7 +8,8 @@
 #ifndef SPIFFS_CONFIG_H_
 #define SPIFFS_CONFIG_H_
 
-
+// following includes are for the linux test build of spiffs
+// this may/should/must be removed/altered/replaced in your target
 #include "stypes.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,9 +18,13 @@
 
 // compile time switches
 
+// set generic spiffs debug output
 #define SPIFFS_DBG(...)
+// set spiffs debug output for garbage collecting
 #define SPIFFS_GC_DBG(...)
+// set spiffs debug output for caching
 #define SPIFFS_CACHE_DBG(...)
+// set spiffs debug output for system consistency checks
 #define SPIFFS_CHECK_DBG(...)
 
 // define maximum number of gc runs to perform to reach desired free pages

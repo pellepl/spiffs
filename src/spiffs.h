@@ -224,6 +224,7 @@ typedef struct {
  * @param fd_space_size memory size of file descriptors
  * @param cache         memory for cache, may be null
  * @param cache_size    memory size of cache
+ * @param check_cb_f    callback function for reporting during consistency checks
  */
 s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
     u8_t *fd_space, u32_t fd_space_size,
