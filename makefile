@@ -77,10 +77,11 @@ $(DEPFILES) : ${builddir}/%.d:%.c
 		sed 's,\($*\)\.o[ :]*, ${builddir}/\1.o $@ : ,g' < $@.$$$$ > $@; \
 		rm -f $@.$$$$
 
-all: mkdirs $(BINARY)
+all: mkdirs $(BINARY) 
 
 mkdirs:
 	-@${MKDIR} ${builddir}
+	-@${MKDIR} test_data
 
 test: all
 		./build/$(BINARY)
