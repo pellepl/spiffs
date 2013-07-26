@@ -576,7 +576,7 @@ static s32_t spiffs_page_consistency_check_i(spiffs *fs) {
                 // index bad also, cannot mend this file
                 SPIFFS_CHECK_DBG("PA: FIXUP: index bad %i, cannot mend - delete object\n", res);
                 // delete file
-                res = spiffs_delete_obj_lazy(fs, objix_p_hdr->obj_id);
+                res = spiffs_page_delete(fs, cur_pix);
               }
               SPIFFS_CHECK_RES(res);
               restart = 1;

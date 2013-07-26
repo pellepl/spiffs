@@ -31,14 +31,14 @@
 #define LOG_BLOCK   1*65536
 #define LOG_PAGE    1*PAGE_SIZE
 
-static unsigned char area[1*1024*1024];
+static unsigned char area[2*1024*1024];
 
 static int erases[sizeof(area)/SECTOR_SIZE];
 static char _path[256];
 
 spiffs __fs;
 static u8_t _work[LOG_PAGE*2];
-static u8_t _fds[LOG_PAGE+LOG_PAGE/2];
+static u8_t _fds[256+256/2];
 static u8_t _cache[LOG_PAGE*5];
 
 static int check_valid_flash = 1;

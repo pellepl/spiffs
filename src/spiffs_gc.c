@@ -1,6 +1,43 @@
 #include "spiffs.h"
 #include "spiffs_nucleus.h"
 
+static s32_t spiffs_gc_erase_block(
+    spiffs *fs,
+    spiffs_block_ix bix) {
+  s32_t res;
+  u32_t addr = SPIFFS_BLOCK_TO_PADDR(fs, bix);
+  s32_t size = SPIFFS_CFG_LOG_BLOCK_SZ(fs);
+
+  SPIFFS_GC_DBG("gc: erase block %i\n", bix);
+
+  // here we ignore res, just try erasing the block
+  while (size > 0) {
+    SPIFFS_GC_DBG("gc: erase %08x:%08x\n", addr,  SPIFFS_CFG_PHYS_ERASE_SZ(fs));
+    (void)fs->cfg.hal_erase_f(addr, SPIFFS_CFG_PHYS_ERASE_SZ(fs));
+    addr += SPIFFS_CFG_PHYS_ERASE_SZ(fs);
+    size -= SPIFFS_CFG_PHYS_ERASE_SZ(fs);
+  }
+  fs->free_blocks++;
+
+  // register erase count for this block
+  res = _spiffs_wr(fs, SPIFFS_OP_C_UPDT | SPIFFS_OP_T_OBJ_LU2, 0,
+      SPIFFS_ERASE_COUNT_PADDR(fs, bix),
+      sizeof(spiffs_obj_id), (u8_t *)&fs->max_erase_count);
+  SPIFFS_CHECK_RES(res);
+
+  fs->max_erase_count++;
+
+#if SPIFFS_CACHE
+  {
+    int i;
+    for (i = 0; i < SPIFFS_PAGES_PER_BLOCK(fs); i++) {
+      spiffs_cache_drop_page(fs, SPIFFS_PAGE_FOR_BLOCK(fs, bix) + i);
+    }
+  }
+#endif
+  return res;
+}
+
 s32_t spiffs_gc_quick(
     spiffs *fs) {
   s32_t res = SPIFFS_OK;
@@ -9,6 +46,11 @@ s32_t spiffs_gc_quick(
   u32_t cur_block_addr = SPIFFS_CFG_PHYS_ADDR(fs);
   int cur_entry = 0;
   spiffs_obj_id *obj_lu_buf = (spiffs_obj_id *)fs->lu_work;
+
+  SPIFFS_GC_DBG("gc_quick: running\n", cur_block);
+#if SPIFFS_GC_STATS
+  fs->stats_gc_runs++;
+#endif
 
   u32_t entries_per_page = (SPIFFS_CFG_LOG_PAGE_SZ(fs) / sizeof(spiffs_obj_id));
 
@@ -27,12 +69,14 @@ s32_t spiffs_gc_quick(
       while (res == SPIFFS_OK &&
           cur_entry - entry_offset < entries_per_page && cur_entry < SPIFFS_PAGES_PER_BLOCK(fs)-SPIFFS_OBJ_LOOKUP_PAGES(fs)) {
         spiffs_obj_id obj_id = obj_lu_buf[cur_entry-entry_offset];
-        if (obj_id == SPIFFS_OBJ_ID_FREE) {
+        if (obj_id == SPIFFS_OBJ_ID_DELETED) {
+          deleted_pages_in_block++;
+        } else if (obj_id == SPIFFS_OBJ_ID_FREE) {
+          // kill scan, go for next block
           obj_lookup_page = SPIFFS_OBJ_LOOKUP_PAGES(fs);
           break;
-        } else  if (obj_id == SPIFFS_OBJ_ID_DELETED) {
-          deleted_pages_in_block++;
-        } else {
+        }  else {
+          // kill scan, go for next block
           obj_lookup_page = SPIFFS_OBJ_LOOKUP_PAGES(fs);
           break;
         }
@@ -44,36 +88,7 @@ s32_t spiffs_gc_quick(
     if (res == SPIFFS_OK && deleted_pages_in_block == SPIFFS_PAGES_PER_BLOCK(fs)-SPIFFS_OBJ_LOOKUP_PAGES(fs)) {
       // found a fully deleted block
       fs->stats_p_deleted -= deleted_pages_in_block;
-
-      u32_t addr = SPIFFS_BLOCK_TO_PADDR(fs, cur_block);
-      s32_t size = SPIFFS_CFG_LOG_BLOCK_SZ(fs);
-
-      SPIFFS_GC_DBG("gc_check: erase block %i\n", cur_block);
-
-      while (size > 0) {
-        SPIFFS_GC_DBG("gc_check: erase %08x:%08x\n", addr,  SPIFFS_CFG_PHYS_ERASE_SZ(fs));
-        res = fs->cfg.hal_erase_f(addr, SPIFFS_CFG_PHYS_ERASE_SZ(fs));
-        addr += SPIFFS_CFG_PHYS_ERASE_SZ(fs);
-        size -= SPIFFS_CFG_PHYS_ERASE_SZ(fs);
-      }
-      fs->free_blocks++;
-
-      // register erase count for this block
-      res = _spiffs_wr(fs, SPIFFS_OP_C_UPDT | SPIFFS_OP_T_OBJ_LU2, 0,
-          SPIFFS_ERASE_COUNT_PADDR(fs, cur_block),
-          sizeof(spiffs_obj_id), (u8_t *)&fs->max_erase_count);
-      SPIFFS_CHECK_RES(res);
-
-      fs->max_erase_count++;
-
-#if SPIFFS_CACHE
-      {
-        int i;
-        for (i = 0; i < SPIFFS_PAGES_PER_BLOCK(fs); i++) {
-          spiffs_cache_drop_page(fs, SPIFFS_PAGE_FOR_BLOCK(fs, cur_block) + i);
-        }
-      }
-#endif
+      res = spiffs_gc_erase_block(fs, cur_block);
       return res;
     }
 
@@ -134,42 +149,13 @@ s32_t spiffs_gc_check(
     res = spiffs_gc_erase_page_stats(fs, cand);
     SPIFFS_CHECK_RES(res);
 
-    u32_t addr = SPIFFS_BLOCK_TO_PADDR(fs, cand);
-    s32_t size = SPIFFS_CFG_LOG_BLOCK_SZ(fs);
+    res = spiffs_gc_erase_block(fs, cand);
+    SPIFFS_CHECK_RES(res);
 
-    // here we ignore res, just try erasing the block
-    SPIFFS_GC_DBG("gc_check: erase block %i\n", cand);
-    //printf("gcing: erase block %i\n", cand);
-    while (size > 0) {
-      SPIFFS_GC_DBG("gc_check: erase %08x:%08x\n", addr,  SPIFFS_CFG_PHYS_ERASE_SZ(fs));
-      res = fs->cfg.hal_erase_f(addr, SPIFFS_CFG_PHYS_ERASE_SZ(fs));
-      addr += SPIFFS_CFG_PHYS_ERASE_SZ(fs);
-      size -= SPIFFS_CFG_PHYS_ERASE_SZ(fs);
-    }
-    fs->free_blocks++;
     free_pages =
           (SPIFFS_PAGES_PER_BLOCK(fs) - SPIFFS_OBJ_LOOKUP_PAGES(fs)) * fs->block_count
           - fs->stats_p_allocated - fs->stats_p_deleted;
 
-    // register erase count for this block
-    res = _spiffs_wr(fs, SPIFFS_OP_C_UPDT | SPIFFS_OP_T_OBJ_LU2, 0,
-        SPIFFS_ERASE_COUNT_PADDR(fs, cand),
-        sizeof(spiffs_obj_id), (u8_t *)&fs->max_erase_count);
-    SPIFFS_CHECK_RES(res);
-
-    fs->max_erase_count++;
-
-#if SPIFFS_CACHE
-    {
-      int i;
-      for (i = 0; i < SPIFFS_PAGES_PER_BLOCK(fs); i++) {
-        spiffs_cache_drop_page(fs, SPIFFS_PAGE_FOR_BLOCK(fs, cand) + i);
-      }
-    }
-#endif
-    //printf("gcing  #%i  free blocks %i, free data %i of %i\n",
-    //    tries, fs->free_blocks,
-    //    free_pages*SPIFFS_DATA_PAGE_SIZE(fs), len);
   } while (++tries < SPIFFS_GC_MAX_RUNS && (fs->free_blocks <= 2 ||
       len > free_pages*SPIFFS_DATA_PAGE_SIZE(fs)));
   SPIFFS_GC_DBG("gc_check: finished\n");

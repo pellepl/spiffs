@@ -296,7 +296,11 @@ s32_t spiffs_obj_lu_find_free(
     int *index_entry) {
   s32_t res;
   if (!fs->cleaning && fs->free_blocks < 2) {
-    return SPIFFS_ERR_FULL;
+    res = spiffs_gc_quick(fs);
+    SPIFFS_CHECK_RES(res);
+    if (fs->free_blocks < 2) {
+      return SPIFFS_ERR_FULL;
+    }
   }
   res = spiffs_obj_lu_find_id(fs, starting_block, starting_index_entry,
       SPIFFS_OBJ_ID_FREE, block_ix, index_entry);
