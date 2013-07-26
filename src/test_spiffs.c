@@ -31,7 +31,7 @@
 #define LOG_BLOCK   1*65536
 #define LOG_PAGE    1*PAGE_SIZE
 
-static unsigned char area[8*1024*1024];
+static unsigned char area[2*1024*1024];
 
 static int erases[sizeof(area)/SECTOR_SIZE];
 static char _path[256];
@@ -43,7 +43,7 @@ static u8_t _cache[LOG_PAGE*5];
 
 static int check_valid_flash = 1;
 
-#define TEST_PATH "../test_data/"
+#define TEST_PATH "test_data/"
 
 char *make_test_fname(const char *name) {
   sprintf(_path, "%s%s", TEST_PATH, name);

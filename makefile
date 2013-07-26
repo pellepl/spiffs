@@ -81,6 +81,9 @@ all: mkdirs $(BINARY)
 
 mkdirs:
 	-@${MKDIR} ${builddir}
+
+test: all
+		./build/$(BINARY)
 	
 clean:
 	@echo ... removing build files in ${builddir}
