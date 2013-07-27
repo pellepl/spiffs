@@ -1,9 +1,13 @@
 SPIFFS (SPI Flash File System)
-V1.0
+V0.1
 
 Copyright (c) 2013 Peter Andersson
 
-For legal stuff, see LICENCE in this directory.
+For legal stuff, see LICENCE in this directory. Basically, you may do whatever
+you want with the source. Use, modify, sell, print it out and smoke it - as
+long as I won't be held responsible.
+
+Love to hear feedback though!
 
 
 * INTRODUCTION
@@ -11,14 +15,29 @@ For legal stuff, see LICENCE in this directory.
 Spiffs is a file system intended for SPI flash devices on embedded targets.
 
 Spiffs is designed with following characteristics in mind:
- - Small (embedded) target, sparse RAM
+ - Small (embedded) targets, sparse RAM
  - Only big areas of data (blocks) can be erased
  - An erase will reset all bits in block to ones
  - Writing pulls one to zeroes
  - Zeroes can only be pulled to ones by erase
  - Wear leveling
 
-Spiffs is inspired by YAFFS structurally, but is a clean write from scratch.
+** Features
+
+What spiffs does:
+ - Spiffs presents a posix-like api: open, close, read, write, seek, stat, etc
+ - Multiple spiffs configurations can be run on same target - and even on same
+   SPI flash device
+ - It has built in file system consistency checks
+
+What spiffs does not:
+ - Presently, spiffs does not support directories. It produces a flat 
+   structure. Creating a file with path "tmp/myfile.txt" will create a file 
+   called "tmp/myfile.txt" instead of a myfile.txt under directory "tmp". 
+ - It is not a realtime stack. One write operation might take much longer than
+   another.
+ - Poor scalability. Spiffs is intended for small memory devices - the normal
+   sizes for SPI flashes.
 
 
 * INTEGRATING SPIFFS
@@ -29,19 +48,19 @@ In order to integrate spiffs to your embedded target, you will basically need:
  - Memory (flash or ram) for the code
  - Memory (ram) for the stack
 
-Threaded systems might need mutexes and so on. 
+Other stuff may be needed, threaded systems might need mutexes and so on. 
 
 ** Logical structure
 
-One must decide how to divide up the SPI flash for spiffs. Having the datasheet
-for the actual SPI flash in hand will help. Spiffs can be defined to use all or
-only parts of the SPI flash.
+First and foremost, one must decide how to divide up the SPI flash for spiffs. 
+Having the datasheet for the actual SPI flash in hand will help. Spiffs can be 
+defined to use all or only parts of the SPI flash.
 
-If this seems arcane, read the "DESIGN" chapter first.
+If following seems arcane, read the "DESIGN" chapter first.
 
- - Decide the logical size of blocks. This must be a multiple of the physical
-   SPI flash block size. To go safe, use the physical block size - which in 
-   almost all cases are 65536 bytes.
+ - Decide the logical size of blocks. This must be a multiple of the biggest 
+   physical SPI flash block size. To go safe, use the physical block size - 
+   which in many cases is 65536 bytes.
  - Decide the logical size of pages. This must be a 2nd logarithm part of the
    logical block size. To go safe, use 256 bytes to start with.
  - Decide how much of the SPI flash memory to be used for spiffs. This must be
@@ -87,15 +106,15 @@ s32_t SPIFFS_mount(
  - fs            Points to a spiffs struct. This may be totally uninitialized.
  - config        Points to a spiffs_config struct. This struct must be
                  initialized when mounting. See below.
- - work          A RAM memory buffer being double the size of the logical page
+ - work          A ram memory buffer being double the size of the logical page
                  size. This buffer is used excessively by the spiffs stack. If
                  logical page size is 256, this buffer must be 512 bytes.
- - fd_space      A RAM memory buffer used for file descriptors.
+ - fd_space      A ram memory buffer used for file descriptors.
  - fd_space_size The size of the file descriptor buffer. A file descriptor
                  normally is around 32 bytes depending on the build config -
                  the bigger the buffer, the more file descriptors are
                  available.
- - cache         A RAM memory buffer used for cache. Ignored if cache is
+ - cache         A ram memory buffer used for cache. Ignored if cache is
                  disabled in build config. 
  - cache_size    The size of the cache buffer. Ignored if cache is disabled in
                  build config. One cache page will be slightly larger than the 
@@ -265,10 +284,13 @@ TODO
 Below is a small description of how SPI flashes work internally.
 
 SPI flash devices are physically divided in blocks. On some SPI flash devices,
-blocks are further divided into sectors. Common memory capacaties for SPI 
-flashes are 1,2,4 or 8 megabyte of data, with blocks of 64K. Sectors normally
-are 4K, if supported. The entire memory is linear and can be written in random
-access, but erasing can only be done block- or sectorwise; or by mass erase.
+blocks are further divided into sectors. Datasheets sometimes name blocks as 
+sectors and vice versa.
+
+Common memory capacaties for SPI flashes are 512kB up to 8 MB of data, with 
+blocks of 64K. Sectors normally are 4K, if supported. The entire memory is 
+linear and can be written in random access, but erasing can only be done block-
+or sectorwise; or by mass erase.
 
 SPI flashes can normally be erased from 100.000 up to 1.000.000 cycles before
 they fail erasing.
@@ -280,3 +302,4 @@ pulls ones to zeroes. Writing 0xFF to an address is simply a no-op. This way
 of "nand-writing" is used considerably in spiffs.
 
 ** TODO
+
