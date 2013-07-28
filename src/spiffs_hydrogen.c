@@ -175,6 +175,11 @@ s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
+  if ((fd->mode & SPIFFS_RDONLY) == 0) {
+    res = SPIFFS_ERR_NOT_READABLE;
+    SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+  }
+
 #if SPIFFS_CACHE_WR
   spiffs_fflush_cache(fs, fh);
 #endif
@@ -234,6 +239,11 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
 
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  if ((fd->mode & SPIFFS_WRONLY) == 0) {
+    res = SPIFFS_ERR_NOT_WRITABLE;
+    SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+  }
 
   offset = fd->fdoffset;
 
@@ -422,6 +432,11 @@ s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh) {
   s32_t res;
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  if ((fd->mode & SPIFFS_WRONLY) == 0) {
+    res = SPIFFS_ERR_NOT_WRITABLE;
+    SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+  }
 
 #if SPIFFS_CACHE_WR
   spiffs_cache_fd_release(fs, fd->cache_page);

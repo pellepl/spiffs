@@ -14,7 +14,7 @@ First and foremost, one must decide how to divide up the SPI flash for spiffs.
 Having the datasheet for the actual SPI flash in hand will help. Spiffs can be 
 defined to use all or only parts of the SPI flash.
 
-If following seems arcane, read the "DESIGN" chapter first.
+If following seems arcane, read the "HOW TO CONFIG" chapter first.
 
  - Decide the logical size of blocks. This must be a multiple of the biggest 
    physical SPI flash block size. To go safe, use the physical block size - 
@@ -85,16 +85,26 @@ The config struct must be initialized prior to mounting. One must always
 define the SPI flash access functions:
 
  spiffs_config.hal_read_f - pointing to the function reading the SPI flash
+
  spiffs_config.hal_write_f - pointing to the function writing the SPI flash
+
  spiffs_config.hal_erase_f - pointing to the function erasing the SPI flash
  
-
+Depending on the build config - if SPIFFS_SINGLETON is undefined - following
+parameters must be defined:
  
  spiffs_config.phys_size - the physical number of bytes accounted for 
                            spiffs on the SPI flash
+
  spiffs_config.phys_addr - the physical starting address on the SPI flash
 
-TODO
+ spiffs_config.phys_erase_block - the physical size of the largest block/sector
+                                  on the SPI flash found within the spiffs
+                                  usage address space
+
+ spiffs_config.log_block_size - 
+
+ spiffs_config.log_page_size - 
 
 ** Build config
 
@@ -106,6 +116,21 @@ be typedeffed.
 
 spiffs_config.h: you also need to define a spiffs_config.h header. Example of
 this is found in the default/ directory.
+
+** RAM
+
+Spiffs needs ram. It needs a working buffer being double the size of the 
+logical page size. It also needs at least one file descriptor. If cache is 
+enabled (highly recommended), it will also need a bunch of cache pages.
+
+Say you have a logical page size of 256 bytes. You want to be able to have four
+files open simultaneously, and you can give spiffs four cache pages. This sums
+up to:
+
+256*2 (work buffer) + 32*4 (file descriptors) + (256+32)*4 cache pages
+i.e. 1792 bytes. 
+
+This is apart from call stack usage.
 
 
 * QUICK AND DIRTY INTEGRATION EXAMPLE
@@ -129,7 +154,7 @@ typedefs:
   typedef unsigned short u16_t;
   typedef signed char s8_t;
   typedef unsigned char u8_t;
-
+  
 Now it should build. Over to the mounting business. Assume you already 
 implemented the read, write and erase functions to your SPI flash:
 
@@ -231,3 +256,7 @@ And, crossing fingers hard, you'll get the output:
 
   --> Hello world <-- 
   
+  
+* HOW TO CONFIG
+
+TODO

@@ -34,6 +34,8 @@
 #define SPIFFS_ERR_INDEX_FREE           -10018
 #define SPIFFS_ERR_INDEX_LU             -10019
 #define SPIFFS_ERR_INDEX_INVALID        -10020
+#define SPIFFS_ERR_NOT_WRITABLE         -10021
+#define SPIFFS_ERR_NOT_READABLE         -10022
 
 #define SPIFFS_ERR_INTERNAL             -10050
 
@@ -122,7 +124,7 @@ typedef struct {
   spiffs_write hal_write_f;
   // physical erase function
   spiffs_erase hal_erase_f;
-#ifndef SPIFFS_SINGLETON
+#if SPIFFS_SINGLETON == 0
   // physical size of the spi flash
   u32_t phys_size;
   // physical offset in spi flash used for spiffs,
@@ -345,8 +347,29 @@ void SPIFFS_close(spiffs *fs, spiffs_file fh);
  */
 s32_t SPIFFS_errno(spiffs *fs);
 
+/**
+ * Opens a directory stream corresponding to the given name.
+ * The stream is positioned at the first entry in the directory.
+ * On hydrogen builds the name argument is ignored as hydrogen builds always correspond
+ * to a flat file structure - no directories.
+ * @param fs            the file system struct
+ * @param name          the name of the directory
+ * @param d             pointer the directory stream to be populated
+ */
 spiffs_DIR *SPIFFS_opendir(spiffs *fs, const char *name, spiffs_DIR *d);
+
+/**
+ * Closes a directory stream
+ * @param d             the directory stream to close
+ */
 s32_t SPIFFS_closedir(spiffs_DIR *d);
+
+/**
+ * Reads a directory into given spifs_dirent struct.
+ * @param d             pointer to the directory stream
+ * @param e             the dirent struct to be populated
+ * @returns null if error or end of stream, else given dirent is returned
+ */
 struct spiffs_dirent *SPIFFS_readdir(spiffs_DIR *d, struct spiffs_dirent *e);
 
 /**

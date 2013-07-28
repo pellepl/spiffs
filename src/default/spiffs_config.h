@@ -8,13 +8,15 @@
 #ifndef SPIFFS_CONFIG_H_
 #define SPIFFS_CONFIG_H_
 
-// following includes are for the linux test build of spiffs
-// this may/should/must be removed/altered/replaced in your target
+// ----------- 8< ------------
+// Following includes are for the linux test build of spiffs
+// These may/should/must be removed/altered/replaced in your target
 #include "params_test.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stddef.h>
+// ----------- >8 ------------
 
 // compile time switches
 
@@ -48,6 +50,8 @@
 // Garbage collecting examines all pages in a block which and sums up
 // to a block score. Deleted pages normally gives positive score and
 // used pages normally gives a negative score (as these must be moved).
+// To have a fair wear-leveling, the erase age is also included in score,
+// whose factor normally is the most positive.
 // The larger the score, the more likely it is that the block will
 // picked for garbage collection.
 
@@ -65,6 +69,44 @@
 // size of buffer on stack used when copying data
 #define SPIFFS_COPY_BUFFER_STACK        (64)
 
+// SPIFFS_LOCK and SPIFFS_UNLOCK protects spiffs from reentrancy on api level
+// These must be defined on a multithreaded system
+
+// define this to entering a mutex if you're running on a multithreaded system
+#define SPIFFS_LOCK(fs)
+// define this to exiting a mutex if you're running on a multithreaded system
+#define SPIFFS_UNLOCK(fs)
+
+
+// Enable if only one spiffs instance with constant configuration will exist
+// on the target, this will reduce calculations, flash and memory accesses.
+#define SPIFFS_SINGLETON 0
+
+#if SPIFFS_SINGLETON
+// instead of giving parameters in config struct, singleton build must
+// give parameters in defines below
+#define SPIFFS_CFG_PHYS_SZ(ignore)        (1024*1024*2)
+#define SPIFFS_CFG_PHYS_ERASE_SZ(ignore)  (65536)
+#define SPIFFS_CFG_PHYS_ADDR(ignore)      (0)
+#define SPIFFS_CFG_LOG_PAGE_SZ(ignore)    (256)
+#define SPIFFS_CFG_LOG_BLOCK_SZ(ignore)   (65536)
+#endif
+
+// Set SPFIFS_TEST_VISUALISATION to non-zero to enable SPIFFS_vis function
+// in the api. This function will visualize all filesystem using given printf
+// function.
+#define SPIFFS_TEST_VISUALISATION         1
+#if SPIFFS_TEST_VISUALISATION
+#define spiffs_printf(...)                printf(__VA_ARGS__)
+// spiffs_printf argument for a free page
+#define SPIFFS_TEST_VIS_FREE_STR          "_"
+// spiffs_printf argument for a deleted page
+#define SPIFFS_TEST_VIS_DELE_STR          "/"
+// spiffs_printf argument for an index page for given object id
+#define SPIFFS_TEST_VIS_INDX_STR(id)      "i"
+// spiffs_printf argument for a data page for given object id
+#define SPIFFS_TEST_VIS_DATA_STR(id)      "d"
+#endif
 
 // types and constants
 
@@ -85,28 +127,5 @@ typedef u16_t spiffs_obj_id;
 typedef u16_t spiffs_span_ix;
 // object type
 typedef u8_t spiffs_obj_type;
-
-// enable if only one spiffs instance with constant configuration will exist
-// on the target, this will reduce calculations, flash and memory accesses
-//#define SPIFFS_SINGLETON
-
-#ifdef SPIFFS_SINGLETON
-// instead of giving parameters in config struct, singleton build must
-// give parameters in defines below
-#define SPIFFS_CFG_PHYS_SZ(ignore)        (1024*1024*1)
-#define SPIFFS_CFG_PHYS_ERASE_SZ(ignore)  (65536)
-#define SPIFFS_CFG_PHYS_ADDR(ignore)      (0)
-#define SPIFFS_CFG_LOG_PAGE_SZ(ignore)    (256)
-#define SPIFFS_CFG_LOG_BLOCK_SZ(ignore)   (65536)
-#endif
-
-#define SPIFFS_TEST_VISUALISATION         1
-#if SPIFFS_TEST_VISUALISATION
-#define spiffs_printf(...)                printf(__VA_ARGS__)
-#define SPIFFS_TEST_VIS_FREE_STR          "_"
-#define SPIFFS_TEST_VIS_DELE_STR          "/"
-#define SPIFFS_TEST_VIS_INDX_STR(id)      "i"
-#define SPIFFS_TEST_VIS_DATA_STR(id)      "d"
-#endif
 
 #endif /* SPIFFS_CONFIG_H_ */

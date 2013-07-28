@@ -18,9 +18,6 @@
 
 #define ASSERT(c, m) real_assert((c),(m), __FILE__, __LINE__);
 
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#define MAX(a,b) ((a) > (b) ? (a) : (b))
-
 void real_assert(int c, const char *n, const char *file, int l);
 
 typedef signed int s32_t;

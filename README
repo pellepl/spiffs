@@ -12,7 +12,7 @@ Love to hear feedback though!
 
 * INTRODUCTION
 
-Spiffs is a file system intended for SPI flash devices on embedded targets.
+Spiffs is a file system intended for SPI NOR flash devices on embedded targets.
 
 Spiffs is designed with following characteristics in mind:
  - Small (embedded) targets, sparse RAM
@@ -22,7 +22,8 @@ Spiffs is designed with following characteristics in mind:
  - Zeroes can only be pulled to ones by erase
  - Wear leveling
 
-** Features
+
+* FEATURES
 
 What spiffs does:
  - Posix-like api: open, close, read, write, seek, stat, etc
@@ -32,6 +33,7 @@ What spiffs does:
    SPI flash device
  - Implements static wear leveling 
  - Built in file system consistency checks
+ - Specifically designed for low ram usage
 
 What spiffs does not:
  - Presently, spiffs does not support directories. It produces a flat
@@ -40,9 +42,15 @@ What spiffs does not:
  - It is not a realtime stack. One write operation might take much longer than
    another.
  - Poor scalability. Spiffs is intended for small memory devices - the normal
-   sizes for SPI flashes. Going beyond ~128MB is probably a bad idea.
+   sizes for SPI flashes. Going beyond ~128MB is probably a bad idea. This is
+   a side effect of the design goal to use as little ram as possible.
  - Presently, it does not detect or handle bad blocks.
+
+ 
+* MORE INFO 
  
 For integration, see the docs/INTEGRATION file.
 
 For use and design, see the docs/TECH_SPEC file.
+
+For testing and contributions, see the docs/IMPLEMENTING file.

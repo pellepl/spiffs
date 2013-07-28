@@ -131,7 +131,7 @@
 #define SPIFFS_OBJ_ID_DELETED           ((spiffs_obj_id)0)
 #define SPIFFS_OBJ_ID_FREE              ((spiffs_obj_id)-1)
 
-#ifndef SPIFFS_SINGLETON
+#if SPIFFS_SINGLETON == 0
 #define SPIFFS_CFG_LOG_PAGE_SZ(fs) \
   ((fs)->cfg.log_page_size)
 #define SPIFFS_CFG_LOG_BLOCK_SZ(fs) \
@@ -426,6 +426,14 @@ typedef s32_t (*spiffs_visitor_f)(spiffs *fs, spiffs_obj_id id, spiffs_block_ix 
 #define _spiffs_wr(fs, op, fh, addr, len, src) \
     spiffs_phys_wr((fs), (addr), (len), (src))
 #endif
+
+#ifndef MIN
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef MAX
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#endif
+
 // ---------------
 
 s32_t spiffs_phys_rd(
