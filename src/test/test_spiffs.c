@@ -31,8 +31,8 @@ static char _path[256];
 
 spiffs __fs;
 static u8_t _work[LOG_PAGE*2];
-static u8_t _fds[256+256/2];
-static u8_t _cache[(LOG_PAGE+32)*4];
+static u8_t _fds[FD_BUF_SIZE];
+static u8_t _cache[CACHE_BUF_SIZE];
 
 static int check_valid_flash = 1;
 

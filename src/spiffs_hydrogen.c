@@ -495,6 +495,8 @@ s32_t SPIFFS_fstat(spiffs *fs, spiffs_file fh, spiffs_stat *s) {
   return res;
 }
 
+// Checks if there are any cached writes for the object id associated with
+// given filehandle. If so, these writes are flushed.
 static s32_t spiffs_fflush_cache(spiffs *fs, spiffs_file fh) {
   s32_t res = SPIFFS_OK;
 #if SPIFFS_CACHE_WR

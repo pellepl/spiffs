@@ -25,7 +25,8 @@
 //---------------------------------------
 // Look up consistency
 
-
+// searches in the object indices and returns the referenced page index given
+// the object id and the data span index
 // destroys fs->lu_work
 static s32_t spiffs_object_get_data_page_index_reference(
   spiffs *fs,
@@ -57,6 +58,7 @@ static s32_t spiffs_object_get_data_page_index_reference(
   return res;
 }
 
+// copies page contents to a new page
 static s32_t spiffs_rewrite_page(spiffs *fs, spiffs_page_ix cur_pix, spiffs_page_header *p_hdr, spiffs_page_ix *new_pix) {
   s32_t res;
   res = spiffs_page_allocate_data(fs, p_hdr->obj_id, p_hdr, 0,0,0,0, new_pix);
@@ -69,6 +71,8 @@ static s32_t spiffs_rewrite_page(spiffs *fs, spiffs_page_ix cur_pix, spiffs_page
   return res;
 }
 
+// rewrites the object index for given object id and replaces the
+// data page index to a new page index
 static s32_t spiffs_rewrite_index(spiffs *fs, spiffs_obj_id obj_id, spiffs_span_ix data_spix, spiffs_page_ix new_data_pix, spiffs_page_ix objix_pix) {
   s32_t res;
   spiffs_block_ix bix;
@@ -132,6 +136,7 @@ static s32_t spiffs_rewrite_index(spiffs *fs, spiffs_obj_id obj_id, spiffs_span_
   return res;
 }
 
+// deletes an object just by marking object index header as deleted
 static s32_t spiffs_delete_obj_lazy(spiffs *fs, spiffs_obj_id obj_id) {
   spiffs_page_ix objix_hdr_pix;
   s32_t res;
@@ -148,6 +153,7 @@ static s32_t spiffs_delete_obj_lazy(spiffs *fs, spiffs_obj_id obj_id) {
   return res;
 }
 
+// validates the given look up entry
 static s32_t spiffs_lookup_check_validate(spiffs *fs, spiffs_obj_id lu_obj_id, spiffs_page_header *p_hdr,
     spiffs_page_ix cur_pix, spiffs_block_ix cur_block, int cur_entry, int *reload_lu) {
   u8_t delete_page = 0;
@@ -195,7 +201,8 @@ static s32_t spiffs_lookup_check_validate(spiffs *fs, spiffs_obj_id lu_obj_id, s
       // index page can be removed if other index with same obj_id and spanix is found
       res = spiffs_obj_lu_find_id_and_span(fs, p_hdr->obj_id | SPIFFS_OBJ_ID_IX_FLAG, p_hdr->span_ix, cur_pix, 0);
       if (res == SPIFFS_ERR_NOT_FOUND) {
-        // no such index page found, check for a data page
+        // no such index page found, check for a data page amongst page headers
+        // lu cannot be trusted
         res = spiffs_obj_lu_find_id_and_span_by_phdr(fs, p_hdr->obj_id | SPIFFS_OBJ_ID_IX_FLAG, 0, 0, 0);
         if (res == SPIFFS_OK) { // ignore other errors
           // got a data page also, assume lu corruption only, rewrite to new page
@@ -433,7 +440,7 @@ static s32_t spiffs_lookup_check_v(spiffs *fs, spiffs_obj_id obj_id, spiffs_bloc
 
 
 // Scans all object look up. For each entry, corresponding page header is checked for validity.
-// If an object index header page is found, this is checked
+// If an object index header page is found, this is also checked
 s32_t spiffs_lookup_consistency_check(spiffs *fs, u8_t check_all_objects) {
   s32_t res = SPIFFS_OK;
 
@@ -791,6 +798,7 @@ static s32_t spiffs_page_consistency_check_i(spiffs *fs) {
   return res;
 }
 
+// Checks consistency amongst all pages and fixes irregularities
 s32_t spiffs_page_consistency_check(spiffs *fs) {
   if (fs->check_cb_f) fs->check_cb_f(SPIFFS_CHECK_PAGE, SPIFFS_CHECK_PROGRESS, 0, 0);
   s32_t res = spiffs_page_consistency_check_i(fs);
@@ -804,6 +812,8 @@ s32_t spiffs_page_consistency_check(spiffs *fs) {
 //---------------------------------------
 // Object index consistency
 
+// searches for given object id in temporary object id index,
+// returns the index or -1
 static int spiffs_object_index_search(spiffs *fs, spiffs_obj_id obj_id) {
   int i;
   spiffs_obj_id *obj_table = (spiffs_obj_id *)fs->work;

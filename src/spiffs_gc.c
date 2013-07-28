@@ -1,6 +1,9 @@
 #include "spiffs.h"
 #include "spiffs_nucleus.h"
 
+// Erases a logical block and updates the erase counter.
+// If cache is enabled, all pages that might be cached in this block
+// is dropped.
 static s32_t spiffs_gc_erase_block(
     spiffs *fs,
     spiffs_block_ix bix) {
@@ -41,6 +44,8 @@ static s32_t spiffs_gc_erase_block(
   return res;
 }
 
+// Searches for blocks where all entries are deleted - if one is found,
+// the block is erased.
 s32_t spiffs_gc_quick(
     spiffs *fs) {
   s32_t res = SPIFFS_OK;
@@ -103,6 +108,8 @@ s32_t spiffs_gc_quick(
   return res;
 }
 
+// Checks if garbaga collecting is necessary. If so a candidate block is found,
+// cleansed and erased
 s32_t spiffs_gc_check(
     spiffs *fs,
     u32_t len) {
@@ -170,6 +177,7 @@ s32_t spiffs_gc_check(
   return res;
 }
 
+// Updates page statistics for a block that is about to be erased
 s32_t spiffs_gc_erase_page_stats(
     spiffs *fs,
     spiffs_block_ix bix) {
@@ -206,6 +214,7 @@ s32_t spiffs_gc_erase_page_stats(
   return res;
 }
 
+// Finds block candidates to erase
 s32_t spiffs_gc_find_candidate(
     spiffs *fs,
     spiffs_block_ix **block_candidates,

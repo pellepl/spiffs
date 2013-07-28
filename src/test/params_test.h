@@ -8,10 +8,13 @@
 #ifndef PARAMS_TEST_H_
 #define PARAMS_TEST_H_
 
-#define FLASH_SIZE    2*1024*1024
-#define SECTOR_SIZE   65536
-#define LOG_BLOCK     65536
-#define LOG_PAGE      256
+#define FLASH_SIZE      2*1024*1024
+#define SECTOR_SIZE     65536
+#define LOG_BLOCK       65536
+#define LOG_PAGE        256
+
+#define FD_BUF_SIZE     32*6
+#define CACHE_BUF_SIZE  (LOG_PAGE + 32)*8
 
 #define ASSERT(c, m) real_assert((c),(m), __FILE__, __LINE__);
 

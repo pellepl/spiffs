@@ -38,20 +38,21 @@
 #define SPIFFS_ERR_INTERNAL             -10050
 
 
-// spi read call type
+/* spi read call function type */
 typedef s32_t (*spiffs_read)(u32_t addr, u32_t size, u8_t *dst);
-// spi write call type
+/* spi write call function type */
 typedef s32_t (*spiffs_write)(u32_t addr, u32_t size, u8_t *src);
-// spi erase call type
+/* spi erase call function type */
 typedef s32_t (*spiffs_erase)(u32_t addr, u32_t size);
 
-
+/* file system check callback report operation */
 typedef enum {
   SPIFFS_CHECK_LOOKUP = 0,
   SPIFFS_CHECK_INDEX,
   SPIFFS_CHECK_PAGE
 } spiffs_check_type;
 
+/* file system check callback report type */
 typedef enum {
   SPIFFS_CHECK_PROGRESS = 0,
   SPIFFS_CHECK_ERROR,
@@ -61,11 +62,9 @@ typedef enum {
   SPIFFS_CHECK_DELETE_BAD_FILE,
 } spiffs_check_report;
 
+/* file system check callback function */
 typedef void (*spiffs_check_callback)(spiffs_check_type type, spiffs_check_report report,
     u32_t arg1, u32_t arg2);
-
-// size of buffer on stack used when copying data
-#define SPIFFS_COPY_BUFFER_STACK        (64)
 
 #ifndef SPIFFS_DBG
 #define SPIFFS_DBG(...) \
@@ -81,12 +80,19 @@ typedef void (*spiffs_check_callback)(spiffs_check_type type, spiffs_check_repor
 #define SPIFFS_CHECK_DBG(...) printf(__VA_ARGS__)
 #endif
 
+/* Any write to the filehandle is appended to end of the file */
 #define SPIFFS_APPEND                   (1<<0)
+/* If the opened file exists, it will be truncated to zero length before opened */
 #define SPIFFS_TRUNC                    (1<<1)
+/* If the opened file does not exist, it will be created before opened */
 #define SPIFFS_CREAT                    (1<<2)
+/* The opened file may only be read */
 #define SPIFFS_RDONLY                   (1<<3)
+/* The opened file may only be writted */
 #define SPIFFS_WRONLY                   (1<<4)
+/* The opened file may be both read and writted */
 #define SPIFFS_RDWR                     (SPIFFS_RDONLY | SPIFFS_WRONLY)
+/* Any writes to the filehandle will never be cached */
 #define SPIFFS_DIRECT                   (1<<5)
 
 #define SPIFFS_SEEK_SET                 (0)
@@ -192,6 +198,7 @@ typedef struct {
   spiffs_check_callback check_cb_f;
 } spiffs;
 
+/* spiffs file status struct */
 typedef struct {
   spiffs_obj_id obj_id;
   u32_t size;
@@ -231,28 +238,128 @@ s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
     void *cache, u32_t cache_size,
     spiffs_check_callback check_cb_f);
 
+/**
+ * Unmounts the file system. All file handles will be flushed of any
+ * cached writes and closed.
+ * @param fs            the file system struct
+ */
 void SPIFFS_unmount(spiffs *fs);
 
+/**
+ * Creates a new file.
+ * @param fs            the file system struct
+ * @param path          the path of the new file
+ * @param attr          ignored, for posix compliance
+ */
 s32_t SPIFFS_creat(spiffs *fs, const char *path, spiffs_attr attr);
+
+/**
+ * Opens/creates a file.
+ * @param fs            the file system struct
+ * @param path          the path of the new file
+ * @param attr          ignored, for posix compliance
+ * @param mode          the mode for the open command, can be combinations of
+ *                      SPIFFS_APPEND, SPIFFS_TRUNC, SPIFFS_CREAT, SPIFFS_RD_ONLY,
+ *                      SPIFFS_WR_ONLY, SPIFFS_RDWR, SPIFFS_DIRECT
+ */
 spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_attr attr, spiffs_mode mode);
+
+/**
+ * Reads from given filehandle.
+ * @param fs            the file system struct
+ * @param fh            the filehandle
+ * @param buf           where to put read data
+ * @param len           how much to read
+ * @returns number of bytes read, or -1 if error
+ */
 s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len);
+
+/**
+ * Writes to given filehandle.
+ * @param fs            the file system struct
+ * @param fh            the filehandle
+ * @param buf           the data to write
+ * @param len           how much to write
+ * @returns number of bytes written, or -1 if error
+ */
 s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len);
+
+/**
+ * Moves the read/write file offset
+ * @param fs            the file system struct
+ * @param fh            the filehandle
+ * @param offs          how much/where to move the offset
+ * @param whence        if SPIFFS_SEEK_SET, the file offset shall be set to offset bytes
+ *                      if SPIFFS_SEEK_CUR, the file offset shall be set to its current location plus offset
+ *                      if SPIFFS_SEEK_END, the file offset shall be set to the size of the file plus offset
+ */
 s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence);
+
+/**
+ * Removes a file by path
+ * @param fs            the file system struct
+ * @param path          the path of the file to remove
+ */
 s32_t SPIFFS_remove(spiffs *fs, const char *path);
+
+/**
+ * Removes a file by filehandle
+ * @param fs            the file system struct
+ * @param fh            the filehandle of the file to remove
+ */
 s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh);
+
+/**
+ * Gets file status by path
+ * @param fs            the file system struct
+ * @param path          the path of the file to stat
+ * @param s             the stat struct to populate
+ */
 s32_t SPIFFS_stat(spiffs *fs, const char *path, spiffs_stat *s);
+
+/**
+ * Gets file status by filehandle
+ * @param fs            the file system struct
+ * @param fh            the filehandle of the file to stat
+ * @param s             the stat struct to populate
+ */
 s32_t SPIFFS_fstat(spiffs *fs, spiffs_file fh, spiffs_stat *s);
+
+/**
+ * Flushes all pending write operations from cache for given file
+ * @param fs            the file system struct
+ * @param fh            the filehandle of the file to flush
+ */
 s32_t SPIFFS_fflush(spiffs *fs, spiffs_file fh);
+
+/**
+ * Closes a filehandle. If there are pending write operations, these are finalized before closing.
+ * @param fs            the file system struct
+ * @param fh            the filehandle of the file to close
+ */
 void SPIFFS_close(spiffs *fs, spiffs_file fh);
+
+/**
+ * Returns last error of last file operation.
+ * @param fs            the file system struct
+ */
 s32_t SPIFFS_errno(spiffs *fs);
 
 spiffs_DIR *SPIFFS_opendir(spiffs *fs, const char *name, spiffs_DIR *d);
 s32_t SPIFFS_closedir(spiffs_DIR *d);
 struct spiffs_dirent *SPIFFS_readdir(spiffs_DIR *d, struct spiffs_dirent *e);
 
+/**
+ * Runs a consistency check on given filesystem.
+ * @param fs            the file system struct
+ */
 s32_t SPIFFS_check(spiffs *fs);
 
 #if SPIFFS_TEST_VISUALISATION
+/**
+ * Prints out a visualization of the filesystem.
+ * @param fs            the file system struct
+ */
 s32_t SPIFFS_vis(spiffs *fs);
 #endif
 

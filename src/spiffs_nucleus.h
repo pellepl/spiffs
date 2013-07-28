@@ -282,8 +282,11 @@
     if ((ph).span_ix != (spix)) return SPIFFS_ERR_DATA_SPAN_MISMATCH;
 
 
+// check id
 #define SPIFFS_VIS_CHECK_ID     (1<<0)
+// report argument object id to visitor - else object lookup id is reported
 #define SPIFFS_VIS_CHECK_PH     (1<<1)
+// stop searching at end of all look up pages
 #define SPIFFS_VIS_NO_WRAP      (1<<2)
 
 #if SPIFFS_CACHE
@@ -307,27 +310,35 @@
 #define spiffs_get_cache_page(fs, c, ix) \
   ((u8_t *)(&((c)->cpages[(ix) * SPIFFS_CACHE_PAGE_SIZE(fs)])) + sizeof(spiffs_cache_page))
 
+// cache page struct
 typedef struct {
+  // cache flags
   u8_t flags;
+  // cache page index
   u8_t ix;
+  // last access of this cache page
   u32_t last_access;
   union {
+    // type read cache
     struct {
-      // type read cache
+      // read cache page index
       spiffs_page_ix pix;
     };
 #if SPIFFS_CACHE_WR
+    // type write cache
     struct {
-      // type write cache
+      // write cache
       spiffs_obj_id obj_id;
-      u8_t refs;
+      // offset in cache page
       u32_t offset;
+      // size of cache page
       u16_t size;
     };
 #endif
   };
 } spiffs_cache_page;
 
+// cache struct
 typedef struct {
   u8_t cpage_count;
   u32_t last_access;
@@ -400,7 +411,6 @@ typedef struct __attribute(( packed )) {
 } spiffs_page_object_ix;
 
 // callback func for object lookup visitor
-
 typedef s32_t (*spiffs_visitor_f)(spiffs *fs, spiffs_obj_id id, spiffs_block_ix bix, int ix_entry,
     u32_t user_data, void *user_p);
 
@@ -451,14 +461,14 @@ s32_t spiffs_phys_count_free_blocks(
 s32_t spiffs_obj_lu_find_entry_visitor(
     spiffs *fs,
     spiffs_block_ix starting_block,
-    int starting_index_entry,
+    int starting_lu_entry,
     u8_t flags,
     spiffs_obj_id obj_id,
     spiffs_visitor_f v,
     u32_t user_data,
     void *user_p,
     spiffs_block_ix *block_ix,
-    int *index_entry);
+    int *lu_entry);
 
 // ---------------
 
@@ -472,17 +482,17 @@ s32_t spiffs_obj_lu_find_free_obj_id(
 s32_t spiffs_obj_lu_find_free(
     spiffs *fs,
     spiffs_block_ix starting_block,
-    int starting_index_entry,
+    int starting_lu_entry,
     spiffs_block_ix *block_ix,
-    int *index_entry);
+    int *lu_entry);
 
 s32_t spiffs_obj_lu_find_id(
     spiffs *fs,
     spiffs_block_ix starting_block,
-    int starting_index_entry,
+    int starting_lu_entry,
     spiffs_obj_id obj_id,
     spiffs_block_ix *block_ix,
-    int *index_entry);
+    int *lu_entry);
 
 s32_t spiffs_obj_lu_find_id_and_span(
     spiffs *fs,
