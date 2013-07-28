@@ -119,8 +119,9 @@ you point out these files in your make script for compilation.
 
 Also copy the spiffs_config.h over from the default/ folder.
 
-Build fails, nagging about inclusions and u32_t and whatnot. Open the 
-spiffs_config.h and delete the bad inclusions. Also, add following typedefs:
+Try buliding. This fails, nagging about inclusions and u32_t and whatnot. Open 
+the spiffs_config.h and delete the bad inclusions. Also, add following 
+typedefs:
 
   typedef signed int s32_t;
   typedef unsigned int u32_t;
@@ -129,7 +130,7 @@ spiffs_config.h and delete the bad inclusions. Also, add following typedefs:
   typedef signed char s8_t;
   typedef unsigned char u8_t;
 
-Now it should builds. Over to the mounting business. Assume you already 
+Now it should build. Over to the mounting business. Assume you already 
 implemented the read, write and erase functions to your SPI flash:
 
   void my_spi_read(int addr, int size, char *buf)
@@ -156,9 +157,9 @@ Now, write the my_spiffs_mount function:
     spiffs_config cfg;
     cfg.phys_size = 2*1024*1024; // use all spi flash
     cfg.phys_addr = 0; // start spiffs at start of spi flash
-    cfg.phys_erase_block = 65536; // well, this is what the datasheet says
-    cfg.log_block_size = 65536; // seems sensible
-    cfg.log_block_size = LOG_PAGE_SIZE; // seems sensible
+    cfg.phys_erase_block = 65536; // according to datasheet
+    cfg.log_block_size = 65536; // let us not complicate things
+    cfg.log_block_size = LOG_PAGE_SIZE; // as we said
     
     cfg.hal_read_f = my_spi_read;
     cfg.hal_write_f = my_spi_write;

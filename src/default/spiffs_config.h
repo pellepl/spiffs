@@ -10,7 +10,7 @@
 
 // following includes are for the linux test build of spiffs
 // this may/should/must be removed/altered/replaced in your target
-#include "stypes.h"
+#include "params_test.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

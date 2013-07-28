@@ -1,14 +1,17 @@
 /*
- * stypes.h
+ * params_test.h
  *
  *  Created on: May 26, 2013
  *      Author: petera
  */
 
-#ifndef STYPES_H_
-#define STYPES_H_
+#ifndef PARAMS_TEST_H_
+#define PARAMS_TEST_H_
 
-#define print(...) printf(__VA_ARGS__)
+#define FLASH_SIZE    2*1024*1024
+#define SECTOR_SIZE   65536
+#define LOG_BLOCK     65536
+#define LOG_PAGE      256
 
 #define ASSERT(c, m) real_assert((c),(m), __FILE__, __LINE__);
 
@@ -25,4 +28,4 @@ typedef signed char s8_t;
 typedef unsigned char u8_t;
 
 
-#endif /* STYPES_H_ */
+#endif /* PARAMS_TEST_H_ */

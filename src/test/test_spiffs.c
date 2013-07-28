@@ -10,7 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "stypes.h"
+#include "params_test.h"
 #include "spiffs.h"
 #include "spiffs_nucleus.h"
 
@@ -24,14 +24,7 @@
 #include <dirent.h>
 #include <unistd.h>
 
-
-
-#define SECTOR_SIZE 65536  //(0x10000)
-#define PAGE_SIZE   256    //256
-#define LOG_BLOCK   1*65536
-#define LOG_PAGE    1*PAGE_SIZE
-
-static unsigned char area[2*1024*1024];
+static unsigned char area[FLASH_SIZE];
 
 static int erases[sizeof(area)/SECTOR_SIZE];
 static char _path[256];
@@ -39,7 +32,7 @@ static char _path[256];
 spiffs __fs;
 static u8_t _work[LOG_PAGE*2];
 static u8_t _fds[256+256/2];
-static u8_t _cache[LOG_PAGE*5];
+static u8_t _cache[(LOG_PAGE+32)*4];
 
 static int check_valid_flash = 1;
 
@@ -75,10 +68,10 @@ static s32_t _write(u32_t addr, u32_t size, u8_t *src) {
   int i;
   //printf("wr %08x %i\n", addr, size);
   for (i = 0; i < size; i++) {
-    if (((addr + i) & (PAGE_SIZE-1)) != offsetof(spiffs_page_header, flags)) {
+    if (((addr + i) & (LOG_PAGE-1)) != offsetof(spiffs_page_header, flags)) {
       if (check_valid_flash && ((area[addr + i] ^ src[i]) & src[i])) {
         printf("trying to write %02x to %02x at addr %08x\n", src[i], area[addr + i], addr+i);
-        spiffs_page_ix pix = (addr + i) / PAGE_SIZE;
+        spiffs_page_ix pix = (addr + i) / LOG_PAGE;
         dump_page(&__fs, pix);
         return -1;
       }
