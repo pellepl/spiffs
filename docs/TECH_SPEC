@@ -1,0 +1,30 @@
+* USING SPIFFS
+
+TODO
+
+* DESIGN
+
+** SPI flash devices
+
+Below is a small description of how SPI flashes work internally.
+
+SPI flash devices are physically divided in blocks. On some SPI flash devices,
+blocks are further divided into sectors. Datasheets sometimes name blocks as 
+sectors and vice versa.
+
+Common memory capacaties for SPI flashes are 512kB up to 8 MB of data, with 
+blocks of 64K. Sectors normally are 4K, if supported. The entire memory is 
+linear and can be written in random access, but erasing can only be done block-
+or sectorwise; or by mass erase.
+
+SPI flashes can normally be erased from 100.000 up to 1.000.000 cycles before
+they fail erasing.
+
+A clean SPI flash from factory have all bits in entire memory set to one. A
+mass erase will reset the device to this state. Block or sector erasing will
+put the area given by the sector or block to ones. Writing to a SPI flash
+pulls ones to zeroes. Writing 0xFF to an address is simply a no-op. This way
+of "nand-writing" is used considerably in spiffs.
+
+** TODO
+

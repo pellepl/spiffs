@@ -17,7 +17,6 @@ builddir = build
 #############
 
 CC = gcc $(COMPILEROPTIONS)
-AS = gcc $(ASSEMBLEROPTIONS)
 LD = ld
 GDB = gdb
 OBJCOPY = objcopy
@@ -38,7 +37,7 @@ FILES = main.c \
 	testsuites.c \
 	testrunner.c
 include files.mk
-INCLUDE_DIRECTIVES = -I./${sourcedir} -I./${sourcedir}/default 
+INCLUDE_DIRECTIVES = -I./${sourcedir} -I./${sourcedir}/default -I./${sourcedir}/test 
 COMPILEROPTIONS = $(INCLUDE_DIRECTIVES) 
 		
 ############
@@ -47,7 +46,7 @@ COMPILEROPTIONS = $(INCLUDE_DIRECTIVES)
 #
 ############
 
-vpath %.c ${sourcedir} ${sourcedir}/default 
+vpath %.c ${sourcedir} ${sourcedir}/default ${sourcedir}/test
 
 OBJFILES = $(FILES:%.c=${builddir}/%.o)
 
@@ -57,7 +56,7 @@ ALLOBJFILES += $(OBJFILES)
 
 DEPENDENCIES = $(DEPFILES) 
 
-# link object files, create binary for flashing
+# link object files, create binary
 $(BINARY): $(ALLOBJFILES)
 	@echo "... linking"
 	@${CC} $(LINKEROPTIONS) -o ${builddir}/$(BINARY) $(ALLOBJFILES) $(LIBS)
@@ -90,8 +89,4 @@ clean:
 	@echo ... removing build files in ${builddir}
 	@rm -f ${builddir}/*.o
 	@rm -f ${builddir}/*.d
-	@rm -f ${builddir}/*.out
-	@rm -f ${builddir}/*.hex
 	@rm -f ${builddir}/*.elf
-	@rm -f ${builddir}/*.map
-	@rm -f ${builddir}/*_disasm.s
