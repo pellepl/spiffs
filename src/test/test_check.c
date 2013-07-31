@@ -60,7 +60,7 @@ TEST(lu_check1) {
   res = read_and_verify("file");
   TEST_CHECK(res >= 0);
 
-  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
+  spiffs_file fd = SPIFFS_open(FS, "file", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd > 0);
   spiffs_stat s;
   res = SPIFFS_fstat(FS, fd, &s);
@@ -97,7 +97,7 @@ TEST(page_cons1) {
   res = read_and_verify("file");
   TEST_CHECK(res >= 0);
 
-  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
+  spiffs_file fd = SPIFFS_open(FS, "file", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd > 0);
   spiffs_stat s;
   res = SPIFFS_fstat(FS, fd, &s);
@@ -137,7 +137,7 @@ TEST(page_cons2) {
   res = read_and_verify("file");
   TEST_CHECK(res >= 0);
 
-  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
+  spiffs_file fd = SPIFFS_open(FS, "file", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd > 0);
   spiffs_stat s;
   res = SPIFFS_fstat(FS, fd, &s);
@@ -183,7 +183,7 @@ TEST(page_cons3) {
   res = read_and_verify("file");
   TEST_CHECK(res >= 0);
 
-  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
+  spiffs_file fd = SPIFFS_open(FS, "file", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd > 0);
   spiffs_stat s;
   res = SPIFFS_fstat(FS, fd, &s);
@@ -223,7 +223,7 @@ TEST(page_cons_final) {
   res = read_and_verify("file");
   TEST_CHECK(res >= 0);
 
-  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
+  spiffs_file fd = SPIFFS_open(FS, "file", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd > 0);
   spiffs_stat s;
   res = SPIFFS_fstat(FS, fd, &s);
@@ -264,7 +264,7 @@ TEST(index_cons1) {
   res = read_and_verify("file");
   TEST_CHECK(res >= 0);
 
-  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
+  spiffs_file fd = SPIFFS_open(FS, "file", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd > 0);
   spiffs_stat s;
   res = SPIFFS_fstat(FS, fd, &s);
@@ -305,7 +305,7 @@ TEST(index_cons2) {
   res = read_and_verify("file");
   TEST_CHECK(res >= 0);
 
-  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
+  spiffs_file fd = SPIFFS_open(FS, "file", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd > 0);
   spiffs_stat s;
   res = SPIFFS_fstat(FS, fd, &s);
@@ -345,7 +345,7 @@ TEST(index_cons3) {
   res = read_and_verify("file");
   TEST_CHECK(res >= 0);
 
-  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
+  spiffs_file fd = SPIFFS_open(FS, "file", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd > 0);
   spiffs_stat s;
   res = SPIFFS_fstat(FS, fd, &s);
@@ -385,7 +385,7 @@ TEST(index_cons4) {
   res = read_and_verify("file");
   TEST_CHECK(res >= 0);
 
-  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
+  spiffs_file fd = SPIFFS_open(FS, "file", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd > 0);
   spiffs_stat s;
   res = SPIFFS_fstat(FS, fd, &s);

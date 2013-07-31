@@ -94,7 +94,7 @@ s32_t SPIFFS_errno(spiffs *fs) {
   return fs->errno;
 }
 
-s32_t SPIFFS_creat(spiffs *fs, const char *path, spiffs_attr attr) {
+s32_t SPIFFS_creat(spiffs *fs, const char *path, spiffs_mode mode) {
   SPIFFS_API_CHECK_MOUNT(fs);
   SPIFFS_LOCK(fs);
   spiffs_obj_id obj_id;
@@ -108,7 +108,7 @@ s32_t SPIFFS_creat(spiffs *fs, const char *path, spiffs_attr attr) {
   return 0;
 }
 
-spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_attr attr, spiffs_mode mode) {
+spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs_mode mode) {
   SPIFFS_API_CHECK_MOUNT(fs);
   SPIFFS_LOCK(fs);
 
@@ -119,14 +119,14 @@ spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_attr attr, spiffs_m
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
   res = spiffs_object_find_object_index_header_by_name(fs, (u8_t*)path, &pix);
-  if ((mode & SPIFFS_CREAT) == 0) {
+  if ((flags & SPIFFS_CREAT) == 0) {
     if (res < SPIFFS_OK) {
       spiffs_fd_return(fs, fd->file_nbr);
     }
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   }
 
-  if ((mode & SPIFFS_CREAT) && res == SPIFFS_ERR_NOT_FOUND) {
+  if ((flags & SPIFFS_CREAT) && res == SPIFFS_ERR_NOT_FOUND) {
     spiffs_obj_id obj_id;
     res = spiffs_obj_lu_find_free_obj_id(fs, &obj_id);
     if (res < SPIFFS_OK) {
@@ -138,19 +138,19 @@ spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_attr attr, spiffs_m
       spiffs_fd_return(fs, fd->file_nbr);
     }
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
-    mode &= ~SPIFFS_TRUNC;
+    flags &= ~SPIFFS_TRUNC;
   } else {
     if (res < SPIFFS_OK) {
       spiffs_fd_return(fs, fd->file_nbr);
     }
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   }
-  res = spiffs_object_open_by_page(fs, pix, fd, attr, mode);
+  res = spiffs_object_open_by_page(fs, pix, fd, flags, flags);
   if (res < SPIFFS_OK) {
     spiffs_fd_return(fs, fd->file_nbr);
   }
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
-  if (mode & SPIFFS_TRUNC) {
+  if (flags & SPIFFS_TRUNC) {
     res = spiffs_object_truncate(fd, 0, 0);
     if (res < SPIFFS_OK) {
       spiffs_fd_return(fs, fd->file_nbr);
@@ -175,7 +175,7 @@ s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
-  if ((fd->mode & SPIFFS_RDONLY) == 0) {
+  if ((fd->flags & SPIFFS_RDONLY) == 0) {
     res = SPIFFS_ERR_NOT_READABLE;
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   }
@@ -240,7 +240,7 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
-  if ((fd->mode & SPIFFS_WRONLY) == 0) {
+  if ((fd->flags & SPIFFS_WRONLY) == 0) {
     res = SPIFFS_ERR_NOT_WRITABLE;
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   }
@@ -253,7 +253,7 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
     fd->cache_page = spiffs_cache_page_get_by_fd(fs, fd);
   }
 #endif
-  if (fd->mode & SPIFFS_APPEND) {
+  if (fd->flags & SPIFFS_APPEND) {
     if (fd->size == SPIFFS_UNDEFINED_LEN) {
       offset = 0;
     } else {
@@ -269,7 +269,7 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
   SPIFFS_DBG("SPIFFS_write %i %04x offs:%i len %i\n", fh, fd->obj_id, offset, len);
 
 #if SPIFFS_CACHE_WR
-  if ((fd->mode & SPIFFS_DIRECT) == 0) {
+  if ((fd->flags & SPIFFS_DIRECT) == 0) {
     if (len < SPIFFS_CFG_LOG_PAGE_SZ(fs)) {
       // small write, try to cache it
       u8_t alloc_cpage = 1;
@@ -433,7 +433,7 @@ s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh) {
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
-  if ((fd->mode & SPIFFS_WRONLY) == 0) {
+  if ((fd->flags & SPIFFS_WRONLY) == 0) {
     res = SPIFFS_ERR_NOT_WRITABLE;
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   }
@@ -520,7 +520,7 @@ static s32_t spiffs_fflush_cache(spiffs *fs, spiffs_file fh) {
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES(fs, res);
 
-  if ((fd->mode & SPIFFS_DIRECT) == 0) {
+  if ((fd->flags & SPIFFS_DIRECT) == 0) {
     if (fd->cache_page == 0) {
       // see if object id is associated with cache already
       fd->cache_page = spiffs_cache_page_get_by_fd(fs, fd);

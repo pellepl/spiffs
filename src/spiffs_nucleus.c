@@ -749,7 +749,7 @@ s32_t spiffs_object_open_by_id(
     spiffs *fs,
     spiffs_obj_id obj_id,
     spiffs_fd *fd,
-    spiffs_attr attr,
+    spiffs_flags flags,
     spiffs_mode mode) {
   s32_t res = SPIFFS_OK;
   spiffs_page_ix pix;
@@ -757,7 +757,7 @@ s32_t spiffs_object_open_by_id(
   res = spiffs_obj_lu_find_id_and_span(fs, obj_id | SPIFFS_OBJ_ID_IX_FLAG, 0, 0, &pix);
   SPIFFS_CHECK_RES(res);
 
-  res = spiffs_object_open_by_page(fs, pix, fd, attr, mode);
+  res = spiffs_object_open_by_page(fs, pix, fd, flags, mode);
 
   return res;
 }
@@ -767,7 +767,7 @@ s32_t spiffs_object_open_by_page(
     spiffs *fs,
     spiffs_page_ix pix,
     spiffs_fd *fd,
-    spiffs_attr attr,
+    spiffs_flags flags,
     spiffs_mode mode) {
   s32_t res = SPIFFS_OK;
   spiffs_page_object_ix_header oix_hdr;
@@ -790,7 +790,7 @@ s32_t spiffs_object_open_by_page(
   fd->cursor_objix_pix = pix;
   fd->cursor_objix_spix = 0;
   fd->obj_id = obj_id;
-  fd->mode = mode;
+  fd->flags = flags;
 
   SPIFFS_VALIDATE_OBJIX(oix_hdr.p_hdr, fd->obj_id, 0);
 

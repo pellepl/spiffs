@@ -112,9 +112,9 @@
 
 // spiffs file descriptor index type
 typedef s16_t spiffs_file;
-// spiffs file descriptor attributes
-typedef u32_t spiffs_attr;
-// spiffs file descriptor mode
+// spiffs file descriptor flags
+typedef u32_t spiffs_flags;
+// spiffs file mode
 typedef u32_t spiffs_mode;
 
 // block index type

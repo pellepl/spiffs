@@ -370,8 +370,8 @@ typedef struct {
   u32_t offset;
   // current file descriptor offset
   u32_t fdoffset;
-  // mode
-  spiffs_mode mode;
+  // fd flags
+  spiffs_flags flags;
 #if SPIFFS_CACHE_WR
   spiffs_cache_page *cache_page;
 #endif
@@ -573,14 +573,14 @@ s32_t spiffs_object_open_by_id(
     spiffs *fs,
     spiffs_obj_id obj_id,
     spiffs_fd *f,
-    spiffs_attr attr,
+    spiffs_flags flags,
     spiffs_mode mode);
 
 s32_t spiffs_object_open_by_page(
     spiffs *fs,
     spiffs_page_ix pix,
     spiffs_fd *f,
-    spiffs_attr attr,
+    spiffs_flags flags,
     spiffs_mode mode);
 
 s32_t spiffs_object_append(

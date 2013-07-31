@@ -45,7 +45,7 @@ int test_create_file(char *name) {
   spiffs_file fd;
   int res = SPIFFS_creat(FS, name, 0);
   CHECK_RES(res);
-  fd = SPIFFS_open(FS, name, 0, SPIFFS_RDONLY);
+  fd = SPIFFS_open(FS, name, SPIFFS_RDONLY, 0);
   CHECK(fd >= 0);
   res = SPIFFS_fstat(FS, fd, &s);
   CHECK_RES(res);
@@ -64,7 +64,7 @@ int test_create_and_write_file(char *name, int size, int chunk_size) {
     printf(" failed creation, %i\n",res);
   }
   CHECK(res >= 0);
-  fd = SPIFFS_open(FS, name, 0, SPIFFS_APPEND | SPIFFS_RDWR);
+  fd = SPIFFS_open(FS, name, SPIFFS_APPEND | SPIFFS_RDWR, 0);
   if (res < 0) {
     printf(" failed open, %i\n",res);
   }
@@ -218,12 +218,12 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
           int pfd = open(make_test_fname(name), O_TRUNC | O_CREAT | O_RDWR);
           close(pfd);
           int extra_flags = tf->cfg.ttype == APPENDED ? SPIFFS_APPEND : 0;
-          spiffs_file fd = SPIFFS_open(FS, name, 0, extra_flags | SPIFFS_RDWR);
+          spiffs_file fd = SPIFFS_open(FS, name, extra_flags | SPIFFS_RDWR, 0);
           CHECK(fd > 0);
           tf->fd = fd;
         } else {
           int extra_flags = tf->cfg.ttype == APPENDED ? SPIFFS_APPEND : 0;
-          spiffs_file fd = SPIFFS_open(FS, name, 0, extra_flags | SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR);
+          spiffs_file fd = SPIFFS_open(FS, name, extra_flags | SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
           CHECK(fd > 0);
           extra_flags = tf->cfg.ttype == APPENDED ? O_APPEND : 0;
           int pfd = open(make_test_fname(name), extra_flags | O_TRUNC | O_CREAT | O_RDWR);
@@ -289,7 +289,7 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
             SPIFFS_close(FS, tf->fd);
           }
           if (dbg) printf("   rewriting %s\n", tf->name);
-          spiffs_file fd = SPIFFS_open(FS, tf->name, 0, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR);
+          spiffs_file fd = SPIFFS_open(FS, tf->name, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
           CHECK(fd > 0);
           int pfd = open(make_test_fname(tf->name), O_TRUNC | O_CREAT | O_RDWR);
           tf->fd = fd;
@@ -344,7 +344,7 @@ void teardown() {
 
 TEST(missing_file)
 {
-  spiffs_file fd = SPIFFS_open(FS, "this_wont_exist", 0, 0);
+  spiffs_file fd = SPIFFS_open(FS, "this_wont_exist", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd < 0);
   return TEST_RES_OK;
 }
@@ -355,7 +355,7 @@ TEST(bad_fd)
 {
   int res;
   spiffs_stat s;
-  spiffs_file fd = SPIFFS_open(FS, "this_wont_exist", 0, 0);
+  spiffs_file fd = SPIFFS_open(FS, "this_wont_exist", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd < 0);
   res = SPIFFS_fstat(FS, fd, &s);
   TEST_CHECK(res < 0);
@@ -382,7 +382,7 @@ TEST(closed_fd)
   int res;
   spiffs_stat s;
   res = test_create_file("file");
-  spiffs_file fd = SPIFFS_open(FS, "file", 0, SPIFFS_RDONLY);
+  spiffs_file fd = SPIFFS_open(FS, "file", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd >= 0);
   SPIFFS_close(FS, fd);
 
@@ -412,9 +412,9 @@ TEST(deleted_same_fd)
   spiffs_stat s;
   spiffs_file fd;
   res = test_create_file("remove");
-  fd = SPIFFS_open(FS, "remove", 0, SPIFFS_RDONLY);
+  fd = SPIFFS_open(FS, "remove", SPIFFS_RDWR, 0);
   TEST_CHECK(fd >= 0);
-  fd = SPIFFS_open(FS, "remove", 0, SPIFFS_RDONLY);
+  fd = SPIFFS_open(FS, "remove", SPIFFS_RDWR, 0);
   TEST_CHECK(fd >= 0);
   res = SPIFFS_fremove(FS, fd);
   TEST_CHECK(res >= 0);
@@ -446,9 +446,9 @@ TEST(deleted_other_fd)
   spiffs_stat s;
   spiffs_file fd, fd_orig;
   res = test_create_file("remove");
-  fd_orig = SPIFFS_open(FS, "remove", 0, SPIFFS_RDONLY);
+  fd_orig = SPIFFS_open(FS, "remove", SPIFFS_RDWR, 0);
   TEST_CHECK(fd_orig >= 0);
-  fd = SPIFFS_open(FS, "remove", 0, SPIFFS_RDONLY);
+  fd = SPIFFS_open(FS, "remove", SPIFFS_RDWR, 0);
   TEST_CHECK(fd >= 0);
   res = SPIFFS_fremove(FS, fd_orig);
   TEST_CHECK(res >= 0);
@@ -479,7 +479,7 @@ TEST(file_by_open)
 {
   int res;
   spiffs_stat s;
-  spiffs_file fd = SPIFFS_open(FS, "filebopen", 0, SPIFFS_CREAT);
+  spiffs_file fd = SPIFFS_open(FS, "filebopen", SPIFFS_CREAT, 0);
   TEST_CHECK(fd >= 0);
   res = SPIFFS_fstat(FS, fd, &s);
   TEST_CHECK(res >= 0);
@@ -487,7 +487,7 @@ TEST(file_by_open)
   TEST_CHECK(s.size == 0);
   SPIFFS_close(FS, fd);
 
-  fd = SPIFFS_open(FS, "filebopen", 0, SPIFFS_RDONLY);
+  fd = SPIFFS_open(FS, "filebopen", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd >= 0);
   res = SPIFFS_fstat(FS, fd, &s);
   TEST_CHECK(res >= 0);
@@ -548,7 +548,7 @@ TEST(remove_single_by_path)
   TEST_CHECK(res >= 0);
   res = SPIFFS_remove(FS, "remove");
   TEST_CHECK(res >= 0);
-  fd = SPIFFS_open(FS, "remove", 0, SPIFFS_RDONLY);
+  fd = SPIFFS_open(FS, "remove", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd < 0);
   TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_NOT_FOUND);
 
@@ -563,12 +563,12 @@ TEST(remove_single_by_fd)
   spiffs_file fd;
   res = test_create_file("remove");
   TEST_CHECK(res >= 0);
-  fd = SPIFFS_open(FS, "remove", 0, SPIFFS_RDONLY);
+  fd = SPIFFS_open(FS, "remove", SPIFFS_RDWR, 0);
   TEST_CHECK(fd >= 0);
   res = SPIFFS_fremove(FS, fd);
   TEST_CHECK(res >= 0);
   SPIFFS_close(FS, fd);
-  fd = SPIFFS_open(FS, "remove", 0, SPIFFS_RDONLY);
+  fd = SPIFFS_open(FS, "remove", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd < 0);
   TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_NOT_FOUND);
 
@@ -699,13 +699,13 @@ TEST(truncate_big_file)
   TEST_CHECK(res >= 0);
   res = read_and_verify("bigfile");
   TEST_CHECK(res >= 0);
-  spiffs_file fd = SPIFFS_open(FS, "bigfile", 0, SPIFFS_RDWR);
+  spiffs_file fd = SPIFFS_open(FS, "bigfile", SPIFFS_RDWR, 0);
   TEST_CHECK(fd > 0);
   res = SPIFFS_fremove(FS, fd);
   TEST_CHECK(res >= 0);
   SPIFFS_close(FS, fd);
 
-  fd = SPIFFS_open(FS, "bigfile", 0, SPIFFS_RDWR);
+  fd = SPIFFS_open(FS, "bigfile", SPIFFS_RDWR, 0);
   TEST_CHECK(fd < 0);
   TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_NOT_FOUND);
 
@@ -718,11 +718,11 @@ TEST(simultaneous_write) {
   int res = SPIFFS_creat(FS, "simul1", 0);
   TEST_CHECK(res >= 0);
 
-  spiffs_file fd1 = SPIFFS_open(FS, "simul1", 0, SPIFFS_RDWR);
+  spiffs_file fd1 = SPIFFS_open(FS, "simul1", SPIFFS_RDWR, 0);
   TEST_CHECK(fd1 > 0);
-  spiffs_file fd2 = SPIFFS_open(FS, "simul1", 0, SPIFFS_RDWR);
+  spiffs_file fd2 = SPIFFS_open(FS, "simul1", SPIFFS_RDWR, 0);
   TEST_CHECK(fd2 > 0);
-  spiffs_file fd3 = SPIFFS_open(FS, "simul1", 0, SPIFFS_RDWR);
+  spiffs_file fd3 = SPIFFS_open(FS, "simul1", SPIFFS_RDWR, 0);
   TEST_CHECK(fd3 > 0);
 
   u8_t data1 = 1;
@@ -746,7 +746,7 @@ TEST(simultaneous_write) {
   TEST_CHECK(s.size == 1);
 
   u8_t rdata;
-  spiffs_file fd = SPIFFS_open(FS, "simul1", 0, SPIFFS_RDONLY);
+  spiffs_file fd = SPIFFS_open(FS, "simul1", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd > 0);
   res = SPIFFS_read(FS, fd, &rdata, 1);
   TEST_CHECK(res >= 0);
@@ -762,11 +762,11 @@ TEST(simultaneous_write_append) {
   int res = SPIFFS_creat(FS, "simul2", 0);
   TEST_CHECK(res >= 0);
 
-  spiffs_file fd1 = SPIFFS_open(FS, "simul2", 0, SPIFFS_RDWR | SPIFFS_APPEND);
+  spiffs_file fd1 = SPIFFS_open(FS, "simul2", SPIFFS_RDWR | SPIFFS_APPEND, 0);
   TEST_CHECK(fd1 > 0);
-  spiffs_file fd2 = SPIFFS_open(FS, "simul2", 0, SPIFFS_RDWR | SPIFFS_APPEND);
+  spiffs_file fd2 = SPIFFS_open(FS, "simul2", SPIFFS_RDWR | SPIFFS_APPEND, 0);
   TEST_CHECK(fd2 > 0);
-  spiffs_file fd3 = SPIFFS_open(FS, "simul2", 0, SPIFFS_RDWR | SPIFFS_APPEND);
+  spiffs_file fd3 = SPIFFS_open(FS, "simul2", SPIFFS_RDWR | SPIFFS_APPEND, 0);
   TEST_CHECK(fd3 > 0);
 
   u8_t data1 = 1;
@@ -790,7 +790,7 @@ TEST(simultaneous_write_append) {
   TEST_CHECK(s.size == 3);
 
   u8_t rdata[3];
-  spiffs_file fd = SPIFFS_open(FS, "simul2", 0, SPIFFS_RDONLY);
+  spiffs_file fd = SPIFFS_open(FS, "simul2", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd > 0);
   res = SPIFFS_read(FS, fd, &rdata, 3);
   TEST_CHECK(res >= 0);
@@ -819,7 +819,7 @@ TEST(file_uniqueness)
     sprintf(content, "%i", i);
     res = test_create_file(fname);
     TEST_CHECK(res >= 0);
-    fd = SPIFFS_open(FS, fname, 0, SPIFFS_APPEND | SPIFFS_RDWR);
+    fd = SPIFFS_open(FS, fname, SPIFFS_APPEND | SPIFFS_RDWR, 0);
     TEST_CHECK(fd >= 0);
     res = SPIFFS_write(FS, fd, content, strlen(content)+1);
     TEST_CHECK(res >= 0);
@@ -831,7 +831,7 @@ TEST(file_uniqueness)
     char ref_content[20];
     sprintf(fname, "file%i", i);
     sprintf(content, "%i", i);
-    fd = SPIFFS_open(FS, fname, 0, SPIFFS_RDONLY);
+    fd = SPIFFS_open(FS, fname, SPIFFS_RDONLY, 0);
     TEST_CHECK(fd >= 0);
     res = SPIFFS_read(FS, fd, ref_content, strlen(content)+1);
     TEST_CHECK(res >= 0);
@@ -851,7 +851,7 @@ TEST(file_uniqueness)
     sprintf(content, "new%i", i);
     res = test_create_file(fname);
     TEST_CHECK(res >= 0);
-    fd = SPIFFS_open(FS, fname, 0, SPIFFS_APPEND | SPIFFS_RDWR);
+    fd = SPIFFS_open(FS, fname, SPIFFS_APPEND | SPIFFS_RDWR, 0);
     TEST_CHECK(fd >= 0);
     res = SPIFFS_write(FS, fd, content, strlen(content)+1);
     TEST_CHECK(res >= 0);
@@ -867,7 +867,7 @@ TEST(file_uniqueness)
     } else {
       sprintf(content, "%i", i);
     }
-    fd = SPIFFS_open(FS, fname, 0, SPIFFS_RDONLY);
+    fd = SPIFFS_open(FS, fname, SPIFFS_RDONLY, 0);
     TEST_CHECK(fd >= 0);
     res = SPIFFS_read(FS, fd, ref_content, strlen(content)+1);
     TEST_CHECK(res >= 0);
@@ -889,7 +889,7 @@ int create_and_read_back(int size, int chunk) {
 
   res = test_create_file(name);
   CHECK(res >= 0);
-  fd = SPIFFS_open(FS, name, 0, SPIFFS_APPEND | SPIFFS_RDWR);
+  fd = SPIFFS_open(FS, name, SPIFFS_APPEND | SPIFFS_RDWR, 0);
   CHECK(fd >= 0);
   res = SPIFFS_write(FS, fd, buf, size);
   CHECK(res >= 0);
@@ -901,7 +901,7 @@ int create_and_read_back(int size, int chunk) {
 
   SPIFFS_close(FS, fd);
 
-  fd = SPIFFS_open(FS, name, 0, SPIFFS_RDONLY);
+  fd = SPIFFS_open(FS, name, SPIFFS_RDONLY, 0);
   CHECK(fd >= 0);
 
   u8_t *rbuf = malloc(size);
@@ -967,7 +967,7 @@ TEST(bad_index_1) {
   res = read_and_verify("file");
   TEST_CHECK(res >= 0);
 
-  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
+  spiffs_file fd = SPIFFS_open(FS, "file", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd > 0);
   spiffs_stat s;
   res = SPIFFS_fstat(FS, fd, &s);
@@ -1004,7 +1004,7 @@ TEST(bad_index_2) {
   res = read_and_verify("file");
   TEST_CHECK(res >= 0);
 
-  spiffs_file fd = SPIFFS_open(FS, "file", 0, 0);
+  spiffs_file fd = SPIFFS_open(FS, "file", SPIFFS_RDONLY, 0);
   TEST_CHECK(fd > 0);
   spiffs_stat s;
   res = SPIFFS_fstat(FS, fd, &s);
@@ -1040,7 +1040,7 @@ TEST(lseek_simple_modification) {
   char *fname = "seekfile";
   int i;
   int len = 4096;
-  fd = SPIFFS_open(FS, fname, 0, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR);
+  fd = SPIFFS_open(FS, fname, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
   TEST_CHECK(fd > 0);
   int pfd = open(make_test_fname(fname), O_TRUNC | O_CREAT | O_RDWR);
   u8_t *buf = malloc(len);
@@ -1080,7 +1080,7 @@ TEST(lseek_modification_append) {
   char *fname = "seekfile";
   int i;
   int len = 4096;
-  fd = SPIFFS_open(FS, fname, 0, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR);
+  fd = SPIFFS_open(FS, fname, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
   TEST_CHECK(fd > 0);
   int pfd = open(make_test_fname(fname), O_TRUNC | O_CREAT | O_RDWR);
   u8_t *buf = malloc(len);
@@ -1121,7 +1121,7 @@ TEST(lseek_modification_append_multi) {
   int len = 1024;
   int runs = (FS_PURE_DATA_PAGES(FS) / 2) * SPIFFS_DATA_PAGE_SIZE(FS) / (len/2);
 
-  fd = SPIFFS_open(FS, fname, 0, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR);
+  fd = SPIFFS_open(FS, fname, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
   TEST_CHECK(fd > 0);
   int pfd = open(make_test_fname(fname), O_TRUNC | O_CREAT | O_RDWR);
   u8_t *buf = malloc(len);
@@ -1164,7 +1164,7 @@ TEST(lseek_read) {
   int len = (FS_PURE_DATA_PAGES(FS) / 2) * SPIFFS_DATA_PAGE_SIZE(FS);
   int runs = 100000;
 
-  fd = SPIFFS_open(FS, fname, 0, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR);
+  fd = SPIFFS_open(FS, fname, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
   TEST_CHECK(fd > 0);
   u8_t *refbuf = malloc(len);
   memrand(refbuf, len);

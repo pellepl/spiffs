@@ -251,20 +251,20 @@ void SPIFFS_unmount(spiffs *fs);
  * Creates a new file.
  * @param fs            the file system struct
  * @param path          the path of the new file
- * @param attr          ignored, for posix compliance
+ * @param mode          ignored, for posix compliance
  */
-s32_t SPIFFS_creat(spiffs *fs, const char *path, spiffs_attr attr);
+s32_t SPIFFS_creat(spiffs *fs, const char *path, spiffs_mode mode);
 
 /**
  * Opens/creates a file.
  * @param fs            the file system struct
  * @param path          the path of the new file
- * @param attr          ignored, for posix compliance
- * @param mode          the mode for the open command, can be combinations of
+ * @param flags         the flags for the open command, can be combinations of
  *                      SPIFFS_APPEND, SPIFFS_TRUNC, SPIFFS_CREAT, SPIFFS_RD_ONLY,
  *                      SPIFFS_WR_ONLY, SPIFFS_RDWR, SPIFFS_DIRECT
+ * @param mode          ignored, for posix compliance
  */
-spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_attr attr, spiffs_mode mode);
+spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs_mode mode);
 
 /**
  * Reads from given filehandle.

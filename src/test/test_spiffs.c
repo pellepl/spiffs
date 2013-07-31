@@ -177,7 +177,7 @@ void dump_page(spiffs *fs, spiffs_page_ix p) {
 
 int read_and_verify(char *name) {
   s32_t res;
-  int fd = SPIFFS_open(&__fs, name, 0, 0);
+  int fd = SPIFFS_open(&__fs, name, SPIFFS_RDONLY, 0);
   if (fd < 0) {
     printf("  read_and_verify: could not open file %s\n", name);
     return fd;
