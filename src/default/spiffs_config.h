@@ -20,32 +20,39 @@
 
 // compile time switches
 
-// set generic spiffs debug output
+// Set generic spiffs debug output call.
 #define SPIFFS_DBG(...)
-// set spiffs debug output for garbage collecting
+// Set spiffs debug output call for garbage collecting.
 #define SPIFFS_GC_DBG(...)
-// set spiffs debug output for caching
+// Set spiffs debug output call for caching.
 #define SPIFFS_CACHE_DBG(...)
-// set spiffs debug output for system consistency checks
+// Set spiffs debug output call for system consistency checks.
 #define SPIFFS_CHECK_DBG(...)
 
-// define maximum number of gc runs to perform to reach desired free pages
-#define SPIFFS_GC_MAX_RUNS              3
-// enable/disable statistics on gc
-#define SPIFFS_GC_STATS                 1
+// Enable/disable API functions to determine exact number of bytes
+// for filedescriptor and cache buffers. Once decided for a configuration,
+// this can be disabled to reduce flash.
+#define SPIFFS_BUFFER_HELP              0
 
-// enables/disable memory read caching of nucleus file system operations
-// if enabled, memory area must be provided for cache in SPIFFS_init
+// Enables/disable memory read caching of nucleus file system operations.
+// If enabled, memory area must be provided for cache in SPIFFS_mount.
 #define SPIFFS_CACHE                    1
 #if SPIFFS_CACHE
-// enables memory write caching for file descriptors in hydrogen
+// Enables memory write caching for file descriptors in hydrogen
 #define SPIFFS_CACHE_WR                 1
-// enable/disable statistics on caching
+// Enable/disable statistics on caching. Debug/test purpose only.
 #define SPIFFS_CACHE_STATS              1
 #endif
 
-// checks header of each accessed page to validate state
+// Always check header of each accessed page to ensure consistent state.
+// If enabled it will increase number of reads, will increase flash.
 #define SPIFFS_PAGE_CHECK               1
+
+// Define maximum number of gc runs to perform to reach desired free pages.
+#define SPIFFS_GC_MAX_RUNS              3
+
+// Enable/disable statistics on gc. Debug/test purpose only.
+#define SPIFFS_GC_STATS                 1
 
 // Garbage collecting examines all pages in a block which and sums up
 // to a block score. Deleted pages normally gives positive score and
@@ -55,22 +62,24 @@
 // The larger the score, the more likely it is that the block will
 // picked for garbage collection.
 
-// garbage collecting heuristics - weight used for deleted pages
+// Farbage collecting heuristics - weight used for deleted pages.
 #define SPIFFS_GC_HEUR_W_DELET          (10)
-// garbage collecting heuristics - weight used for used pages
+// Farbage collecting heuristics - weight used for used pages.
 #define SPIFFS_GC_HEUR_W_USED           (-1)
-// garbage collecting heuristics - weight used for time between
-// last erased and erase of this block
+// Farbage collecting heuristics - weight used for time between
+// last erased and erase of this block.
 #define SPIFFS_GC_HEUR_W_ERASE_AGE      (30)
 
-// object name length
-#define SPIFFS_OBJ_NAME_LEN (32 - sizeof(spiffs_obj_type))
+// Object name maximum length.
+#define SPIFFS_OBJ_NAME_LEN             (32)
 
-// size of buffer on stack used when copying data
+// Size of buffer allocated on stack used when copying data.
+// Lower value generates more read/writes. No meaning having it bigger
+// than logical page size.
 #define SPIFFS_COPY_BUFFER_STACK        (64)
 
 // SPIFFS_LOCK and SPIFFS_UNLOCK protects spiffs from reentrancy on api level
-// These must be defined on a multithreaded system
+// These should be defined on a multithreaded system
 
 // define this to entering a mutex if you're running on a multithreaded system
 #define SPIFFS_LOCK(fs)
@@ -79,12 +88,13 @@
 
 
 // Enable if only one spiffs instance with constant configuration will exist
-// on the target, this will reduce calculations, flash and memory accesses.
+// on the target. This will reduce calculations, flash and memory accesses.
+// Parts of configuration must be defined below instead of at time of mount.
 #define SPIFFS_SINGLETON 0
 
 #if SPIFFS_SINGLETON
-// instead of giving parameters in config struct, singleton build must
-// give parameters in defines below
+// Instead of giving parameters in config struct, singleton build must
+// give parameters in defines below.
 #define SPIFFS_CFG_PHYS_SZ(ignore)        (1024*1024*2)
 #define SPIFFS_CFG_PHYS_ERASE_SZ(ignore)  (65536)
 #define SPIFFS_CFG_PHYS_ADDR(ignore)      (0)
@@ -108,24 +118,24 @@
 #define SPIFFS_TEST_VIS_DATA_STR(id)      "d"
 #endif
 
-// types and constants
+// Types depending on configuration such as the amount of flash bytes
+// given to spiffs file system in total (spiffs_file_system_size),
+// the logical block size (log_block_size), and the logical page size
+// (log_page_size)
 
-// spiffs file descriptor index type
-typedef s16_t spiffs_file;
-// spiffs file descriptor flags
-typedef u32_t spiffs_flags;
-// spiffs file mode
-typedef u32_t spiffs_mode;
-
-// block index type
-typedef u16_t spiffs_block_ix; // (address-phys_addr) / block_size
-// page index type
-typedef u16_t spiffs_page_ix;  // (address-phys_addr) / page_size
-// object id type - most significant bit is reserved for index flag
+// Block index type. Make sure the size of this type can hold
+// the highest number of all blocks - i.e. spiffs_file_system_size / log_block_size
+typedef u8_t spiffs_block_ix;
+// Page index type. Make sure the size of this type can hold
+// the highest page number of all pages - i.e. spiffs_file_system_size / log_page_size
+typedef u16_t spiffs_page_ix;
+// Object id type - most significant bit is reserved for index flag. Make sure the
+// size of this type can hold the highest object id on a full system,
+// i.e. 2 + (spiffs_file_system_size / (2*log_page_size))*2
 typedef u16_t spiffs_obj_id;
-// object span index type
+// Object span index type. Make sure the size of this type can
+// hold the largest possible span index on the system -
+// i.e. (spiffs_file_system_size / log_page_size) - 1
 typedef u16_t spiffs_span_ix;
-// object type
-typedef u8_t spiffs_obj_type;
 
 #endif /* SPIFFS_CONFIG_H_ */

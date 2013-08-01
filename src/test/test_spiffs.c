@@ -296,7 +296,33 @@ static void spiffs_check_cb_f(spiffs_check_type type, spiffs_check_report report
     printf("%i%%\n", arg1 * 100 / 256);
   }*/
   if (report != SPIFFS_CHECK_PROGRESS) {
-    printf("   check cb f: %i %i %08x (%i) %08x\n", type, report, arg1, arg1, arg2);
+    printf("   check: ");
+    switch (type) {
+    case SPIFFS_CHECK_INDEX:
+      printf("INDEX  "); break;
+    case SPIFFS_CHECK_LOOKUP:
+      printf("LOOKUP "); break;
+    case SPIFFS_CHECK_PAGE:
+      printf("PAGE   "); break;
+    default:
+      printf("????   "); break;
+    }
+    if (report == SPIFFS_CHECK_ERROR) {
+      printf("ERROR %i", arg1);
+    } else if (report == SPIFFS_CHECK_DELETE_BAD_FILE) {
+      printf("DELETE BAD FILE %04x", arg1);
+    } else if (report == SPIFFS_CHECK_DELETE_ORPHANED_INDEX) {
+      printf("DELETE ORPHANED INDEX %04x", arg1);
+    } else if (report == SPIFFS_CHECK_DELETE_PAGE) {
+      printf("DELETE PAGE %04x", arg1);
+    } else if (report == SPIFFS_CHECK_FIX_INDEX) {
+      printf("FIX INDEX %04x:%04x", arg1, arg2);
+    } else if (report == SPIFFS_CHECK_FIX_LOOKUP) {
+      printf("FIX INDEX %04x:%04x", arg1, arg2);
+    } else {
+      printf("??");
+    }
+    printf("\n");
   }
 }
 

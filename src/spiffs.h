@@ -40,6 +40,15 @@
 #define SPIFFS_ERR_INTERNAL             -10050
 
 
+// spiffs file descriptor index type. must be signed
+typedef s16_t spiffs_file;
+// spiffs file descriptor flags
+typedef u16_t spiffs_flags;
+// spiffs file mode
+typedef u16_t spiffs_mode;
+// object type
+typedef u8_t spiffs_obj_type;
+
 /* spi read call function type */
 typedef s32_t (*spiffs_read)(u32_t addr, u32_t size, u8_t *dst);
 /* spi write call function type */
@@ -59,6 +68,7 @@ typedef enum {
   SPIFFS_CHECK_PROGRESS = 0,
   SPIFFS_CHECK_ERROR,
   SPIFFS_CHECK_FIX_INDEX,
+  SPIFFS_CHECK_FIX_LOOKUP,
   SPIFFS_CHECK_DELETE_ORPHANED_INDEX,
   SPIFFS_CHECK_DELETE_PAGE,
   SPIFFS_CHECK_DELETE_BAD_FILE,
@@ -384,6 +394,25 @@ s32_t SPIFFS_check(spiffs *fs);
  * @param fs            the file system struct
  */
 s32_t SPIFFS_vis(spiffs *fs);
+#endif
+
+#if SPIFFS_BUFFER_HELP
+/**
+ * Returns number of bytes needed for the filedescriptor buffer given
+ * amount of file descriptors.
+ */
+u32_t SPIFFS_buffer_bytes_for_filedescs(spiffs *fs, u32_t num_descs);
+
+#if SPIFFS_CACHE
+/**
+ * Returns number of bytes needed for the cache buffer given
+ * amount of cache pages.
+ */
+u32_t SPIFFS_buffer_bytes_for_cache(spiffs *fs, u32_t num_pages);
+#endif
+#endif
+
+#if SPIFFS_CHACHE
 #endif
 
 #endif /* SPIFFS_H_ */

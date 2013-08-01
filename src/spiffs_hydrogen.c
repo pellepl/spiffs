@@ -10,6 +10,16 @@
 
 static s32_t spiffs_fflush_cache(spiffs *fs, spiffs_file fh);
 
+#if SPIFFS_BUFFER_HELP
+u32_t SPIFFS_buffer_bytes_for_filedescs(spiffs *fs, u32_t num_descs) {
+  return num_descs * sizeof(spiffs_fd);
+}
+#if SPIFFS_CACHE
+u32_t SPIFFS_buffer_bytes_for_cache(spiffs *fs, u32_t num_pages) {
+  return sizeof(spiffs_cache) + num_pages * (sizeof(spiffs_cache_page) + SPIFFS_CFG_LOG_PAGE_SZ(fs));
+}
+#endif
+#endif
 
 s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
     u8_t *fd_space, u32_t fd_space_size,

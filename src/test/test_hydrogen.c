@@ -16,8 +16,6 @@
 #include <dirent.h>
 #include <unistd.h>
 
-//#define REMOVE_LONG_TESTS
-
 static void test_on_stop(test *t) {
   printf("  spiffs errno:%i\n", SPIFFS_errno(&__fs));
 #if SPIFFS_TEST_VISUALISATION
@@ -1218,7 +1216,6 @@ TEST(lseek_read) {
 TEST_END(lseek_read)
 
 
-#ifndef REMOVE_LONG_TESTS
 TEST(write_small_file_chunks_1)
 {
   int res = test_create_and_write_file("smallfile", 256, 1);
@@ -1288,7 +1285,7 @@ TEST(write_big_files_chunks_1)
   return TEST_RES_OK;
 }
 TEST_END(write_big_files_chunks_1)
-#endif // REMOVE_LONG_TESTS
+
 
 TEST(long_run_config_many_small_one_long)
 {
@@ -1530,20 +1527,30 @@ TEST(long_run)
       },
   };
 
-  int macro_runs = 1000;
+  int macro_runs = 500;
   printf("  ");
+  u32_t clob_size = SPIFFS_CFG_PHYS_SZ(FS)/4;
+  int res = test_create_and_write_file("long_clobber", clob_size, clob_size);
+  TEST_CHECK(res >= 0);
+
+  res = read_and_verify("long_clobber");
+  TEST_CHECK(res >= 0);
+
   while (macro_runs--) {
     //printf("  ---- run %i ----\n", macro_runs);
     if ((macro_runs % 20) == 0) {
       printf(".");
       fflush(stdout);
     }
-    int res = run_file_config(sizeof(cfgs)/sizeof(cfgs[0]), &cfgs[0], 11, 2, 0);
+    res = run_file_config(sizeof(cfgs)/sizeof(cfgs[0]), &cfgs[0], 11, 2, 0);
     TEST_CHECK(res >= 0);
   }
   printf("\n");
 
-  int res = SPIFFS_check(FS);
+  res = read_and_verify("long_clobber");
+  TEST_CHECK(res >= 0);
+
+  res = SPIFFS_check(FS);
   TEST_CHECK(res >= 0);
 
   return TEST_RES_OK;

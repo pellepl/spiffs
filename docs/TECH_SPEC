@@ -228,9 +228,9 @@ would look like this:
 
 PAGE 0  [  12   12  545   12  *12   34   34   *4    0    0    0    0 ...]
 
-where the asterisk means the msb is set.
+where the asterisk means the msb of the object id is set.
 
 This is another way to speed up the searches when looking for object indices.
 By looking on the object id's msb in the object lookup, it is also possible 
-whether the page is an object index page or a data page.
+to find out whether the page is an object index page or a data page.
 

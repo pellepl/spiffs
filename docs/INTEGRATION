@@ -90,7 +90,7 @@ define the SPI flash access functions:
 
  spiffs_config.hal_erase_f - pointing to the function erasing the SPI flash
  
-Depending on the build config - if SPIFFS_SINGLETON is undefined - following
+Depending on the build config - if SPIFFS_SINGLETON is set to zero - following
 parameters must be defined:
  
  spiffs_config.phys_size - the physical number of bytes accounted for 
@@ -102,9 +102,13 @@ parameters must be defined:
                                   on the SPI flash found within the spiffs
                                   usage address space
 
- spiffs_config.log_block_size - 
+ spiffs_config.log_block_size - the logical size of a spiffs block
 
- spiffs_config.log_page_size - 
+ spiffs_config.log_page_size - the logical size of a spiffs page
+ 
+If SPIFFS_SINGLETON is set to one, above parameters must be set ny defines in
+the config header file.
+
 
 ** Build config
 
@@ -116,6 +120,7 @@ be typedeffed.
 
 spiffs_config.h: you also need to define a spiffs_config.h header. Example of
 this is found in the default/ directory.
+
 
 ** RAM
 
@@ -144,7 +149,7 @@ you point out these files in your make script for compilation.
 
 Also copy the spiffs_config.h over from the default/ folder.
 
-Try buliding. This fails, nagging about inclusions and u32_t and whatnot. Open 
+Try building. This fails, nagging about inclusions and u32_t and whatnot. Open 
 the spiffs_config.h and delete the bad inclusions. Also, add following 
 typedefs:
 

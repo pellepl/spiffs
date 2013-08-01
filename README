@@ -1,5 +1,5 @@
 SPIFFS (SPI Flash File System)
-V0.1
+V0.2
 
 Copyright (c) 2013 Peter Andersson (pelleplutt1976<at>gmail.com)
 
@@ -15,7 +15,7 @@ Love to hear feedback though!
 Spiffs is a file system intended for SPI NOR flash devices on embedded targets.
 
 Spiffs is designed with following characteristics in mind:
- - Small (embedded) targets, sparse RAM
+ - Small (embedded) targets, sparse RAM without heap
  - Only big areas of data (blocks) can be erased
  - An erase will reset all bits in block to ones
  - Writing pulls one to zeroes
@@ -26,6 +26,8 @@ Spiffs is designed with following characteristics in mind:
 * FEATURES
 
 What spiffs does:
+ - Specifically designed for low ram usage
+ - Uses statically sized ram buffers, independent of number of files
  - Posix-like api: open, close, read, write, seek, stat, etc
  - It can be run on any NOR flash, not only SPI flash - theoretically also on
    embedded flash of an microprocessor
@@ -33,8 +35,7 @@ What spiffs does:
    SPI flash device
  - Implements static wear leveling 
  - Built in file system consistency checks
- - Specifically designed for low ram usage
-
+ 
 What spiffs does not:
  - Presently, spiffs does not support directories. It produces a flat
    structure. Creating a file with path "tmp/myfile.txt" will create a file 
