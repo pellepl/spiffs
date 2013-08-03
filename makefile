@@ -85,6 +85,9 @@ mkdirs:
 test: all
 		./build/$(BINARY)
 	
+test_failed: all
+		./build/$(BINARY) _tests_fail
+	
 clean:
 	@echo ... removing build files in ${builddir}
 	@rm -f ${builddir}/*.o

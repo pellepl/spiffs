@@ -430,7 +430,7 @@ int test_create_and_write_file(char *name, int size, int chunk_size) {
     printf(" failed open, %i\n",res);
   }
   CHECK(fd >= 0);
-  int pfd = open(make_test_fname(name), O_APPEND | O_TRUNC | O_CREAT | O_RDWR);
+  int pfd = open(make_test_fname(name), O_APPEND | O_TRUNC | O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
   int offset = 0;
   int mark = 0;
   while (offset < size) {
@@ -546,7 +546,7 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
         if (tf->cfg.tsize == EMPTY) {
           res = SPIFFS_creat(FS, name, 0);
           CHECK_RES(res);
-          int pfd = open(make_test_fname(name), O_TRUNC | O_CREAT | O_RDWR);
+          int pfd = open(make_test_fname(name), O_TRUNC | O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
           close(pfd);
           int extra_flags = tf->cfg.ttype == APPENDED ? SPIFFS_APPEND : 0;
           spiffs_file fd = SPIFFS_open(FS, name, extra_flags | SPIFFS_RDWR, 0);
@@ -557,7 +557,7 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
           spiffs_file fd = SPIFFS_open(FS, name, extra_flags | SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
           CHECK(fd > 0);
           extra_flags = tf->cfg.ttype == APPENDED ? O_APPEND : 0;
-          int pfd = open(make_test_fname(name), extra_flags | O_TRUNC | O_CREAT | O_RDWR);
+          int pfd = open(make_test_fname(name), extra_flags | O_TRUNC | O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
           tf->fd = fd;
           int size = tfile_get_size(tf->cfg.tsize);
           u8_t *buf = malloc(size);
@@ -622,7 +622,7 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
           if (dbg) printf("   rewriting %s\n", tf->name);
           spiffs_file fd = SPIFFS_open(FS, tf->name, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
           CHECK(fd > 0);
-          int pfd = open(make_test_fname(tf->name), O_TRUNC | O_CREAT | O_RDWR);
+          int pfd = open(make_test_fname(tf->name), O_TRUNC | O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
           tf->fd = fd;
           int size = tfile_get_size(tf->cfg.tsize);
           u8_t *buf = malloc(size);

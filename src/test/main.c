@@ -1,6 +1,7 @@
 #include "testrunner.h"
+#include <stdlib.h>
 
-int main(void) {
-  run_tests();
-  return 1;
+int main(int argc, char **args) {
+  run_tests(argc, args);
+  exit(EXIT_SUCCESS);
 }

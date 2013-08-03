@@ -105,6 +105,6 @@ typedef struct test_res_s {
 void add_suites();
 void test_init(void (*on_stop)(test *t));
 void add_test(test_f f, char *name, void (*setup)(test *t), void (*teardown)(test *t));
-void run_tests();
+void run_tests(int argc, char **args);
 
 #endif /* TESTS_H_ */

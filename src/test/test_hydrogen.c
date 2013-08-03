@@ -725,7 +725,7 @@ TEST(lseek_simple_modification) {
   int len = 4096;
   fd = SPIFFS_open(FS, fname, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
   TEST_CHECK(fd > 0);
-  int pfd = open(make_test_fname(fname), O_TRUNC | O_CREAT | O_RDWR);
+  int pfd = open(make_test_fname(fname), O_TRUNC | O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
   u8_t *buf = malloc(len);
   memrand(buf, len);
   res = SPIFFS_write(FS, fd, buf, len);
@@ -765,7 +765,7 @@ TEST(lseek_modification_append) {
   int len = 4096;
   fd = SPIFFS_open(FS, fname, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
   TEST_CHECK(fd > 0);
-  int pfd = open(make_test_fname(fname), O_TRUNC | O_CREAT | O_RDWR);
+  int pfd = open(make_test_fname(fname), O_TRUNC | O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
   u8_t *buf = malloc(len);
   memrand(buf, len);
   res = SPIFFS_write(FS, fd, buf, len);
@@ -806,7 +806,7 @@ TEST(lseek_modification_append_multi) {
 
   fd = SPIFFS_open(FS, fname, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
   TEST_CHECK(fd > 0);
-  int pfd = open(make_test_fname(fname), O_TRUNC | O_CREAT | O_RDWR);
+  int pfd = open(make_test_fname(fname), O_TRUNC | O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
   u8_t *buf = malloc(len);
   memrand(buf, len);
   res = SPIFFS_write(FS, fd, buf, len);
