@@ -28,6 +28,12 @@ static unsigned char area[FLASH_SIZE];
 
 static int erases[sizeof(area)/SECTOR_SIZE];
 static char _path[256];
+static u32_t bytes_rd = 0;
+static u32_t bytes_wr = 0;
+static u32_t reads = 0;
+static u32_t writes = 0;
+static char log_flash_ops = 1;
+static u32_t fs_check_fixes = 0;
 
 spiffs __fs;
 static u8_t _work[LOG_PAGE*2];
@@ -60,6 +66,10 @@ void clear_test_path() {
 }
 
 static s32_t _read(u32_t addr, u32_t size, u8_t *dst) {
+  if (log_flash_ops) {
+    bytes_rd += size;
+    reads++;
+  }
   memcpy(dst, &area[addr], size);
   return 0;
 }
@@ -67,6 +77,10 @@ static s32_t _read(u32_t addr, u32_t size, u8_t *dst) {
 static s32_t _write(u32_t addr, u32_t size, u8_t *src) {
   int i;
   //printf("wr %08x %i\n", addr, size);
+  if (log_flash_ops) {
+    bytes_wr += size;
+    writes++;
+  }
   for (i = 0; i < size; i++) {
     if (((addr + i) & (LOG_PAGE-1)) != offsetof(spiffs_page_header, flags)) {
       if (check_valid_flash && ((area[addr + i] ^ src[i]) & src[i])) {
@@ -175,6 +189,131 @@ void dump_page(spiffs *fs, spiffs_page_ix p) {
   hexdump(addr, len);
 }
 
+void area_write(u32_t addr, u8_t *buf, u32_t size) {
+  int i;
+  for (i = 0; i < size; i++) {
+    area[addr + i] = *buf++;
+  }
+}
+
+void area_read(u32_t addr, u8_t *buf, u32_t size) {
+  int i;
+  for (i = 0; i < size; i++) {
+    *buf++ = area[addr + i];
+  }
+}
+
+void dump_erase_counts(spiffs *fs) {
+  spiffs_block_ix bix;
+  printf("  BLOCK     |\n");
+  printf("   AGE COUNT|\n");
+  for (bix = 0; bix < fs->block_count; bix++) {
+    printf("----%3i ----|", bix);
+  }
+  printf("\n");
+  for (bix = 0; bix < fs->block_count; bix++) {
+    spiffs_obj_id erase_mark;
+    _spiffs_rd(fs, 0, 0, SPIFFS_ERASE_COUNT_PADDR(fs, bix), sizeof(spiffs_obj_id), (u8_t *)&erase_mark);
+    if (erases[bix] == 0) {
+      printf("            |", bix);
+    } else {
+      printf("%7i %4i|", (fs->max_erase_count - erase_mark), erases[bix]);
+    }
+  }
+  printf("\n");
+}
+
+void dump_flash_access_stats() {
+  printf("  RD: %10i reads  %10i bytes %10i avg bytes/read\n", reads, bytes_rd, reads == 0 ? 0 : (bytes_rd / reads));
+  printf("  WR: %10i writes %10i bytes %10i avg bytes/write\n", writes, bytes_wr, writes == 0 ? 0 : (bytes_wr / writes));
+}
+
+
+static u32_t old_perc = 999;
+static void spiffs_check_cb_f(spiffs_check_type type, spiffs_check_report report,
+    u32_t arg1, u32_t arg2) {
+/*  if (report == SPIFFS_CHECK_PROGRESS && old_perc != arg1) {
+    old_perc = arg1;
+    printf("CHECK REPORT: ");
+    switch(type) {
+    case SPIFFS_CHECK_LOOKUP:
+      printf("LU "); break;
+    case SPIFFS_CHECK_INDEX:
+      printf("IX "); break;
+    case SPIFFS_CHECK_PAGE:
+      printf("PA "); break;
+    }
+    printf("%i%%\n", arg1 * 100 / 256);
+  }*/
+  if (report != SPIFFS_CHECK_PROGRESS) {
+    if (report != SPIFFS_CHECK_ERROR) fs_check_fixes++;
+    printf("   check: ");
+    switch (type) {
+    case SPIFFS_CHECK_INDEX:
+      printf("INDEX  "); break;
+    case SPIFFS_CHECK_LOOKUP:
+      printf("LOOKUP "); break;
+    case SPIFFS_CHECK_PAGE:
+      printf("PAGE   "); break;
+    default:
+      printf("????   "); break;
+    }
+    if (report == SPIFFS_CHECK_ERROR) {
+      printf("ERROR %i", arg1);
+    } else if (report == SPIFFS_CHECK_DELETE_BAD_FILE) {
+      printf("DELETE BAD FILE %04x", arg1);
+    } else if (report == SPIFFS_CHECK_DELETE_ORPHANED_INDEX) {
+      printf("DELETE ORPHANED INDEX %04x", arg1);
+    } else if (report == SPIFFS_CHECK_DELETE_PAGE) {
+      printf("DELETE PAGE %04x", arg1);
+    } else if (report == SPIFFS_CHECK_FIX_INDEX) {
+      printf("FIX INDEX %04x:%04x", arg1, arg2);
+    } else if (report == SPIFFS_CHECK_FIX_LOOKUP) {
+      printf("FIX INDEX %04x:%04x", arg1, arg2);
+    } else {
+      printf("??");
+    }
+    printf("\n");
+  }
+}
+
+void fs_reset() {
+  memset(area, 0xff, sizeof(area));
+  spiffs_config c;
+  c.hal_erase_f = _erase;
+  c.hal_read_f = _read;
+  c.hal_write_f = _write;
+  c.log_block_size = LOG_BLOCK;
+  c.log_page_size = LOG_PAGE;
+  c.phys_addr = 0;
+  c.phys_erase_block = SECTOR_SIZE;
+  c.phys_size = sizeof(area);
+  memset(erases,0,sizeof(erases));
+  memset(_cache,0,sizeof(_cache));
+
+  SPIFFS_mount(&__fs, &c, _work, _fds, sizeof(_fds), _cache, sizeof(_cache), spiffs_check_cb_f);
+
+  bytes_rd = 0;
+  bytes_wr = 0;
+  reads = 0;
+  writes = 0;
+  log_flash_ops = 1;
+  fs_check_fixes = 0;
+}
+
+void fs_set_validate_flashing(int i) {
+  check_valid_flash = i;
+}
+
+void real_assert(int c, const char *n, const char *file, int l) {
+  if (c == 0) {
+    printf("ASSERT: %s %s @ %i\n", (n ? n : ""), file, l);
+    printf("fs errno:%i\n", __fs.errno);
+    exit(0);
+  }
+}
+
+
 int read_and_verify(char *name) {
   s32_t res;
   int fd = SPIFFS_open(&__fs, name, SPIFFS_RDONLY, 0);
@@ -245,112 +384,282 @@ int read_and_verify(char *name) {
   return 0;
 }
 
-void area_write(u32_t addr, u8_t *buf, u32_t size) {
+static void test_on_stop(test *t) {
+  printf("  spiffs errno:%i\n", SPIFFS_errno(&__fs));
+#if SPIFFS_TEST_VISUALISATION
+  SPIFFS_vis(FS);
+#endif
+
+}
+
+void memrand(u8_t *b, int len) {
   int i;
-  for (i = 0; i < size; i++) {
-    area[addr + i] = *buf++;
+  for (i = 0; i < len; i++) {
+    b[i] = rand();
   }
 }
 
-void area_read(u32_t addr, u8_t *buf, u32_t size) {
-  int i;
-  for (i = 0; i < size; i++) {
-    *buf++ = area[addr + i];
-  }
+int test_create_file(char *name) {
+  spiffs_stat s;
+  spiffs_file fd;
+  int res = SPIFFS_creat(FS, name, 0);
+  CHECK_RES(res);
+  fd = SPIFFS_open(FS, name, SPIFFS_RDONLY, 0);
+  CHECK(fd >= 0);
+  log_flash_ops = 0;
+  res = SPIFFS_fstat(FS, fd, &s);
+  log_flash_ops = 1;
+  CHECK_RES(res);
+  CHECK(strcmp((char*)s.name, name) == 0);
+  CHECK(s.size == 0);
+  SPIFFS_close(FS, fd);
+  return 0;
 }
 
-void dump_erase_counts(spiffs *fs) {
-  spiffs_block_ix bix;
-  printf("  BLOCK     |\n");
-  printf("   AGE COUNT|\n");
-  for (bix = 0; bix < fs->block_count; bix++) {
-    printf("----%3i ----|", bix);
+int test_create_and_write_file(char *name, int size, int chunk_size) {
+  int res;
+  spiffs_file fd;
+  printf("    create and write %s", name);
+  res = test_create_file(name);
+  if (res < 0) {
+    printf(" failed creation, %i\n",res);
+  }
+  CHECK(res >= 0);
+  fd = SPIFFS_open(FS, name, SPIFFS_APPEND | SPIFFS_RDWR, 0);
+  if (res < 0) {
+    printf(" failed open, %i\n",res);
+  }
+  CHECK(fd >= 0);
+  int pfd = open(make_test_fname(name), O_APPEND | O_TRUNC | O_CREAT | O_RDWR);
+  int offset = 0;
+  int mark = 0;
+  while (offset < size) {
+    int len = MIN(size-offset, chunk_size);
+    if (offset > mark) {
+      mark += size/16;
+      printf(".");
+      fflush(stdout);
+    }
+    u8_t *buf = malloc(len);
+    memrand(buf, len);
+    res = SPIFFS_write(FS, fd, buf, len);
+    write(pfd, buf, len);
+    free(buf);
+    if (res < 0) {
+      printf("\n  error @ offset %i, res %i\n", offset, res);
+    }
+    offset += len;
+    CHECK(res >= 0);
   }
   printf("\n");
-  for (bix = 0; bix < fs->block_count; bix++) {
-    spiffs_obj_id erase_mark;
-    _spiffs_rd(fs, 0, 0, SPIFFS_ERASE_COUNT_PADDR(fs, bix), sizeof(spiffs_obj_id), (u8_t *)&erase_mark);
-    if (erases[bix] == 0) {
-      printf("            |", bix);
-    } else {
-      printf("%7i %4i|", (fs->max_erase_count - erase_mark), erases[bix]);
-    }
+  close(pfd);
+
+  spiffs_stat stat;
+  log_flash_ops = 0;
+  res = SPIFFS_fstat(FS, fd, &stat);
+  log_flash_ops = 1;
+  if (res < 0) {
+    printf(" failed fstat, %i\n",res);
   }
-  printf("\n");
-}
-
-static u32_t old_perc = 999;
-static void spiffs_check_cb_f(spiffs_check_type type, spiffs_check_report report,
-    u32_t arg1, u32_t arg2) {
-/*  if (report == SPIFFS_CHECK_PROGRESS && old_perc != arg1) {
-    old_perc = arg1;
-    printf("CHECK REPORT: ");
-    switch(type) {
-    case SPIFFS_CHECK_LOOKUP:
-      printf("LU "); break;
-    case SPIFFS_CHECK_INDEX:
-      printf("IX "); break;
-    case SPIFFS_CHECK_PAGE:
-      printf("PA "); break;
-    }
-    printf("%i%%\n", arg1 * 100 / 256);
-  }*/
-  if (report != SPIFFS_CHECK_PROGRESS) {
-    printf("   check: ");
-    switch (type) {
-    case SPIFFS_CHECK_INDEX:
-      printf("INDEX  "); break;
-    case SPIFFS_CHECK_LOOKUP:
-      printf("LOOKUP "); break;
-    case SPIFFS_CHECK_PAGE:
-      printf("PAGE   "); break;
-    default:
-      printf("????   "); break;
-    }
-    if (report == SPIFFS_CHECK_ERROR) {
-      printf("ERROR %i", arg1);
-    } else if (report == SPIFFS_CHECK_DELETE_BAD_FILE) {
-      printf("DELETE BAD FILE %04x", arg1);
-    } else if (report == SPIFFS_CHECK_DELETE_ORPHANED_INDEX) {
-      printf("DELETE ORPHANED INDEX %04x", arg1);
-    } else if (report == SPIFFS_CHECK_DELETE_PAGE) {
-      printf("DELETE PAGE %04x", arg1);
-    } else if (report == SPIFFS_CHECK_FIX_INDEX) {
-      printf("FIX INDEX %04x:%04x", arg1, arg2);
-    } else if (report == SPIFFS_CHECK_FIX_LOOKUP) {
-      printf("FIX INDEX %04x:%04x", arg1, arg2);
-    } else {
-      printf("??");
-    }
-    printf("\n");
+  CHECK(res >= 0);
+  if (stat.size != size) {
+    printf(" failed size, %i != %i\n", stat.size, size);
   }
+  CHECK(stat.size == size);
+
+  SPIFFS_close(FS, fd);
+  return 0;
 }
 
-void fs_reset() {
-  memset(area, 0xff, sizeof(area));
-  spiffs_config c;
-  c.hal_erase_f = _erase;
-  c.hal_read_f = _read;
-  c.hal_write_f = _write;
-  c.log_block_size = LOG_BLOCK;
-  c.log_page_size = LOG_PAGE;
-  c.phys_addr = 0;
-  c.phys_erase_block = SECTOR_SIZE;
-  c.phys_size = sizeof(area);
-  memset(erases,0,sizeof(erases));
-  memset(_cache,0,sizeof(_cache));
-  SPIFFS_mount(&__fs, &c, _work, _fds, sizeof(_fds), _cache, sizeof(_cache), spiffs_check_cb_f);
+#if SPIFFS_CACHE
+#if SPIFFS_CACHE_STATS
+static u32_t chits_tot = 0;
+static u32_t cmiss_tot = 0;
+#endif
+#endif
+
+void _setup() {
+  fs_reset();
+  fs_set_validate_flashing(1);
+  test_init(test_on_stop);
 }
 
-void fs_set_validate_flashing(int i) {
-  check_valid_flash = i;
+void _teardown() {
+  printf("  free blocks     : %i of %i\n", (FS)->free_blocks, (FS)->block_count);
+  printf("  pages allocated : %i\n", (FS)->stats_p_allocated);
+  printf("  pages deleted   : %i\n", (FS)->stats_p_deleted);
+#if SPIFFS_GC_STATS
+  printf("  gc runs         : %i\n", (FS)->stats_gc_runs);
+#endif
+#if SPIFFS_CACHE
+#if SPIFFS_CACHE_STATS
+  chits_tot += (FS)->cache_hits;
+  cmiss_tot += (FS)->cache_misses;
+  printf("  cache hits      : %i (sum %i)\n", (FS)->cache_hits, chits_tot);
+  printf("  cache misses    : %i (sum %i)\n", (FS)->cache_misses, cmiss_tot);
+  printf("  cache utiliz    : %f\n", ((float)chits_tot/(float)(chits_tot + cmiss_tot)));
+#endif
+#endif
+  dump_flash_access_stats();
+#if SPIFFS_GC_STATS
+  if ((FS)->stats_gc_runs > 0)
+#endif
+  dump_erase_counts(FS);
+  printf("  fs consistency check:\n");
+  SPIFFS_check(FS);
+  clear_test_path();
 }
 
-void real_assert(int c, const char *n, const char *file, int l) {
-  if (c == 0) {
-    printf("ASSERT: %s %s @ %i\n", (n ? n : ""), file, l);
-    printf("fs errno:%i\n", __fs.errno);
-    exit(0);
+u32_t tfile_get_size(tfile_size s) {
+  switch (s) {
+  case EMPTY:
+    return 0;
+  case SMALL:
+    return SPIFFS_DATA_PAGE_SIZE(FS)/2;
+  case MEDIUM:
+    return SPIFFS_DATA_PAGE_SIZE(FS) * (SPIFFS_PAGES_PER_BLOCK(FS) - SPIFFS_OBJ_LOOKUP_PAGES(FS));
+  case LARGE:
+    return (FS)->cfg.phys_size/3;
   }
+  return 0;
 }
+
+int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concurrent_files, int dbg) {
+  int res;
+  tfile *tfiles = malloc(sizeof(tfile) * max_concurrent_files);
+  memset(tfiles, 0, sizeof(tfile) * max_concurrent_files);
+  int run = 0;
+  int cur_config_ix = 0;
+  char name[32];
+  while (run < max_runs)  {
+    if (dbg) printf(" run %i/%i\n", run, max_runs);
+    int i;
+    for (i = 0; i < max_concurrent_files; i++) {
+      sprintf(name, "file%i_%i", (1+run), i);
+      tfile *tf = &tfiles[i];
+      if (tf->state == 0 && cur_config_ix < cfg_count) {
+// create a new file
+        strcpy(tf->name, name);
+        if (dbg) printf("   create new %s with cfg %i/%i\n", name, (1+cur_config_ix), cfg_count);
+        tf->state = 1;
+        tf->cfg = cfgs[cur_config_ix];
+        if (tf->cfg.tsize == EMPTY) {
+          res = SPIFFS_creat(FS, name, 0);
+          CHECK_RES(res);
+          int pfd = open(make_test_fname(name), O_TRUNC | O_CREAT | O_RDWR);
+          close(pfd);
+          int extra_flags = tf->cfg.ttype == APPENDED ? SPIFFS_APPEND : 0;
+          spiffs_file fd = SPIFFS_open(FS, name, extra_flags | SPIFFS_RDWR, 0);
+          CHECK(fd > 0);
+          tf->fd = fd;
+        } else {
+          int extra_flags = tf->cfg.ttype == APPENDED ? SPIFFS_APPEND : 0;
+          spiffs_file fd = SPIFFS_open(FS, name, extra_flags | SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
+          CHECK(fd > 0);
+          extra_flags = tf->cfg.ttype == APPENDED ? O_APPEND : 0;
+          int pfd = open(make_test_fname(name), extra_flags | O_TRUNC | O_CREAT | O_RDWR);
+          tf->fd = fd;
+          int size = tfile_get_size(tf->cfg.tsize);
+          u8_t *buf = malloc(size);
+          memrand(buf, size);
+          res = SPIFFS_write(FS, fd, buf, size);
+          CHECK_RES(res);
+          write(pfd, buf, size);
+          close(pfd);
+          free(buf);
+          res = read_and_verify(name);
+          CHECK_RES(res);
+        }
+
+        cur_config_ix++;
+      } else if (tf->state > 0) {
+// hande file lifecycle
+        switch (tf->cfg.ttype) {
+        case UNTAMPERED: {
+          break;
+        }
+        case APPENDED: {
+          if (dbg) printf("   appending %s\n", tf->name);
+          int size = SPIFFS_DATA_PAGE_SIZE(FS)*3;
+          u8_t *buf = malloc(size);
+          memrand(buf, size);
+          res = SPIFFS_write(FS, tf->fd, buf, size);
+          CHECK_RES(res);
+          int pfd = open(make_test_fname(tf->name), O_APPEND | O_RDWR);
+          write(pfd, buf, size);
+          close(pfd);
+          free(buf);
+          res = read_and_verify(tf->name);
+          CHECK_RES(res);
+          break;
+        }
+        case MODIFIED: {
+          if (dbg) printf("   modify %s\n", tf->name);
+          spiffs_stat stat;
+          res = SPIFFS_fstat(FS, tf->fd, &stat);
+          CHECK_RES(res);
+          int size = stat.size / tf->cfg.tlife + SPIFFS_DATA_PAGE_SIZE(FS)/3;
+          int offs = (stat.size / tf->cfg.tlife) * tf->state;
+          res = SPIFFS_lseek(FS, tf->fd, offs, SPIFFS_SEEK_SET);
+          CHECK_RES(res);
+          u8_t *buf = malloc(size);
+          memrand(buf, size);
+          res = SPIFFS_write(FS, tf->fd, buf, size);
+          CHECK_RES(res);
+          int pfd = open(make_test_fname(tf->name), O_RDWR);
+          lseek(pfd, offs, SEEK_SET);
+          write(pfd, buf, size);
+          close(pfd);
+          free(buf);
+          res = read_and_verify(tf->name);
+          CHECK_RES(res);
+          break;
+        }
+        case REWRITTEN: {
+          if (tf->fd > 0) {
+            SPIFFS_close(FS, tf->fd);
+          }
+          if (dbg) printf("   rewriting %s\n", tf->name);
+          spiffs_file fd = SPIFFS_open(FS, tf->name, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
+          CHECK(fd > 0);
+          int pfd = open(make_test_fname(tf->name), O_TRUNC | O_CREAT | O_RDWR);
+          tf->fd = fd;
+          int size = tfile_get_size(tf->cfg.tsize);
+          u8_t *buf = malloc(size);
+          memrand(buf, size);
+          res = SPIFFS_write(FS, fd, buf, size);
+          CHECK_RES(res);
+          write(pfd, buf, size);
+          close(pfd);
+          free(buf);
+          res = read_and_verify(tf->name);
+          CHECK_RES(res);
+          break;
+        }
+        }
+        tf->state++;
+        if (tf->state > tf->cfg.tlife) {
+// file outlived its time, kill it
+          if (tf->fd > 0) {
+            SPIFFS_close(FS, tf->fd);
+          }
+          if (dbg) printf("   removing %s\n", tf->name);
+          res = read_and_verify(tf->name);
+          CHECK_RES(res);
+          res = SPIFFS_remove(FS, tf->name);
+          CHECK_RES(res);
+          remove(make_test_fname(tf->name));
+          memset(tf, 0, sizeof(tf));
+        }
+
+      }
+    }
+
+    run++;
+  }
+  free(tfiles);
+  return 0;
+}
+
+
 

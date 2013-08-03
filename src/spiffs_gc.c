@@ -45,7 +45,8 @@ static s32_t spiffs_gc_erase_block(
 }
 
 // Searches for blocks where all entries are deleted - if one is found,
-// the block is erased.
+// the block is erased. Compared to the non-quick gc, the quick one ensures
+// that no updates are needed on existing objects on pages that are erased.
 s32_t spiffs_gc_quick(
     spiffs *fs) {
   s32_t res = SPIFFS_OK;
