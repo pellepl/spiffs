@@ -287,9 +287,9 @@ s32_t spiffs_obj_lu_scan(
     erase_count_final = 0;
   } else if (erase_count_max - erase_count_min > (SPIFFS_OBJ_ID_FREE)/2) {
     // wrap, take min
-    erase_count_final = erase_count_min;
+    erase_count_final = erase_count_min+1;
   } else {
-    erase_count_final = erase_count_max;
+    erase_count_final = erase_count_max+1;
   }
 
   fs->max_erase_count = erase_count_final;

@@ -54,6 +54,7 @@
 #ifndef  SPIFFS_CACHE_WR
 #define SPIFFS_CACHE_WR                 1
 #endif
+
 // Enable/disable statistics on caching. Debug/test purpose only.
 #ifndef  SPIFFS_CACHE_STATS
 #define SPIFFS_CACHE_STATS              1
