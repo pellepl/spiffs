@@ -1,3 +1,131 @@
+* QUICK AND DIRTY INTEGRATION EXAMPLE
+
+So, assume you're running a Cortex-M3 board with a 2 MB SPI flash on it. The 
+SPI flash has 64kB blocks. Your project is built using gnumake, and now you 
+want to try things out.
+
+First, you simply copy the files in src/ to your own source folder. Exclude
+all files in test folder. Then you point out these files in your make script 
+for compilation.
+
+Also copy the spiffs_config.h over from the src/default/ folder.
+
+Try building. This fails, nagging about inclusions and u32_t and whatnot. Open 
+the spiffs_config.h and delete the bad inclusions. Also, add following 
+typedefs:
+
+  typedef signed int s32_t;
+  typedef unsigned int u32_t;
+  typedef signed short s16_t;
+  typedef unsigned short u16_t;
+  typedef signed char s8_t;
+  typedef unsigned char u8_t;
+  
+Now it should build. Over to the mounting business. Assume you already 
+implemented the read, write and erase functions to your SPI flash:
+
+  void my_spi_read(int addr, int size, char *buf)
+  void my_spi_write(int addr, int size, char *buf)
+  void my_spi_erase(int addr, int size)
+
+In your main.c or similar, include the spiffs.h and do that spiffs struct:
+
+  #include <spiffs.h>
+  
+  static spiffs fs;
+
+Also, toss up some of the needed buffers:
+
+  #define LOG_PAGE_SIZE       256
+  
+  static u8_t spiffs_work_buf[LOG_PAGE_SIZE*2];
+  static u8_t spiffs_fds[32*4];
+  static u8_t spiffs_cache[(LOG_PAGE_SIZE+32)*4];
+  
+Now, write the my_spiffs_mount function:
+
+  void my_spiffs_mount() {
+    spiffs_config cfg;
+    cfg.phys_size = 2*1024*1024; // use all spi flash
+    cfg.phys_addr = 0; // start spiffs at start of spi flash
+    cfg.phys_erase_block = 65536; // according to datasheet
+    cfg.log_block_size = 65536; // let us not complicate things
+    cfg.log_block_size = LOG_PAGE_SIZE; // as we said
+    
+    cfg.hal_read_f = my_spi_read;
+    cfg.hal_write_f = my_spi_write;
+    cfg.hal_erase_f = my_spi_erase;
+    
+    int res = SPIFFS_mount(&fs,
+      &cfg,
+      spiffs_work_buf,
+      spiffs_fds,
+      sizeof(spiffs_fds),
+      spiffs_cache,
+      sizeof(spiffs_cache),
+      0);
+    printf("mount res: %i\n", res);
+  }
+
+Now, build warns about the my_spi_read, write and erase functions. Wrong 
+signatures, so go wrap them:
+
+  static s32_t my_spiffs_read(u32_t addr, u32_t size, u8_t *dst) {
+    my_spi_read(addr, size, dst);
+    return SPIFFS_OK;
+  }
+
+  static s32_t my_spiffs_write(u32_t addr, u32_t size, u8_t *src) {
+    my_spi_write(addr, size, dst);
+    return SPIFFS_OK;
+  }
+
+  static s32_t my_spiffs_erase(u32_t addr, u32_t size) {
+    my_spi_erase(addr, size);
+    return SPIFFS_OK;
+  } 
+
+Redirect the config in my_spiffs_mount to the wrappers instead:
+
+    cfg.hal_read_f = my_spiffs_read;
+    cfg.hal_write_f = my_spiffs_write;
+    cfg.hal_erase_f = my_spiffs_erase;
+
+Ok, now you should be able to build and run. However, you get this output:
+  
+  mount res: -1
+  
+but you wanted 
+
+  mount res: 0
+  
+This is probably due to you having experimented with your SPI flash, so it
+contains rubbish from spiffs's point of view. Do a mass erase and run again.
+
+If all is ok now, you're good to go. Try creating a file and read it back:
+
+  static void test_spiffs() {
+    char buf[12];
+    
+    // Surely, I've mounted spiffs before entering here
+  
+    spiffs_file fd = SPIFFS_open(&fs, "my_file", SPIFFS_CREAT | SPIFFS_TRUNC | SPIFFS_RDWR, 0);
+    if (SPIFFS_write(&fs, fd, (u8_t *)"Hello world", 12) < 0) printf("errno %i\n", SPIFFS_errno(&fs));
+    SPIFFS_close(&fs, fd); 
+  
+    fd = SPIFFS_open(&fs, "my_file", SPIFFS_RDWR, 0);
+    if (SPIFFS_read(&fs, fd, (u8_t *)buf, 12) < 0) printf("errno %i\n", SPIFFS_errno(&fs));
+    SPIFFS_close(&fs, fd);
+  
+    printf("--> %s <--\n", buf);
+  }
+  
+Compile, run, cross fingers hard, and you'll get the output:
+
+  --> Hello world <-- 
+  
+Got errors? Check spiffs.h for error definitions to get a clue what went voodoo.
+
 * INTEGRATING SPIFFS
 
 In order to integrate spiffs to your embedded target, you will basically need:
@@ -129,139 +257,26 @@ logical page size. It also needs at least one file descriptor. If cache is
 enabled (highly recommended), it will also need a bunch of cache pages.
 
 Say you have a logical page size of 256 bytes. You want to be able to have four
-files open simultaneously, and you can give spiffs four cache pages. This sums
-up to:
+files open simultaneously, and you can give spiffs four cache pages. This 
+roughly sums up to:
 
-256*2 (work buffer) + 32*4 (file descriptors) + (256+32)*4 cache pages
-i.e. 1792 bytes. 
+256*2 (work buffer) + 
+32*4 (file descriptors) + 
+(256+32)*4 (cache pages) + 40 (cache metadata)
+
+i.e. 1832 bytes. 
 
 This is apart from call stack usage.
 
+To get the exact amount of bytes needed on your specific target, enable 
+SPIFFS_BUFFER_HELP in spiffs_config.h, rebuild and call:
 
-* QUICK AND DIRTY INTEGRATION EXAMPLE
-
-So, assume you're running a Cortex-M3 board with a 2 MB SPI flash on it. The 
-SPI flash has 64kB blocks. Your project is built using gnumake, and now you 
-want to try things out.
-
-First, you simply copy the files named in files.mk to your own source folder. Then
-you point out these files in your make script for compilation.
-
-Also copy the spiffs_config.h over from the default/ folder.
-
-Try building. This fails, nagging about inclusions and u32_t and whatnot. Open 
-the spiffs_config.h and delete the bad inclusions. Also, add following 
-typedefs:
-
-  typedef signed int s32_t;
-  typedef unsigned int u32_t;
-  typedef signed short s16_t;
-  typedef unsigned short u16_t;
-  typedef signed char s8_t;
-  typedef unsigned char u8_t;
+  SPIFFS_buffer_bytes_for_filedescs
+  SPIFFS_buffer_bytes_for_cache
   
-Now it should build. Over to the mounting business. Assume you already 
-implemented the read, write and erase functions to your SPI flash:
+Having these figures you can disable SPIFFS_BUFFER_HELP again to save flash.
+ 
 
-  void my_spi_read(int addr, int size, char *buf)
-  void my_spi_write(int addr, int size, char *buf)
-  void my_spi_erase(int addr, int size)
-
-In your main.c or similar, include the spiffs.h and do that spiffs struct:
-
-  #include <spiffs.h>
-  
-  static spiffs fs;
-
-Also, toss up some of the needed buffers:
-
-  #define LOG_PAGE_SIZE       256
-  
-  static u8_t spiffs_work_buf[LOG_PAGE_SIZE*2];
-  static u8_t spiffs_fds[32*4];
-  static u8_t spiffs_cache[(LOG_PAGE_SIZE+32)*4];
-  
-Now, write the my_spiffs_mount function:
-
-  void my_spiffs_mount() {
-    spiffs_config cfg;
-    cfg.phys_size = 2*1024*1024; // use all spi flash
-    cfg.phys_addr = 0; // start spiffs at start of spi flash
-    cfg.phys_erase_block = 65536; // according to datasheet
-    cfg.log_block_size = 65536; // let us not complicate things
-    cfg.log_block_size = LOG_PAGE_SIZE; // as we said
-    
-    cfg.hal_read_f = my_spi_read;
-    cfg.hal_write_f = my_spi_write;
-    cfg.hal_erase_f = my_spi_erase;
-    
-    int res = SPIFFS_mount(&fs,
-      &cfg,
-      spiffs_work_buf,
-      spiffs_fds,
-      sizeof(spiffs_fds),
-      spiffs_cache,
-      sizeof(spiffs_cache),
-      0);
-    printf("mount res: %i\n", res);
-  }
-
-Now, build warns about the my_spi_read, write and erase functions. Wrong 
-signatures, so go wrap them:
-
-  static s32_t my_spiffs_read(u32_t addr, u32_t size, u8_t *dst) {
-    my_spi_read(addr, size, dst);
-    return SPIFFS_OK;
-  }
-
-  static s32_t my_spiffs_write(u32_t addr, u32_t size, u8_t *src) {
-    my_spi_write(addr, size, dst);
-    return SPIFFS_OK;
-  }
-
-  static s32_t my_spiffs_erase(u32_t addr, u32_t size) {
-    my_spi_erase(addr, size);
-    return SPIFFS_OK;
-  } 
-
-Redirect the config in my_spiffs_mount to the wrappers instead:
-
-    cfg.hal_read_f = my_spiffs_read;
-    cfg.hal_write_f = my_spiffs_write;
-    cfg.hal_erase_f = my_spiffs_erase;
-
-Ok, now you should be able to build and run. However, you get this output:
-  
-  mount res: -1
-  
-but you wanted 
-
-  mount res: 0
-  
-This is probably due to you having being experimenting with your SPI flash, so
-it contains garbage from spiffs's point of view. Do a mass erase and run again.
-
-If all is ok now, you're good to go. Try creating a file and read it back:
-
-  static void test_spiffs() {
-    char buf[12];
-  
-    spiffs_file fd = SPIFFS_open(&fs, "my_file", 0, SPIFFS_CREAT | SPIFFS_TRUNC | SPIFFS_RDWR);
-    if (SPIFFS_write(&fs, fd, "Hello world", 12) < 0) printf("errno %i\n", SPIFFS_errno(&fs));
-    SPIFFS_close(&fs, fd); 
-  
-    fd = SPIFFS_open(&fs, "my_file", 0, SPIFFS_RDWR);
-    if (SPIFFS_read(&fs, fd, buf, 12) < 0) printf("errno %i\n", SPIFFS_errno(&fs));
-    SPIFFS_close(&fs, fd);
-  
-    printf("--> %s <--\n", buf);
-  }
-  
-And, crossing fingers hard, you'll get the output:
-
-  --> Hello world <-- 
-  
-  
 * HOW TO CONFIG
 
 TODO
