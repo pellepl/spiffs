@@ -126,6 +126,7 @@ Compile, run, cross fingers hard, and you'll get the output:
   
 Got errors? Check spiffs.h for error definitions to get a clue what went voodoo.
 
+
 * INTEGRATING SPIFFS
 
 In order to integrate spiffs to your embedded target, you will basically need:
@@ -235,7 +236,7 @@ parameters must be defined:
  spiffs_config.log_page_size - the logical size of a spiffs page
  
 If SPIFFS_SINGLETON is set to one, above parameters must be set ny defines in
-the config header file.
+the config header file, spiffs_config.h.
 
 
 ** Build config
