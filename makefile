@@ -29,7 +29,7 @@ MKDIR = mkdir -p
 #
 ###############
 
-FILES = main.c \
+CFILES = main.c \
 	test_spiffs.c \
 	test_dev.c \
 	test_check.c \
@@ -48,9 +48,9 @@ COMPILEROPTIONS = $(INCLUDE_DIRECTIVES)
 
 vpath %.c ${sourcedir} ${sourcedir}/default ${sourcedir}/test
 
-OBJFILES = $(FILES:%.c=${builddir}/%.o)
+OBJFILES = $(CFILES:%.c=${builddir}/%.o)
 
-DEPFILES = $(FILES:%.c=${builddir}/%.d)
+DEPFILES = $(CFILES:%.c=${builddir}/%.d)
 
 ALLOBJFILES += $(OBJFILES)
 

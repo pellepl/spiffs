@@ -32,6 +32,10 @@ static u32_t bytes_rd = 0;
 static u32_t bytes_wr = 0;
 static u32_t reads = 0;
 static u32_t writes = 0;
+static u32_t error_after_bytes_written = 0;
+static u32_t error_after_bytes_read = 0;
+static char error_after_bytes_written_once_only = 0;
+static char error_after_bytes_read_once_only = 0;
 static char log_flash_ops = 1;
 static u32_t fs_check_fixes = 0;
 
@@ -69,6 +73,12 @@ static s32_t _read(u32_t addr, u32_t size, u8_t *dst) {
   if (log_flash_ops) {
     bytes_rd += size;
     reads++;
+    if (error_after_bytes_read > 0 && bytes_rd >= error_after_bytes_read) {
+      if (error_after_bytes_read_once_only) {
+        error_after_bytes_read = 0;
+      }
+      return SPIFFS_ERR_TEST;
+    }
   }
   memcpy(dst, &area[addr], size);
   return 0;
@@ -80,6 +90,12 @@ static s32_t _write(u32_t addr, u32_t size, u8_t *src) {
   if (log_flash_ops) {
     bytes_wr += size;
     writes++;
+    if (error_after_bytes_written > 0 && bytes_wr >= error_after_bytes_written) {
+      if (error_after_bytes_written_once_only) {
+        error_after_bytes_written = 0;
+      }
+      return SPIFFS_ERR_TEST;
+    }
   }
   for (i = 0; i < size; i++) {
     if (((addr + i) & (LOG_PAGE-1)) != offsetof(spiffs_page_header, flags)) {
@@ -293,12 +309,39 @@ void fs_reset() {
 
   SPIFFS_mount(&__fs, &c, _work, _fds, sizeof(_fds), _cache, sizeof(_cache), spiffs_check_cb_f);
 
+  clear_flash_ops_log();
+  log_flash_ops = 1;
+  fs_check_fixes = 0;
+}
+
+void set_flash_ops_log(int enable) {
+  log_flash_ops = enable;
+}
+
+void clear_flash_ops_log() {
   bytes_rd = 0;
   bytes_wr = 0;
   reads = 0;
   writes = 0;
-  log_flash_ops = 1;
-  fs_check_fixes = 0;
+  error_after_bytes_read = 0;
+  error_after_bytes_written = 0;
+}
+
+u32_t get_flash_ops_log_read_bytes() {
+  return bytes_rd;
+}
+
+u32_t get_flash_ops_log_write_bytes() {
+  return bytes_wr;
+}
+
+void invoke_error_after_read_bytes(u32_t b, char once_only) {
+  error_after_bytes_read = b;
+  error_after_bytes_read_once_only = once_only;
+}
+void invoke_error_after_write_bytes(u32_t b, char once_only) {
+  error_after_bytes_written = b;
+  error_after_bytes_written_once_only = once_only;
 }
 
 void fs_set_validate_flashing(int i) {
@@ -406,9 +449,7 @@ int test_create_file(char *name) {
   CHECK_RES(res);
   fd = SPIFFS_open(FS, name, SPIFFS_RDONLY, 0);
   CHECK(fd >= 0);
-  log_flash_ops = 0;
   res = SPIFFS_fstat(FS, fd, &s);
-  log_flash_ops = 1;
   CHECK_RES(res);
   CHECK(strcmp((char*)s.name, name) == 0);
   CHECK(s.size == 0);
@@ -455,9 +496,7 @@ int test_create_and_write_file(char *name, int size, int chunk_size) {
   close(pfd);
 
   spiffs_stat stat;
-  log_flash_ops = 0;
   res = SPIFFS_fstat(FS, fd, &stat);
-  log_flash_ops = 1;
   if (res < 0) {
     printf(" failed fstat, %i\n",res);
   }
@@ -501,6 +540,7 @@ void _teardown() {
 #endif
 #endif
   dump_flash_access_stats();
+  clear_flash_ops_log();
 #if SPIFFS_GC_STATS
   if ((FS)->stats_gc_runs > 0)
 #endif

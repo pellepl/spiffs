@@ -45,6 +45,9 @@ This way of "write by nand" is used considerably in spiffs.
 
 Common characteristics of NOR flashes are quick reads, but slow writes.
 
+And finally, unlike NAND flashes, NOR flashes seem to not need any error 
+correction. They always write correctly I gather.
+
 
 ** Spiffs logical structure
 

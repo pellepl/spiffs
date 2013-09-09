@@ -541,6 +541,9 @@ static s32_t spiffs_fflush_cache(spiffs *fs, spiffs_file fh) {
       res = spiffs_hydro_write(fs, fd,
           spiffs_get_cache_page(fs, spiffs_get_cache(fs), fd->cache_page->ix),
           fd->cache_page->offset, fd->cache_page->size);
+      if (res < SPIFFS_OK) {
+        fs->errno = res;
+      }
       spiffs_cache_fd_release(fs, fd->cache_page);
     }
   }

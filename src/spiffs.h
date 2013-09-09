@@ -39,6 +39,8 @@
 
 #define SPIFFS_ERR_INTERNAL             -10050
 
+#define SPIFFS_ERR_TEST                 -10100
+
 
 // spiffs file descriptor index type. must be signed
 typedef s16_t spiffs_file;

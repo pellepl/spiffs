@@ -1,6 +1,9 @@
-FILES +=	spiffs_nucleus.c \
-		spiffs_gc.c \
-		spiffs_hydrogen.c \
-		spiffs_cache.c \
-		spiffs_check.c
-
+spiffs = ../generic/spiffs/src
+FLAGS	+= -DCONFIG_BUILD_SPIFFS
+INC	+= -I${spiffs}
+CPATH	+= ${spiffs}
+CFILES	+= spiffs_nucleus.c
+CFILES	+= spiffs_gc.c
+CFILES	+= spiffs_hydrogen.c
+CFILES	+= spiffs_cache.c
+CFILES	+= spiffs_check.c

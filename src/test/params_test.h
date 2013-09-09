@@ -8,10 +8,10 @@
 #ifndef PARAMS_TEST_H_
 #define PARAMS_TEST_H_
 
-#define FLASH_SIZE      2*1024*1024
+#define FLASH_SIZE      (2*1024*1024)
 #define SECTOR_SIZE     65536
-#define LOG_BLOCK       SECTOR_SIZE*2
-#define LOG_PAGE        SECTOR_SIZE/256
+#define LOG_BLOCK       (SECTOR_SIZE*2)
+#define LOG_PAGE        (SECTOR_SIZE/256)
 
 #define FD_BUF_SIZE     64*6
 #define CACHE_BUF_SIZE  (LOG_PAGE + 32)*8

@@ -66,6 +66,12 @@ void area_write(u32_t addr, u8_t *buf, u32_t size);
 void area_read(u32_t addr, u8_t *buf, u32_t size);
 void dump_erase_counts(spiffs *fs);
 void dump_flash_access_stats();
+void set_flash_ops_log(int enable);
+void clear_flash_ops_log();
+u32_t get_flash_ops_log_read_bytes();
+u32_t get_flash_ops_log_write_bytes();
+void invoke_error_after_read_bytes(u32_t b, char once_only);
+void invoke_error_after_write_bytes(u32_t b, char once_only);
 
 void memrand(u8_t *b, int len);
 int test_create_file(char *name);
