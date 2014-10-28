@@ -40,7 +40,7 @@ Also, toss up some of the needed buffers:
   
   static u8_t spiffs_work_buf[LOG_PAGE_SIZE*2];
   static u8_t spiffs_fds[32*4];
-  static u8_t spiffs_cache[(LOG_PAGE_SIZE+32)*4];
+  static u8_t spiffs_cache_buf[(LOG_PAGE_SIZE+32)*4];
   
 Now, write the my_spiffs_mount function:
 
@@ -61,8 +61,8 @@ Now, write the my_spiffs_mount function:
       spiffs_work_buf,
       spiffs_fds,
       sizeof(spiffs_fds),
-      spiffs_cache,
-      sizeof(spiffs_cache),
+      spiffs_cache_buf,
+      sizeof(spiffs_cache_buf),
       0);
     printf("mount res: %i\n", res);
   }
