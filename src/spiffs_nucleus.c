@@ -130,7 +130,7 @@ s32_t spiffs_obj_lu_find_entry_visitor(
   s32_t res = SPIFFS_OK;
   s32_t entry_count = fs->block_count * SPIFFS_OBJ_LOOKUP_MAX_ENTRIES(fs);
   spiffs_block_ix cur_block = starting_block;
-  u32_t cur_block_addr = SPIFFS_BLOCK_TO_PADDR(fs, starting_block);
+  u32_t cur_block_addr = starting_block * SPIFFS_CFG_LOG_BLOCK_SZ(fs);
 
   spiffs_obj_id *obj_lu_buf = (spiffs_obj_id *)fs->lu_work;
   int cur_entry = starting_lu_entry;
@@ -140,11 +140,11 @@ s32_t spiffs_obj_lu_find_entry_visitor(
   if (cur_entry >= SPIFFS_OBJ_LOOKUP_MAX_ENTRIES(fs) - 1) {
     cur_entry = 0;
     cur_block++;
-    cur_block_addr = SPIFFS_BLOCK_TO_PADDR(fs, cur_block);
+    cur_block_addr = cur_block * SPIFFS_CFG_LOG_BLOCK_SZ(fs);
     if (cur_block >= fs->block_count) {
       // block wrap
       cur_block = 0;
-      cur_block_addr = SPIFFS_CFG_PHYS_ADDR(fs);
+      cur_block_addr = 0;
     }
   }
 
@@ -203,7 +203,7 @@ s32_t spiffs_obj_lu_find_entry_visitor(
       } else {
         // block wrap
         cur_block = 0;
-        cur_block_addr = SPIFFS_CFG_PHYS_ADDR(fs);
+        cur_block_addr = 0;
       }
     }
   } // per block

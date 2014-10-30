@@ -52,7 +52,7 @@ s32_t spiffs_gc_quick(
   s32_t res = SPIFFS_OK;
   u32_t blocks = fs->block_count;
   spiffs_block_ix cur_block = 0;
-  u32_t cur_block_addr = SPIFFS_CFG_PHYS_ADDR(fs);
+  u32_t cur_block_addr = 0;
   int cur_entry = 0;
   spiffs_obj_id *obj_lu_buf = (spiffs_obj_id *)fs->lu_work;
 
@@ -194,7 +194,7 @@ s32_t spiffs_gc_erase_page_stats(
   while (res == SPIFFS_OK && obj_lookup_page < SPIFFS_OBJ_LOOKUP_PAGES(fs)) {
     int entry_offset = obj_lookup_page * entries_per_page;
     res = _spiffs_rd(fs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ,
-        0, SPIFFS_BLOCK_TO_PADDR(fs, bix) + SPIFFS_PAGE_TO_PADDR(fs, obj_lookup_page), SPIFFS_CFG_LOG_PAGE_SZ(fs), fs->lu_work);
+        0, bix * SPIFFS_CFG_LOG_BLOCK_SZ(fs) + SPIFFS_PAGE_TO_PADDR(fs, obj_lookup_page), SPIFFS_CFG_LOG_PAGE_SZ(fs), fs->lu_work);
     // check each entry
     while (res == SPIFFS_OK &&
         cur_entry - entry_offset < entries_per_page && cur_entry < SPIFFS_PAGES_PER_BLOCK(fs)-SPIFFS_OBJ_LOOKUP_PAGES(fs)) {
@@ -223,7 +223,7 @@ s32_t spiffs_gc_find_candidate(
   s32_t res = SPIFFS_OK;
   u32_t blocks = fs->block_count;
   spiffs_block_ix cur_block = 0;
-  u32_t cur_block_addr = SPIFFS_CFG_PHYS_ADDR(fs);
+  u32_t cur_block_addr = 0;
   spiffs_obj_id *obj_lu_buf = (spiffs_obj_id *)fs->lu_work;
   int cur_entry = 0;
 
@@ -383,7 +383,7 @@ s32_t spiffs_gc_clean(spiffs *fs, spiffs_block_ix bix) {
     while (scan && res == SPIFFS_OK && obj_lookup_page < SPIFFS_OBJ_LOOKUP_PAGES(fs)) {
       int entry_offset = obj_lookup_page * entries_per_page;
       res = _spiffs_rd(fs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ,
-          0, SPIFFS_BLOCK_TO_PADDR(fs, bix) + SPIFFS_PAGE_TO_PADDR(fs, obj_lookup_page),
+          0, bix * SPIFFS_CFG_LOG_BLOCK_SZ(fs) + SPIFFS_PAGE_TO_PADDR(fs, obj_lookup_page),
           SPIFFS_CFG_LOG_PAGE_SZ(fs), fs->lu_work);
       // check each entry
       while (scan && res == SPIFFS_OK &&
@@ -420,7 +420,7 @@ s32_t spiffs_gc_clean(spiffs *fs, spiffs_block_ix bix) {
                 SPIFFS_CHECK_RES(res);
                 // move wipes obj_lu, reload it
                 res = _spiffs_rd(fs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ,
-                    0, SPIFFS_BLOCK_TO_PADDR(fs, bix) + SPIFFS_PAGE_TO_PADDR(fs, obj_lookup_page),
+                    0, bix * SPIFFS_CFG_LOG_BLOCK_SZ(fs) + SPIFFS_PAGE_TO_PADDR(fs, obj_lookup_page),
                     SPIFFS_CFG_LOG_PAGE_SZ(fs), fs->lu_work);
                 SPIFFS_CHECK_RES(res);
               } else {
@@ -461,7 +461,7 @@ s32_t spiffs_gc_clean(spiffs *fs, spiffs_block_ix bix) {
               spiffs_cb_object_event(fs, 0, SPIFFS_EV_IX_UPD, obj_id, p_hdr.span_ix, new_pix, 0);
               // move wipes obj_lu, reload it
               res = _spiffs_rd(fs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ,
-                  0, SPIFFS_BLOCK_TO_PADDR(fs, bix) + SPIFFS_PAGE_TO_PADDR(fs, obj_lookup_page),
+                  0, bix * SPIFFS_CFG_LOG_BLOCK_SZ(fs) + SPIFFS_PAGE_TO_PADDR(fs, obj_lookup_page),
                   SPIFFS_CFG_LOG_PAGE_SZ(fs), fs->lu_work);
               SPIFFS_CHECK_RES(res);
             } else {

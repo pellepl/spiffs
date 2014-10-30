@@ -24,9 +24,9 @@
 #include <dirent.h>
 #include <unistd.h>
 
-static unsigned char area[FLASH_SIZE];
+static unsigned char area[PHYS_FLASH_SIZE];
 
-static int erases[sizeof(area)/SECTOR_SIZE];
+static int erases[SPIFFS_FLASH_SIZE/SECTOR_SIZE];
 static char _path[256];
 static u32_t bytes_rd = 0;
 static u32_t bytes_wr = 0;
@@ -80,6 +80,14 @@ static s32_t _read(u32_t addr, u32_t size, u8_t *dst) {
       return SPIFFS_ERR_TEST;
     }
   }
+  if (addr < SPIFFS_PHYS_ADDR) {
+    printf("FATAL read addr too low %08x < %08x\n", addr, SPIFFS_PHYS_ADDR);
+    exit(0);
+  }
+  if (addr + size > SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE) {
+    printf("FATAL read addr too high %08x + %08x > %08x\n", addr, size, SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
+    exit(0);
+  }
   memcpy(dst, &area[addr], size);
   return 0;
 }
@@ -97,6 +105,16 @@ static s32_t _write(u32_t addr, u32_t size, u8_t *src) {
       return SPIFFS_ERR_TEST;
     }
   }
+
+  if (addr < SPIFFS_PHYS_ADDR) {
+    printf("FATAL write addr too low %08x < %08x\n", addr, SPIFFS_PHYS_ADDR);
+    exit(0);
+  }
+  if (addr + size > SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE) {
+    printf("FATAL write addr too high %08x + %08x > %08x\n", addr, size, SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
+    exit(0);
+  }
+
   for (i = 0; i < size; i++) {
     if (((addr + i) & (LOG_PAGE-1)) != offsetof(spiffs_page_header, flags)) {
       if (check_valid_flash && ((area[addr + i] ^ src[i]) & src[i])) {
@@ -294,16 +312,17 @@ static void spiffs_check_cb_f(spiffs_check_type type, spiffs_check_report report
 }
 
 void fs_reset() {
-  memset(area, 0xff, sizeof(area));
+  memset(area, 0xcc, sizeof(area));
+  memset(&area[SPIFFS_PHYS_ADDR], 0xff, SPIFFS_FLASH_SIZE);
   spiffs_config c;
   c.hal_erase_f = _erase;
   c.hal_read_f = _read;
   c.hal_write_f = _write;
   c.log_block_size = LOG_BLOCK;
   c.log_page_size = LOG_PAGE;
-  c.phys_addr = 0;
+  c.phys_addr = SPIFFS_PHYS_ADDR;
   c.phys_erase_block = SECTOR_SIZE;
-  c.phys_size = sizeof(area);
+  c.phys_size = SPIFFS_FLASH_SIZE;
   memset(erases,0,sizeof(erases));
   memset(_cache,0,sizeof(_cache));
 
@@ -548,6 +567,9 @@ void _teardown() {
   printf("  fs consistency check:\n");
   SPIFFS_check(FS);
   clear_test_path();
+
+  //hexdump_mem(&area[SPIFFS_PHYS_ADDR - 16], 32);
+  //hexdump_mem(&area[SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE - 16], 32);
 }
 
 u32_t tfile_get_size(tfile_size s) {
