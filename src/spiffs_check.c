@@ -275,7 +275,7 @@ static s32_t spiffs_lookup_check_validate(spiffs *fs, spiffs_obj_id lu_obj_id, s
           }
           SPIFFS_CHECK_RES(res);
           //   if both obj_id's found, just delete current
-          if (objix_pix_ph == 0 || objix_pix_ph == 0) {
+          if (objix_pix_ph == 0 || objix_pix_lu == 0) {
             // otherwise try finding first corresponding data pages
             spiffs_page_ix data_pix_lu, data_pix_ph;
             // see if other data page exists for look up obj id and span index
