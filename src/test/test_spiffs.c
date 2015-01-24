@@ -136,7 +136,7 @@ static s32_t _erase(u32_t addr, u32_t size) {
   if (size & (SECTOR_SIZE-1)) {
     return -1;
   }
-  erases[addr/SECTOR_SIZE]++;
+  erases[(addr-SPIFFS_PHYS_ADDR)/SECTOR_SIZE]++;
   memset(&area[addr], 0xff, size);
   return 0;
 }
@@ -249,7 +249,7 @@ void dump_erase_counts(spiffs *fs) {
     spiffs_obj_id erase_mark;
     _spiffs_rd(fs, 0, 0, SPIFFS_ERASE_COUNT_PADDR(fs, bix), sizeof(spiffs_obj_id), (u8_t *)&erase_mark);
     if (erases[bix] == 0) {
-      printf("            |", bix);
+      printf("            |");
     } else {
       printf("%7i %4i|", (fs->max_erase_count - erase_mark), erases[bix]);
     }
