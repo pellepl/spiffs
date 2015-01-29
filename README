@@ -1,7 +1,7 @@
 SPIFFS (SPI Flash File System)
-V0.2.1
+V0.2.2
 
-Copyright (c) 2013-2014 Peter Andersson (pelleplutt1976<at>gmail.com)
+Copyright (c) 2013-2015 Peter Andersson (pelleplutt1976<at>gmail.com)
 
 For legal stuff, see LICENCE in this directory. Basically, you may do whatever
 you want with the source. Use, modify, sell, print it out, roll it and smoke it
