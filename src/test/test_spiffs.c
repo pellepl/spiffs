@@ -375,7 +375,6 @@ void real_assert(int c, const char *n, const char *file, int l) {
   }
 }
 
-
 int read_and_verify(char *name) {
   s32_t res;
   int fd = SPIFFS_open(&__fs, name, SPIFFS_RDONLY, 0);
@@ -383,6 +382,11 @@ int read_and_verify(char *name) {
     printf("  read_and_verify: could not open file %s\n", name);
     return fd;
   }
+  return read_and_verify_fd(fd, name);
+}
+
+int read_and_verify_fd(spiffs_file fd, char *name) {
+  s32_t res;
   int pfd = open(make_test_fname(name), O_RDONLY);
   spiffs_stat s;
   res = SPIFFS_fstat(&__fs, fd, &s);

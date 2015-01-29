@@ -192,36 +192,102 @@ TEST(file_by_creat)
 TEST_END(file_by_creat)
 
 
-
-
 TEST(list_dir)
 {
   int res;
-  res = test_create_file("file1");
-  TEST_CHECK(res >= 0);
-  res = test_create_file("file2");
-  TEST_CHECK(res >= 0);
-  res = test_create_file("file3");
-  TEST_CHECK(res >= 0);
-  res = test_create_file("file4");
-  TEST_CHECK(res >= 0);
+
+  char *files[4] = {
+      "file1",
+      "file2",
+      "file3",
+      "file4"
+  };
+  int file_cnt = sizeof(files)/sizeof(char *);
+
+  int i;
+
+  for (i = 0; i < file_cnt; i++) {
+    res = test_create_file(files[i]);
+    TEST_CHECK(res >= 0);
+  }
 
   spiffs_DIR d;
   struct spiffs_dirent e;
   struct spiffs_dirent *pe = &e;
 
   SPIFFS_opendir(FS, "/", &d);
+  int found = 0;
   while ((pe = SPIFFS_readdir(&d, pe))) {
     printf("  %s [%04x] size:%i\n", pe->name, pe->obj_id, pe->size);
-    // TODO verify
+    for (i = 0; i < file_cnt; i++) {
+      if (strcmp(files[i], pe->name) == 0) {
+        found++;
+        break;
+      }
+    }
   }
   SPIFFS_closedir(&d);
+
+  TEST_CHECK(found == file_cnt);
 
   return TEST_RES_OK;
 }
 TEST_END(list_dir)
 
 
+TEST(open_by_dirent) {
+  int res;
+
+  char *files[4] = {
+      "file1",
+      "file2",
+      "file3",
+      "file4"
+  };
+  int file_cnt = sizeof(files)/sizeof(char *);
+
+  int i;
+  int size = SPIFFS_DATA_PAGE_SIZE(FS);
+
+  for (i = 0; i < file_cnt; i++) {
+    res = test_create_and_write_file(files[i], size, size);
+    TEST_CHECK(res >= 0);
+  }
+
+  spiffs_DIR d;
+  struct spiffs_dirent e;
+  struct spiffs_dirent *pe = &e;
+
+  int found = 0;
+  SPIFFS_opendir(FS, "/", &d);
+  while ((pe = SPIFFS_readdir(&d, pe))) {
+    spiffs_file fd = SPIFFS_open_by_dirent(FS, pe, SPIFFS_RDWR, 0);
+    TEST_CHECK(fd >= 0);
+    res = read_and_verify_fd(fd, pe->name);
+    TEST_CHECK(res == SPIFFS_OK);
+    fd = SPIFFS_open_by_dirent(FS, pe, SPIFFS_RDWR, 0);
+    TEST_CHECK(fd >= 0);
+    res = SPIFFS_fremove(FS, fd);
+    TEST_CHECK(res == SPIFFS_OK);
+    SPIFFS_close(FS, fd);
+    found++;
+  }
+  SPIFFS_closedir(&d);
+
+  TEST_CHECK(found == file_cnt);
+
+  found = 0;
+  SPIFFS_opendir(FS, "/", &d);
+  while ((pe = SPIFFS_readdir(&d, pe))) {
+    found++;
+  }
+  SPIFFS_closedir(&d);
+
+  TEST_CHECK(found == 0);
+
+  return TEST_RES_OK;
+
+} TEST_END(open_by_dirent)
 
 TEST(remove_single_by_path)
 {

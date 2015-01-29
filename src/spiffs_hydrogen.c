@@ -155,7 +155,36 @@ spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs
     }
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   }
-  res = spiffs_object_open_by_page(fs, pix, fd, flags, flags);
+  res = spiffs_object_open_by_page(fs, pix, fd, flags, mode);
+  if (res < SPIFFS_OK) {
+    spiffs_fd_return(fs, fd->file_nbr);
+  }
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+  if (flags & SPIFFS_TRUNC) {
+    res = spiffs_object_truncate(fd, 0, 0);
+    if (res < SPIFFS_OK) {
+      spiffs_fd_return(fs, fd->file_nbr);
+    }
+    SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+  }
+
+  fd->fdoffset = 0;
+
+  SPIFFS_UNLOCK(fs);
+
+  return fd->file_nbr;
+}
+
+spiffs_file SPIFFS_open_by_dirent(spiffs *fs, struct spiffs_dirent *e, spiffs_flags flags, spiffs_mode mode) {
+  SPIFFS_API_CHECK_MOUNT(fs);
+  SPIFFS_LOCK(fs);
+
+  spiffs_fd *fd;
+
+  s32_t res = spiffs_fd_find_new(fs, &fd);
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  res = spiffs_object_open_by_page(fs, e->pix, fd, flags, mode);
   if (res < SPIFFS_OK) {
     spiffs_fd_return(fs, fd->file_nbr);
   }
@@ -618,6 +647,7 @@ static s32_t spiffs_read_dir_v(
     strcpy((char *)e->name, (char *)objix_hdr.name);
     e->type = objix_hdr.type;
     e->size = objix_hdr.size == SPIFFS_UNDEFINED_LEN ? 0 : objix_hdr.size;
+    e->pix = pix;
     return SPIFFS_OK;
   }
 

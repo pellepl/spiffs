@@ -58,6 +58,7 @@ typedef struct  {
 
 void fs_reset();
 int read_and_verify(char *name);
+int read_and_verify_fd(spiffs_file fd, char *name);
 void dump_page(spiffs *fs, spiffs_page_ix p);
 void hexdump(u32_t addr, u32_t len);
 char *make_test_fname(const char *name);

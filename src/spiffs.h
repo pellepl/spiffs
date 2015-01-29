@@ -225,6 +225,7 @@ struct spiffs_dirent {
   u8_t name[SPIFFS_OBJ_NAME_LEN];
   spiffs_obj_type type;
   u32_t size;
+  spiffs_page_ix pix;
 };
 
 typedef struct {
@@ -277,6 +278,22 @@ s32_t SPIFFS_creat(spiffs *fs, const char *path, spiffs_mode mode);
  * @param mode          ignored, for posix compliance
  */
 spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs_mode mode);
+
+
+/**
+ * Opens a file by given dir entry.
+ * Optimization purposes, when traversing a file system with SPIFFS_readdir
+ * a normal SPIFFS_open would need to traverse the filesystem again to find
+ * the file, whilst SPIFFS_open_by_dirent already knows where the file resides.
+ * @param fs            the file system struct
+ * @param path          the dir entry to the file
+ * @param flags         the flags for the open command, can be combinations of
+ *                      SPIFFS_APPEND, SPIFFS_TRUNC, SPIFFS_CREAT, SPIFFS_RD_ONLY,
+ *                      SPIFFS_WR_ONLY, SPIFFS_RDWR, SPIFFS_DIRECT.
+ *                      SPIFFS_CREAT will have no effect in this case.
+ * @param mode          ignored, for posix compliance
+ */
+spiffs_file SPIFFS_open_by_dirent(spiffs *fs, struct spiffs_dirent *e, spiffs_flags flags, spiffs_mode mode);
 
 /**
  * Reads from given filehandle.

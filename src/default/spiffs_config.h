@@ -186,7 +186,7 @@
 
 // Block index type. Make sure the size of this type can hold
 // the highest number of all blocks - i.e. spiffs_file_system_size / log_block_size
-typedef u8_t spiffs_block_ix;
+typedef u16_t spiffs_block_ix;
 // Page index type. Make sure the size of this type can hold
 // the highest page number of all pages - i.e. spiffs_file_system_size / log_page_size
 typedef u16_t spiffs_page_ix;
