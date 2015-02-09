@@ -485,7 +485,8 @@ s32_t spiffs_obj_lu_scan(
 
 s32_t spiffs_obj_lu_find_free_obj_id(
     spiffs *fs,
-    spiffs_obj_id *obj_id);
+    spiffs_obj_id *obj_id,
+    const u8_t *conflicting_name);
 
 s32_t spiffs_obj_lu_find_free(
     spiffs *fs,

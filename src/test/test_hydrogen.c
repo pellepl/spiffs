@@ -187,10 +187,12 @@ TEST(file_by_creat)
   int res;
   res = test_create_file("filebcreat");
   TEST_CHECK(res >= 0);
+  res = SPIFFS_creat(FS, "filebcreat", 0);
+  TEST_CHECK(res < 0);
+  TEST_CHECK(SPIFFS_errno(FS)==SPIFFS_ERR_CONFLICTING_NAME);
   return TEST_RES_OK;
 }
 TEST_END(file_by_creat)
-
 
 TEST(list_dir)
 {

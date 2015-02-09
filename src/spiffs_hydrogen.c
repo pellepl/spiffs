@@ -110,7 +110,7 @@ s32_t SPIFFS_creat(spiffs *fs, const char *path, spiffs_mode mode) {
   spiffs_obj_id obj_id;
   s32_t res;
 
-  res = spiffs_obj_lu_find_free_obj_id(fs, &obj_id);
+  res = spiffs_obj_lu_find_free_obj_id(fs, &obj_id, path);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   res = spiffs_object_create(fs, obj_id, (u8_t*)path, SPIFFS_TYPE_FILE, 0);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
@@ -138,7 +138,8 @@ spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs
 
   if ((flags & SPIFFS_CREAT) && res == SPIFFS_ERR_NOT_FOUND) {
     spiffs_obj_id obj_id;
-    res = spiffs_obj_lu_find_free_obj_id(fs, &obj_id);
+    // no need to enter conflicting name here, already looked for it above
+    res = spiffs_obj_lu_find_free_obj_id(fs, &obj_id, 0);
     if (res < SPIFFS_OK) {
       spiffs_fd_return(fs, fd->file_nbr);
     }
