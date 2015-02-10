@@ -617,6 +617,46 @@ void SPIFFS_close(spiffs *fs, spiffs_file fh) {
   SPIFFS_UNLOCK(fs);
 }
 
+s32_t SPIFFS_rename(spiffs *fs, char *old, char *new) {
+  SPIFFS_API_CHECK_MOUNT(fs);
+  SPIFFS_LOCK(fs);
+
+  spiffs_page_ix pix_old, pix_dummy;
+  spiffs_fd *fd;
+
+  s32_t res = spiffs_object_find_object_index_header_by_name(fs, (u8_t*)old, &pix_old);
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  res = spiffs_object_find_object_index_header_by_name(fs, (u8_t*)new, &pix_dummy);
+  if (res == SPIFFS_ERR_NOT_FOUND) {
+    res = SPIFFS_OK;
+  } else if (res == SPIFFS_OK) {
+    res = SPIFFS_ERR_CONFLICTING_NAME;
+  }
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  res = spiffs_fd_find_new(fs, &fd);
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  res = spiffs_object_open_by_page(fs, pix_old, fd, 0, 0);
+  if (res != SPIFFS_OK) {
+    spiffs_fd_return(fs, fd->file_nbr);
+  }
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  res = spiffs_object_update_index_hdr(fs, fd, fd->obj_id, fd->objix_hdr_pix, 0, (u8_t*)new,
+      0, &pix_dummy);
+
+  if (res != SPIFFS_OK) {
+    spiffs_fd_return(fs, fd->file_nbr);
+  }
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  SPIFFS_UNLOCK(fs);
+
+  return res;
+}
+
 spiffs_DIR *SPIFFS_opendir(spiffs *fs, char *name, spiffs_DIR *d) {
   (void)name;
   if (!SPIFFS_CHECK_MOUNT(fs)) {

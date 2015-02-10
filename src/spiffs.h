@@ -372,6 +372,14 @@ s32_t SPIFFS_fflush(spiffs *fs, spiffs_file fh);
 void SPIFFS_close(spiffs *fs, spiffs_file fh);
 
 /**
+ * Renames a file
+ * @param fs            the file system struct
+ * @param old           path of file to rename
+ * @param new           new path of file
+ */
+s32_t SPIFFS_rename(spiffs *fs, char *old, char *new);
+
+/**
  * Returns last error of last file operation.
  * @param fs            the file system struct
  */

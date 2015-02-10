@@ -291,6 +291,33 @@ TEST(open_by_dirent) {
 
 } TEST_END(open_by_dirent)
 
+
+TEST(rename) {
+  int res;
+
+  char *src_name = "baah";
+  char *dst_name = "booh";
+  char *dst_name2 = "beeh";
+  int size = SPIFFS_DATA_PAGE_SIZE(FS);
+
+  res = test_create_and_write_file(src_name, size, size);
+  TEST_CHECK(res >= 0);
+
+  res = SPIFFS_rename(FS, src_name, dst_name);
+  TEST_CHECK(res >= 0);
+
+  res = SPIFFS_rename(FS, dst_name, dst_name);
+  TEST_CHECK(res < 0);
+  TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_CONFLICTING_NAME);
+
+  res = SPIFFS_rename(FS, src_name, dst_name2);
+  TEST_CHECK(res < 0);
+  TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_NOT_FOUND);
+
+  return TEST_RES_OK;
+} TEST_END(rename)
+
+
 TEST(remove_single_by_path)
 {
   int res;
