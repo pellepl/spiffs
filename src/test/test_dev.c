@@ -26,8 +26,8 @@ void teardown() {
 }
 
 TEST(interrupted_write) {
-  const char *name = "interrupt";
-  const char *name2 = "interrupt2";
+  char *name = "interrupt";
+  char *name2 = "interrupt2";
   int res;
   spiffs_file fd;
 

@@ -143,7 +143,7 @@ static s32_t _erase(u32_t addr, u32_t size) {
 
 void hexdump_mem(u8_t *b, u32_t len) {
   while (len--) {
-    if ((((u32_t)b)&0x1f) == 0) {
+    if ((((intptr_t)b)&0x1f) == 0) {
       printf("\n");
     }
     printf("%02x", *b++);

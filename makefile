@@ -29,7 +29,7 @@ MKDIR = mkdir -p
 #
 ###############
 
-CFILES = main.c \
+CFILES_TEST = main.c \
 	test_spiffs.c \
 	test_dev.c \
 	test_check.c \
@@ -38,7 +38,13 @@ CFILES = main.c \
 	testrunner.c
 include files.mk
 INCLUDE_DIRECTIVES = -I./${sourcedir} -I./${sourcedir}/default -I./${sourcedir}/test 
-COMPILEROPTIONS = $(INCLUDE_DIRECTIVES) 
+COMPILEROPTIONS = $(INCLUDE_DIRECTIVES)
+
+COMPILEROPTIONS_APP = \
+-Wall -Wno-format-y2k -W -Wstrict-prototypes -Wmissing-prototypes \
+-Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch \
+-Wshadow -Wcast-align -Wchar-subscripts -Winline -Wnested-externs\
+-Wredundant-decls
 		
 ############
 #
@@ -49,10 +55,11 @@ COMPILEROPTIONS = $(INCLUDE_DIRECTIVES)
 vpath %.c ${sourcedir} ${sourcedir}/default ${sourcedir}/test
 
 OBJFILES = $(CFILES:%.c=${builddir}/%.o)
+OBJFILES_TEST = $(CFILES_TEST:%.c=${builddir}/%.o)
 
-DEPFILES = $(CFILES:%.c=${builddir}/%.d)
+DEPFILES = $(CFILES:%.c=${builddir}/%.d) $(CFILES_TEST:%.c=${builddir}/%.d)
 
-ALLOBJFILES += $(OBJFILES)
+ALLOBJFILES += $(OBJFILES) $(OBJFILES_TEST)
 
 DEPENDENCIES = $(DEPFILES) 
 
@@ -65,6 +72,10 @@ $(BINARY): $(ALLOBJFILES)
 
 # compile c files
 $(OBJFILES) : ${builddir}/%.o:%.c
+		@echo "... compile $@"
+		@${CC} $(COMPILEROPTIONS_APP) -g -c -o $@ $<
+
+$(OBJFILES_TEST) : ${builddir}/%.o:%.c
 		@echo "... compile $@"
 		@${CC} -g -c -o $@ $<
 
