@@ -241,6 +241,7 @@ s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
       return avail;
     } else {
       SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+      len = avail;
     }
   } else {
     // reading within file size
