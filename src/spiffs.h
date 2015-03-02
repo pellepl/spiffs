@@ -9,6 +9,9 @@
 
 #ifndef SPIFFS_H_
 #define SPIFFS_H_
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #include "spiffs_config.h"
 
@@ -181,7 +184,7 @@ typedef struct {
   u32_t fd_count;
 
   // last error
-  s32_t errno;
+  s32_t err_code;
 
   // current number of free blocks
   u32_t free_blocks;
@@ -375,9 +378,9 @@ void SPIFFS_close(spiffs *fs, spiffs_file fh);
  * Renames a file
  * @param fs            the file system struct
  * @param old           path of file to rename
- * @param new           new path of file
+ * @param newPath       new path of file
  */
-s32_t SPIFFS_rename(spiffs *fs, char *old, char *new);
+s32_t SPIFFS_rename(spiffs *fs, char *old, char *newPath);
 
 /**
  * Returns last error of last file operation.
@@ -441,6 +444,9 @@ u32_t SPIFFS_buffer_bytes_for_cache(spiffs *fs, u32_t num_pages);
 #endif
 
 #if SPIFFS_CHACHE
+#endif
+#if defined(__cplusplus)
+}
 #endif
 
 #endif /* SPIFFS_H_ */

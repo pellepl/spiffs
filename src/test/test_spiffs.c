@@ -370,7 +370,7 @@ void fs_set_validate_flashing(int i) {
 void real_assert(int c, const char *n, const char *file, int l) {
   if (c == 0) {
     printf("ASSERT: %s %s @ %i\n", (n ? n : ""), file, l);
-    printf("fs errno:%i\n", __fs.errno);
+    printf("fs errno:%i\n", __fs.err_code);
     exit(0);
   }
 }

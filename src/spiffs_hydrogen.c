@@ -103,7 +103,7 @@ void SPIFFS_unmount(spiffs *fs) {
 }
 
 s32_t SPIFFS_errno(spiffs *fs) {
-  return fs->errno;
+  return fs->err_code;
 }
 
 s32_t SPIFFS_creat(spiffs *fs, char *path, spiffs_mode mode) {
@@ -580,7 +580,7 @@ static s32_t spiffs_fflush_cache(spiffs *fs, spiffs_file fh) {
           spiffs_get_cache_page(fs, spiffs_get_cache(fs), fd->cache_page->ix),
           fd->cache_page->offset, fd->cache_page->size);
       if (res < SPIFFS_OK) {
-        fs->errno = res;
+        fs->err_code = res;
       }
       spiffs_cache_fd_release(fs, fd->cache_page);
     }
@@ -605,7 +605,7 @@ s32_t SPIFFS_fflush(spiffs *fs, spiffs_file fh) {
 
 void SPIFFS_close(spiffs *fs, spiffs_file fh) {
   if (!SPIFFS_CHECK_MOUNT(fs)) {
-    fs->errno = SPIFFS_ERR_NOT_MOUNTED;
+    fs->err_code = SPIFFS_ERR_NOT_MOUNTED;
     return;
   }
   SPIFFS_LOCK(fs);
@@ -661,7 +661,7 @@ s32_t SPIFFS_rename(spiffs *fs, char *old, char *new) {
 spiffs_DIR *SPIFFS_opendir(spiffs *fs, char *name, spiffs_DIR *d) {
   (void)name;
   if (!SPIFFS_CHECK_MOUNT(fs)) {
-    fs->errno = SPIFFS_ERR_NOT_MOUNTED;
+    fs->err_code = SPIFFS_ERR_NOT_MOUNTED;
     return 0;
   }
   d->fs = fs;
@@ -707,7 +707,7 @@ static s32_t spiffs_read_dir_v(
 
 struct spiffs_dirent *SPIFFS_readdir(spiffs_DIR *d, struct spiffs_dirent *e) {
   if (!SPIFFS_CHECK_MOUNT(d->fs)) {
-    d->fs->errno = SPIFFS_ERR_NOT_MOUNTED;
+    d->fs->err_code = SPIFFS_ERR_NOT_MOUNTED;
     return 0;
   }
   SPIFFS_LOCK(fs);
@@ -732,7 +732,7 @@ struct spiffs_dirent *SPIFFS_readdir(spiffs_DIR *d, struct spiffs_dirent *e) {
     d->entry = entry + 1;
     ret = e;
   } else {
-    d->fs->errno = res;
+    d->fs->err_code = res;
   }
   SPIFFS_UNLOCK(fs);
   return ret;
@@ -821,7 +821,7 @@ s32_t SPIFFS_vis(spiffs *fs) {
   } // per block
 
   spiffs_printf("era_cnt_max: %i\n", fs->max_erase_count);
-  spiffs_printf("last_errno:  %i\n", fs->errno);
+  spiffs_printf("last_errno:  %i\n", fs->err_code);
   spiffs_printf("blocks:      %i\n", fs->block_count);
   spiffs_printf("free_blocks: %i\n", fs->free_blocks);
   spiffs_printf("page_alloc:  %i\n", fs->stats_p_allocated);
