@@ -24,6 +24,17 @@ void teardown() {
   _teardown();
 }
 
+TEST(info)
+{
+  u32_t used, total;
+  int res = SPIFFS_info(FS, &total, &used);
+  TEST_CHECK(res == SPIFFS_OK);
+  TEST_CHECK(used == 0);
+  TEST_CHECK(total < __fs.cfg.phys_size);
+  return TEST_RES_OK;
+}
+TEST_END(info)
+
 
 TEST(missing_file)
 {
@@ -736,6 +747,48 @@ TEST(read_chunk_huge)
   return TEST_RES_OK;
 }
 TEST_END(read_chunk_huge)
+
+
+TEST(read_beyond)
+{
+  char *name = "file";
+  spiffs_file fd;
+  s32_t res;
+  u32_t size = SPIFFS_DATA_PAGE_SIZE(FS)*2;
+
+  u8_t *buf = malloc(size);
+  memrand(buf, size);
+
+  res = test_create_file(name);
+  CHECK(res >= 0);
+  fd = SPIFFS_open(FS, name, SPIFFS_APPEND | SPIFFS_RDWR, 0);
+  CHECK(fd >= 0);
+  res = SPIFFS_write(FS, fd, buf, size);
+  CHECK(res >= 0);
+
+  spiffs_stat stat;
+  res = SPIFFS_fstat(FS, fd, &stat);
+  CHECK(res >= 0);
+  CHECK(stat.size == size);
+
+  SPIFFS_close(FS, fd);
+
+  fd = SPIFFS_open(FS, name, SPIFFS_RDONLY, 0);
+  CHECK(fd >= 0);
+
+  u8_t *rbuf = malloc(size+10);
+  res = SPIFFS_read(FS, fd, rbuf, size+10);
+
+  SPIFFS_close(FS, fd);
+
+  free(rbuf);
+  free(buf);
+
+  TEST_CHECK(res == size);
+
+  return TEST_RES_OK;
+}
+TEST_END(read_beyond)
 
 
 TEST(bad_index_1) {

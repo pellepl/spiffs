@@ -34,6 +34,7 @@ CFILES_TEST = main.c \
 	test_dev.c \
 	test_check.c \
 	test_hydrogen.c \
+	test_bugreports.c \
 	testsuites.c \
 	testrunner.c
 include files.mk

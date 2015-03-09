@@ -26,7 +26,7 @@
 
 static unsigned char area[PHYS_FLASH_SIZE];
 
-static int erases[SPIFFS_FLASH_SIZE/SECTOR_SIZE];
+static int erases[256];
 static char _path[256];
 static u32_t bytes_rd = 0;
 static u32_t bytes_wr = 0;
@@ -80,11 +80,11 @@ static s32_t _read(u32_t addr, u32_t size, u8_t *dst) {
       return SPIFFS_ERR_TEST;
     }
   }
-  if (addr < SPIFFS_PHYS_ADDR) {
+  if (addr < __fs.cfg.phys_addr) {
     printf("FATAL read addr too low %08x < %08x\n", addr, SPIFFS_PHYS_ADDR);
     exit(0);
   }
-  if (addr + size > SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE) {
+  if (addr + size > __fs.cfg.phys_addr + __fs.cfg.phys_size) {
     printf("FATAL read addr too high %08x + %08x > %08x\n", addr, size, SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
     exit(0);
   }
@@ -106,17 +106,17 @@ static s32_t _write(u32_t addr, u32_t size, u8_t *src) {
     }
   }
 
-  if (addr < SPIFFS_PHYS_ADDR) {
+  if (addr < __fs.cfg.phys_addr) {
     printf("FATAL write addr too low %08x < %08x\n", addr, SPIFFS_PHYS_ADDR);
     exit(0);
   }
-  if (addr + size > SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE) {
+  if (addr + size > __fs.cfg.phys_addr + __fs.cfg.phys_size) {
     printf("FATAL write addr too high %08x + %08x > %08x\n", addr, size, SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
     exit(0);
   }
 
   for (i = 0; i < size; i++) {
-    if (((addr + i) & (LOG_PAGE-1)) != offsetof(spiffs_page_header, flags)) {
+    if (((addr + i) & (__fs.cfg.log_page_size-1)) != offsetof(spiffs_page_header, flags)) {
       if (check_valid_flash && ((area[addr + i] ^ src[i]) & src[i])) {
         printf("trying to write %02x to %02x at addr %08x\n", src[i], area[addr + i], addr+i);
         spiffs_page_ix pix = (addr + i) / LOG_PAGE;
@@ -130,13 +130,15 @@ static s32_t _write(u32_t addr, u32_t size, u8_t *src) {
 }
 
 static s32_t _erase(u32_t addr, u32_t size) {
-  if (addr & (SECTOR_SIZE-1)) {
+  if (addr & (__fs.cfg.phys_erase_block-1)) {
+    printf("trying to erase at addr %08x, out of boundary\n", addr);
     return -1;
   }
-  if (size & (SECTOR_SIZE-1)) {
+  if (size & (__fs.cfg.phys_erase_block-1)) {
+    printf("trying to erase at with size %08x, out of boundary\n", size);
     return -1;
   }
-  erases[(addr-SPIFFS_PHYS_ADDR)/SECTOR_SIZE]++;
+  erases[(addr-__fs.cfg.phys_addr)/__fs.cfg.phys_erase_block]++;
   memset(&area[addr], 0xff, size);
   return 0;
 }
@@ -311,18 +313,22 @@ static void spiffs_check_cb_f(spiffs_check_type type, spiffs_check_report report
   }
 }
 
-void fs_reset() {
+void fs_reset_specific(u32_t phys_addr, u32_t phys_size,
+    u32_t phys_sector_size,
+    u32_t log_block_size, u32_t log_page_size) {
   memset(area, 0xcc, sizeof(area));
-  memset(&area[SPIFFS_PHYS_ADDR], 0xff, SPIFFS_FLASH_SIZE);
+  memset(&area[phys_addr], 0xff, phys_size);
+
   spiffs_config c;
   c.hal_erase_f = _erase;
   c.hal_read_f = _read;
   c.hal_write_f = _write;
-  c.log_block_size = LOG_BLOCK;
-  c.log_page_size = LOG_PAGE;
-  c.phys_addr = SPIFFS_PHYS_ADDR;
-  c.phys_erase_block = SECTOR_SIZE;
-  c.phys_size = SPIFFS_FLASH_SIZE;
+  c.log_block_size = log_block_size;
+  c.log_page_size = log_page_size;
+  c.phys_addr = phys_addr;
+  c.phys_erase_block = phys_sector_size;
+  c.phys_size = phys_size;
+
   memset(erases,0,sizeof(erases));
   memset(_cache,0,sizeof(_cache));
 
@@ -331,6 +337,10 @@ void fs_reset() {
   clear_flash_ops_log();
   log_flash_ops = 1;
   fs_check_fixes = 0;
+}
+
+void fs_reset() {
+  fs_reset_specific(SPIFFS_PHYS_ADDR, SPIFFS_FLASH_SIZE, SECTOR_SIZE, LOG_BLOCK, LOG_PAGE);
 }
 
 void set_flash_ops_log(int enable) {
@@ -370,7 +380,7 @@ void fs_set_validate_flashing(int i) {
 void real_assert(int c, const char *n, const char *file, int l) {
   if (c == 0) {
     printf("ASSERT: %s %s @ %i\n", (n ? n : ""), file, l);
-    printf("fs errno:%i\n", __fs.errno);
+    printf("fs errno:%i\n", __fs.err_code);
     exit(0);
   }
 }
@@ -540,10 +550,14 @@ static u32_t cmiss_tot = 0;
 #endif
 #endif
 
-void _setup() {
-  fs_reset();
+void _setup_test_only() {
   fs_set_validate_flashing(1);
   test_init(test_on_stop);
+}
+
+void _setup() {
+  fs_reset();
+  _setup_test_only();
 }
 
 void _teardown() {
@@ -606,9 +620,11 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
       if (tf->state == 0 && cur_config_ix < cfg_count) {
 // create a new file
         strcpy(tf->name, name);
-        if (dbg) printf("   create new %s with cfg %i/%i\n", name, (1+cur_config_ix), cfg_count);
         tf->state = 1;
         tf->cfg = cfgs[cur_config_ix];
+        int size = tfile_get_size(tf->cfg.tsize);
+        if (dbg) printf("   create new %s with cfg %i/%i, size %i\n", name, (1+cur_config_ix), cfg_count, size);
+
         if (tf->cfg.tsize == EMPTY) {
           res = SPIFFS_creat(FS, name, 0);
           CHECK_RES(res);
@@ -625,7 +641,6 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
           extra_flags = tf->cfg.ttype == APPENDED ? O_APPEND : 0;
           int pfd = open(make_test_fname(name), extra_flags | O_TRUNC | O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
           tf->fd = fd;
-          int size = tfile_get_size(tf->cfg.tsize);
           u8_t *buf = malloc(size);
           memrand(buf, size);
           res = SPIFFS_write(FS, fd, buf, size);

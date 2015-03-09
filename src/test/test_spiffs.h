@@ -57,6 +57,9 @@ typedef struct  {
 
 
 void fs_reset();
+void fs_reset_specific(u32_t phys_addr, u32_t phys_size,
+    u32_t phys_sector_size,
+    u32_t log_block_size, u32_t log_page_size);
 int read_and_verify(char *name);
 int read_and_verify_fd(spiffs_file fd, char *name);
 void dump_page(spiffs *fs, spiffs_page_ix p);
@@ -78,6 +81,7 @@ void memrand(u8_t *b, int len);
 int test_create_file(char *name);
 int test_create_and_write_file(char *name, int size, int chunk_size);
 void _setup();
+void _setup_test_only();
 void _teardown();
 u32_t tfile_get_size(tfile_size s);
 int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concurrent_files, int dbg);
