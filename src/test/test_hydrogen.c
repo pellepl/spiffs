@@ -24,6 +24,17 @@ void teardown() {
   _teardown();
 }
 
+TEST(info)
+{
+  u32_t used, total;
+  int res = SPIFFS_info(FS, &total, &used);
+  TEST_CHECK(res == SPIFFS_OK);
+  TEST_CHECK(used == 0);
+  TEST_CHECK(total < __fs.cfg.phys_size);
+  return TEST_RES_OK;
+}
+TEST_END(info)
+
 
 TEST(missing_file)
 {

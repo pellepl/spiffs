@@ -106,6 +106,10 @@ s32_t SPIFFS_errno(spiffs *fs) {
   return fs->err_code;
 }
 
+void SPIFFS_clearerr(spiffs *fs) {
+  fs->err_code = SPIFFS_OK;
+}
+
 s32_t SPIFFS_creat(spiffs *fs, char *path, spiffs_mode mode) {
   (void)mode;
   SPIFFS_API_CHECK_MOUNT(fs);
@@ -314,8 +318,6 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
 #endif
   }
 
-  SPIFFS_DBG("SPIFFS_write %i %04x offs:%i len %i\n", fh, fd->obj_id, offset, len);
-
 #if SPIFFS_CACHE_WR
   if ((fd->flags & SPIFFS_DIRECT) == 0) {
     if (len < (s32_t)SPIFFS_CFG_LOG_PAGE_SZ(fs)) {
@@ -334,6 +336,7 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
               spiffs_get_cache_page(fs, spiffs_get_cache(fs), fd->cache_page->ix),
               fd->cache_page->offset, fd->cache_page->size);
           spiffs_cache_fd_release(fs, fd->cache_page);
+          SPIFFS_API_CHECK_RES(fs, res);
         } else {
           // writing within cache
           alloc_cpage = 0;
@@ -760,6 +763,29 @@ s32_t SPIFFS_check(spiffs *fs) {
   return res;
 }
 
+s32_t SPIFFS_info(spiffs *fs, u32_t *total, u32_t *used) {
+  s32_t res = SPIFFS_OK;
+  SPIFFS_API_CHECK_MOUNT(fs);
+  SPIFFS_LOCK(fs);
+
+  u32_t pages_per_block = SPIFFS_PAGES_PER_BLOCK(fs);
+  u32_t blocks = fs->block_count;
+  u32_t obj_lu_pages = SPIFFS_OBJ_LOOKUP_PAGES(fs);
+  u32_t data_page_size = SPIFFS_DATA_PAGE_SIZE(fs);
+  u32_t total_data_pages = (blocks - 2) * (pages_per_block - obj_lu_pages) + 1; // -2 for spare blocks, +1 for emergency page
+
+  if (total) {
+    *total = total_data_pages * data_page_size;
+  }
+
+  if (used) {
+    *used = fs->stats_p_allocated * data_page_size;
+  }
+
+  SPIFFS_UNLOCK(fs);
+  return res;
+}
+
 #if SPIFFS_TEST_VISUALISATION
 s32_t SPIFFS_vis(spiffs *fs) {
   s32_t res = SPIFFS_OK;
@@ -826,6 +852,9 @@ s32_t SPIFFS_vis(spiffs *fs) {
   spiffs_printf("free_blocks: %i\n", fs->free_blocks);
   spiffs_printf("page_alloc:  %i\n", fs->stats_p_allocated);
   spiffs_printf("page_delet:  %i\n", fs->stats_p_deleted);
+  u32_t total, used;
+  SPIFFS_info(fs, &total, &used);
+  spiffs_printf("used:        %i of %i\n", used, total);
 
   SPIFFS_UNLOCK(fs);
   return res;

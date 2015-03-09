@@ -389,6 +389,12 @@ s32_t SPIFFS_rename(spiffs *fs, char *old, char *newPath);
 s32_t SPIFFS_errno(spiffs *fs);
 
 /**
+ * Clears last error.
+ * @param fs            the file system struct
+ */
+void SPIFFS_clearerr(spiffs *fs);
+
+/**
  * Opens a directory stream corresponding to the given name.
  * The stream is positioned at the first entry in the directory.
  * On hydrogen builds the name argument is ignored as hydrogen builds always correspond
@@ -418,6 +424,21 @@ struct spiffs_dirent *SPIFFS_readdir(spiffs_DIR *d, struct spiffs_dirent *e);
  * @param fs            the file system struct
  */
 s32_t SPIFFS_check(spiffs *fs);
+
+
+/**
+ * Returns number of total bytes available and number of used bytes.
+ * This is an estimation, and depends on if there a many files with little
+ * data or few files with much data.
+ * NB: If used number of bytes exceeds total bytes, a SPIFFS_check should
+ * run. This indicates a power loss in midst of things. In worst case
+ * (repeated powerlosses in mending or gc) you might have to delete some files.
+ *
+ * @param fs            the file system struct
+ * @param total         total number of bytes in filesystem
+ * @param used          used number of bytes in filesystem
+ */
+s32_t SPIFFS_info(spiffs *fs, u32_t *total, u32_t *used);
 
 #if SPIFFS_TEST_VISUALISATION
 /**
