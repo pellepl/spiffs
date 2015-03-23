@@ -151,7 +151,12 @@
 #endif
 #endif
 
-// Set SPFIFS_TEST_VISUALISATION to non-zero to enable SPIFFS_vis function
+// Enable this if your target needs aligned data for index tables
+#ifndef SPIFFS_ALIGNED_OBJECT_INDEX_TABLES
+#define SPIFFS_ALIGNED_OBJECT_INDEX_TABLES       0
+#endif
+
+// Set SPIFFS_TEST_VISUALISATION to non-zero to enable SPIFFS_vis function
 // in the api. This function will visualize all filesystem using given printf
 // function.
 #ifndef SPIFFS_TEST_VISUALISATION
