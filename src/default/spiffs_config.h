@@ -111,14 +111,22 @@
 #define SPIFFS_COPY_BUFFER_STACK        (64)
 #endif
 
+// Enable this to have an identifiable spiffs filesystem. This will look for
+// a magic in all sectors to determine if this is a valid spiffs system or
+// not on mount point. If not, SPIFFS_format must be called prior to mounting
+// again.
+#ifndef SPIFFS_USE_MAGIC
+#define SPIFFS_USE_MAGIC                (0)
+#endif
+
 // SPIFFS_LOCK and SPIFFS_UNLOCK protects spiffs from reentrancy on api level
 // These should be defined on a multithreaded system
 
-// define this to entering a mutex if you're running on a multithreaded system
+// define this to enter a mutex if you're running on a multithreaded system
 #ifndef SPIFFS_LOCK
 #define SPIFFS_LOCK(fs)
 #endif
-// define this to exiting a mutex if you're running on a multithreaded system
+// define this to exit a mutex if you're running on a multithreaded system
 #ifndef SPIFFS_UNLOCK
 #define SPIFFS_UNLOCK(fs)
 #endif

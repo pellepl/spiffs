@@ -131,6 +131,10 @@
 #define SPIFFS_OBJ_ID_DELETED           ((spiffs_obj_id)0)
 #define SPIFFS_OBJ_ID_FREE              ((spiffs_obj_id)-1)
 
+#define SPIFFS_MAGIC(fs)                ((spiffs_obj_id)(0x20140529 ^ SPIFFS_CFG_LOG_PAGE_SZ(fs)))
+
+#define SPIFFS_CONFIG_MAGIC             (0x20090315)
+
 #if SPIFFS_SINGLETON == 0
 #define SPIFFS_CFG_LOG_PAGE_SZ(fs) \
   ((fs)->cfg.log_page_size)
@@ -189,9 +193,18 @@
 // returns data size in a data page
 #define SPIFFS_DATA_PAGE_SIZE(fs) \
     ( SPIFFS_CFG_LOG_PAGE_SZ(fs) - sizeof(spiffs_page_header) )
-// returns physical address for block's erase count
+// returns physical address for block's erase count,
+// always in the physical last entry of the last object lookup page
 #define SPIFFS_ERASE_COUNT_PADDR(fs, bix) \
   ( SPIFFS_BLOCK_TO_PADDR(fs, bix) + SPIFFS_OBJ_LOOKUP_PAGES(fs) * SPIFFS_CFG_LOG_PAGE_SZ(fs) - sizeof(spiffs_obj_id) )
+// returns physical address for block's magic,
+// always in the physical second last entry of the last object lookup page
+#define SPIFFS_MAGIC_PADDR(fs, bix) \
+  ( SPIFFS_BLOCK_TO_PADDR(fs, bix) + SPIFFS_OBJ_LOOKUP_PAGES(fs) * SPIFFS_CFG_LOG_PAGE_SZ(fs) - sizeof(spiffs_obj_id)*2 )
+// checks if there is any room for magic in the object luts
+#define SPIFFS_CHECK_MAGIC_POSSIBLE(fs) \
+  ( (SPIFFS_OBJ_LOOKUP_MAX_ENTRIES(fs) % (SPIFFS_CFG_LOG_PAGE_SZ(fs)/sizeof(spiffs_obj_id))) * sizeof(spiffs_obj_id) \
+    <= (SPIFFS_CFG_LOG_PAGE_SZ(fs)-sizeof(spiffs_obj_id)*2) )
 
 // define helpers object
 
@@ -238,7 +251,10 @@
 
 
 #define SPIFFS_CHECK_MOUNT(fs) \
-  ((fs)->block_count > 0)
+  ((fs)->mounted != 0)
+
+#define SPIFFS_CHECK_CFG(fs) \
+  ((fs)->config_magic == SPIFFS_CONFIG_MAGIC)
 
 #define SPIFFS_CHECK_RES(res) \
   do { \
@@ -248,6 +264,12 @@
 #define SPIFFS_API_CHECK_MOUNT(fs) \
   if (!SPIFFS_CHECK_MOUNT((fs))) { \
     (fs)->err_code = SPIFFS_ERR_NOT_MOUNTED; \
+    return -1; \
+  }
+
+#define SPIFFS_API_CHECK_CFG(fs) \
+  if (!SPIFFS_CHECK_CFG((fs))) { \
+    (fs)->err_code = SPIFFS_ERR_NOT_CONFIGURED; \
     return -1; \
   }
 
@@ -483,6 +505,10 @@ s32_t spiffs_obj_lu_find_entry_visitor(
     void *user_p,
     spiffs_block_ix *block_ix,
     int *lu_entry);
+
+s32_t spiffs_erase_block(
+    spiffs *fs,
+    spiffs_block_ix bix);
 
 // ---------------
 
