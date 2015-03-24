@@ -1,5 +1,5 @@
 SPIFFS (SPI Flash File System)
-V0.2.2
+V0.3.0
 
 Copyright (c) 2013-2015 Peter Andersson (pelleplutt1976<at>gmail.com)
 
@@ -55,3 +55,32 @@ For integration, see the docs/INTEGRATION file.
 For use and design, see the docs/TECH_SPEC file.
 
 For testing and contributions, see the docs/IMPLEMENTING file.
+
+* HISTORY
+
+0.3.0
+  Added existing namecheck when creating files
+  Lots of static analysis bugs #6
+  Added rename func
+  Fix SPIFFS_read length when reading beyond file size
+  Added reading beyond file length testcase
+  Made build a bit more configurable
+  Changed name in spiffs from "errno" to "err_code" due to conflicts compiling
+    in mingw
+  Improved GC checks, fixed an append bug, more robust truncate for very special
+    case
+  GC checks preempts GC, truncate even less picky
+  Struct alignment needed for some targets, define in spiffs config #10
+  Spiffs filesystem magic, definable in config
+
+  New config defines:
+    SPIFFS_USE_MAGIC - enable or disable magic check upon mount
+    SPIFFS_ALIGNED_OBJECT_INDEX_TABLES - alignment for certain targets
+  New API functions:
+    SPIFFS_rename - rename files
+    SPIFFS_clearerr - clears last errno
+    SPIFFS_info - returns info on used and total bytes in fs
+    SPIFFS_format - formats the filesystem
+    SPIFFS_mounted - checks if filesystem is mounted
+
+
