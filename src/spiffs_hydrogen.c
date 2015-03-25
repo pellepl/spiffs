@@ -661,7 +661,11 @@ s32_t SPIFFS_fflush(spiffs *fs, spiffs_file fh) {
 }
 
 void SPIFFS_close(spiffs *fs, spiffs_file fh) {
-  SPIFFS_API_CHECK_CFG(fs);
+  if (!SPIFFS_CHECK_CFG((fs))) {
+    (fs)->err_code = SPIFFS_ERR_NOT_CONFIGURED;
+    return;
+  }
+
   if (!SPIFFS_CHECK_MOUNT(fs)) {
     fs->err_code = SPIFFS_ERR_NOT_MOUNTED;
     return;
@@ -719,11 +723,17 @@ s32_t SPIFFS_rename(spiffs *fs, char *old, char *new) {
 
 spiffs_DIR *SPIFFS_opendir(spiffs *fs, char *name, spiffs_DIR *d) {
   (void)name;
-  SPIFFS_API_CHECK_CFG(fs);
+
+  if (!SPIFFS_CHECK_CFG((fs))) {
+    (fs)->err_code = SPIFFS_ERR_NOT_CONFIGURED;
+    return 0;
+  }
+
   if (!SPIFFS_CHECK_MOUNT(fs)) {
     fs->err_code = SPIFFS_ERR_NOT_MOUNTED;
     return 0;
   }
+
   d->fs = fs;
   d->block = 0;
   d->entry = 0;
