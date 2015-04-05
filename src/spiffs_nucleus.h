@@ -657,7 +657,8 @@ s32_t spiffs_gc_erase_page_stats(
 s32_t spiffs_gc_find_candidate(
     spiffs *fs,
     spiffs_block_ix **block_candidate,
-    int *candidate_count);
+    int *candidate_count,
+    char fs_crammed);
 
 s32_t spiffs_gc_clean(
     spiffs *fs,
