@@ -142,9 +142,13 @@ s32_t spiffs_obj_lu_find_entry_visitor(
     cur_block++;
     cur_block_addr = cur_block * SPIFFS_CFG_LOG_BLOCK_SZ(fs);
     if (cur_block >= fs->block_count) {
-      // block wrap
-      cur_block = 0;
-      cur_block_addr = 0;
+      if (flags & SPIFFS_VIS_NO_WRAP) {
+        return SPIFFS_VIS_END;
+      } else {
+        // block wrap
+        cur_block = 0;
+        cur_block_addr = 0;
+      }
     }
   }
 
