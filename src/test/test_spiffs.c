@@ -26,7 +26,7 @@
 
 static unsigned char area[PHYS_FLASH_SIZE];
 
-static int erases[256];
+static int erases[PHYS_FLASH_SIZE/SECTOR_SIZE];
 static char _path[256];
 static u32_t bytes_rd = 0;
 static u32_t bytes_wr = 0;
@@ -313,13 +313,9 @@ static void spiffs_check_cb_f(spiffs_check_type type, spiffs_check_report report
   }
 }
 
-void fs_reset_specific(u32_t phys_addr, u32_t phys_size,
+s32_t fs_mount_specific(u32_t phys_addr, u32_t phys_size,
     u32_t phys_sector_size,
     u32_t log_block_size, u32_t log_page_size) {
-  memset(area, 0xcc, sizeof(area));
-  memset(&area[phys_addr], 0xff, phys_size);
-  memset(&__fs, 0, sizeof(__fs));
-
   spiffs_config c;
   c.hal_erase_f = _erase;
   c.hal_read_f = _read;
@@ -330,10 +326,21 @@ void fs_reset_specific(u32_t phys_addr, u32_t phys_size,
   c.phys_erase_block = phys_sector_size;
   c.phys_size = phys_size;
 
+  return SPIFFS_mount(&__fs, &c, _work, _fds, sizeof(_fds), _cache, sizeof(_cache), spiffs_check_cb_f);
+}
+
+void fs_reset_specific(u32_t phys_addr, u32_t phys_size,
+    u32_t phys_sector_size,
+    u32_t log_block_size, u32_t log_page_size) {
+  memset(area, 0xcc, sizeof(area));
+  memset(&area[phys_addr], 0xff, phys_size);
+  memset(&__fs, 0, sizeof(__fs));
+
   memset(erases,0,sizeof(erases));
   memset(_cache,0,sizeof(_cache));
 
-  s32_t res = SPIFFS_mount(&__fs, &c, _work, _fds, sizeof(_fds), _cache, sizeof(_cache), spiffs_check_cb_f);
+  s32_t res = fs_mount_specific(phys_addr, phys_size, phys_sector_size, log_block_size, log_page_size);
+
 #if SPIFFS_USE_MAGIC
   if (res == SPIFFS_OK) {
     SPIFFS_unmount(&__fs);
