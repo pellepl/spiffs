@@ -24,7 +24,10 @@
 #include <dirent.h>
 #include <unistd.h>
 
+#define AREA(x) area[(x) - addr_offset]
+
 static unsigned char area[PHYS_FLASH_SIZE];
+static u32_t addr_offset = 0;
 
 static int erases[PHYS_FLASH_SIZE/SECTOR_SIZE];
 static char _path[256];
@@ -88,7 +91,7 @@ static s32_t _read(u32_t addr, u32_t size, u8_t *dst) {
     printf("FATAL read addr too high %08x + %08x > %08x\n", addr, size, SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
     exit(0);
   }
-  memcpy(dst, &area[addr], size);
+  memcpy(dst, &AREA(addr), size);
   return 0;
 }
 
@@ -117,14 +120,14 @@ static s32_t _write(u32_t addr, u32_t size, u8_t *src) {
 
   for (i = 0; i < size; i++) {
     if (((addr + i) & (__fs.cfg.log_page_size-1)) != offsetof(spiffs_page_header, flags)) {
-      if (check_valid_flash && ((area[addr + i] ^ src[i]) & src[i])) {
-        printf("trying to write %02x to %02x at addr %08x\n", src[i], area[addr + i], addr+i);
+      if (check_valid_flash && ((AREA(addr + i) ^ src[i]) & src[i])) {
+        printf("trying to write %02x to %02x at addr %08x\n", src[i], AREA(addr + i), addr+i);
         spiffs_page_ix pix = (addr + i) / LOG_PAGE;
         dump_page(&__fs, pix);
         return -1;
       }
     }
-    area[addr + i] &= src[i];
+    AREA(addr + i) &= src[i];
   }
   return 0;
 }
@@ -139,7 +142,7 @@ static s32_t _erase(u32_t addr, u32_t size) {
     return -1;
   }
   erases[(addr-__fs.cfg.phys_addr)/__fs.cfg.phys_erase_block]++;
-  memset(&area[addr], 0xff, size);
+  memset(&AREA(addr), 0xff, size);
   return 0;
 }
 
@@ -165,7 +168,7 @@ void hexdump(u32_t addr, u32_t len) {
           if (a-32+j < addr)
             printf(" ");
           else {
-            printf("%c", (area[a-32+j] < 32 || area[a-32+j] >= 0x7f) ? '.' : area[a-32+j]);
+            printf("%c", (AREA(a-32+j) < 32 || AREA(a-32+j) >= 0x7f) ? '.' : AREA(a-32+j));
           }
         }
       }
@@ -174,7 +177,7 @@ void hexdump(u32_t addr, u32_t len) {
     if (a < addr) {
       printf("  ");
     } else {
-      printf("%02x", area[a]);
+      printf("%02x", AREA(a));
     }
   }
   int j;
@@ -183,7 +186,7 @@ void hexdump(u32_t addr, u32_t len) {
     if (a-32+j < addr)
       printf(" ");
     else {
-      printf("%c", (area[a-32+j] < 32 || area[a-32+j] >= 0x7f) ? '.' : area[a-32+j]);
+      printf("%c", (AREA(a-32+j) < 32 || AREA(a-32+j) >= 0x7f) ? '.' : AREA(a-32+j));
     }
   }
   printf("\n");
@@ -198,9 +201,9 @@ void dump_page(spiffs *fs, spiffs_page_ix p) {
   } else {
     u32_t obj_id_addr = SPIFFS_BLOCK_TO_PADDR(fs, SPIFFS_BLOCK_FOR_PAGE(fs , p)) +
         SPIFFS_OBJ_LOOKUP_ENTRY_FOR_PAGE(fs, p) * sizeof(spiffs_obj_id);
-    spiffs_obj_id obj_id = *((spiffs_obj_id *)&area[obj_id_addr]);
+    spiffs_obj_id obj_id = *((spiffs_obj_id *)&AREA(obj_id_addr));
     // data page
-    spiffs_page_header *ph = (spiffs_page_header *)&area[addr];
+    spiffs_page_header *ph = (spiffs_page_header *)&AREA(addr);
     printf("DATA %04x:%04x  ", obj_id, ph->span_ix);
     printf("%s", ((ph->flags & SPIFFS_PH_FLAG_FINAL) == 0) ? "FIN " : "fin ");
     printf("%s", ((ph->flags & SPIFFS_PH_FLAG_DELET) == 0) ? "DEL " : "del ");
@@ -212,7 +215,7 @@ void dump_page(spiffs *fs, spiffs_page_ix p) {
       printf("OBJ_IX");
       if (ph->span_ix == 0) {
         printf("_HDR  ");
-        spiffs_page_object_ix_header *oix_hdr = (spiffs_page_object_ix_header *)&area[addr];
+        spiffs_page_object_ix_header *oix_hdr = (spiffs_page_object_ix_header *)&AREA(addr);
         printf("'%s'  %i bytes  type:%02x", oix_hdr->name, oix_hdr->size, oix_hdr->type);
       }
     } else {
@@ -228,14 +231,14 @@ void dump_page(spiffs *fs, spiffs_page_ix p) {
 void area_write(u32_t addr, u8_t *buf, u32_t size) {
   int i;
   for (i = 0; i < size; i++) {
-    area[addr + i] = *buf++;
+    AREA(addr + i) = *buf++;
   }
 }
 
 void area_read(u32_t addr, u8_t *buf, u32_t size) {
   int i;
   for (i = 0; i < size; i++) {
-    *buf++ = area[addr + i];
+    *buf++ = AREA(addr + i);
   }
 }
 
@@ -313,6 +316,10 @@ static void spiffs_check_cb_f(spiffs_check_type type, spiffs_check_report report
   }
 }
 
+void fs_set_addr_offset(u32_t offset) {
+  addr_offset = offset;
+}
+
 s32_t fs_mount_specific(u32_t phys_addr, u32_t phys_size,
     u32_t phys_sector_size,
     u32_t log_block_size, u32_t log_page_size) {
@@ -329,11 +336,12 @@ s32_t fs_mount_specific(u32_t phys_addr, u32_t phys_size,
   return SPIFFS_mount(&__fs, &c, _work, _fds, sizeof(_fds), _cache, sizeof(_cache), spiffs_check_cb_f);
 }
 
-void fs_reset_specific(u32_t phys_addr, u32_t phys_size,
+void fs_reset_specific(u32_t addr_offset, u32_t phys_addr, u32_t phys_size,
     u32_t phys_sector_size,
     u32_t log_block_size, u32_t log_page_size) {
+  fs_set_addr_offset(addr_offset);
   memset(area, 0xcc, sizeof(area));
-  memset(&area[phys_addr], 0xff, phys_size);
+  memset(&AREA(phys_addr), 0xff, phys_size);
   memset(&__fs, 0, sizeof(__fs));
 
   memset(erases,0,sizeof(erases));
@@ -361,7 +369,7 @@ void fs_reset_specific(u32_t phys_addr, u32_t phys_size,
 }
 
 void fs_reset() {
-  fs_reset_specific(SPIFFS_PHYS_ADDR, SPIFFS_FLASH_SIZE, SECTOR_SIZE, LOG_BLOCK, LOG_PAGE);
+  fs_reset_specific(0, SPIFFS_PHYS_ADDR, SPIFFS_FLASH_SIZE, SECTOR_SIZE, LOG_BLOCK, LOG_PAGE);
 }
 
 void set_flash_ops_log(int enable) {
@@ -609,8 +617,8 @@ void _teardown() {
   SPIFFS_check(FS);
   clear_test_path();
 
-  //hexdump_mem(&area[SPIFFS_PHYS_ADDR - 16], 32);
-  //hexdump_mem(&area[SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE - 16], 32);
+  //hexdump_mem(&AREA(SPIFFS_PHYS_ADDR - 16), 32);
+  //hexdump_mem(&AREA(SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE - 16), 32);
 }
 
 u32_t tfile_get_size(tfile_size s) {
