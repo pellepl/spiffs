@@ -17,7 +17,6 @@
 #include <dirent.h>
 #include <unistd.h>
 
-
 SUITE(bug_tests)
 void setup() {
   _setup_test_only();
@@ -233,7 +232,6 @@ TEST(nodemcu_309) {
 } TEST_END(nodemcu_309)
 
 
-
 TEST(robert) {
   // create a clean file system starting at address 0, 2 megabytes big,
   // sector size 65536, block size 65536, page size 256
@@ -241,30 +239,23 @@ TEST(robert) {
 
   int res;
   spiffs_file fd;
-  int j;
+  char fname[32];
 
-  // create three files
-  for (j = 1; j <= 3; j++) {
-    char fname[32];
+  sprintf(fname, "test.txt");
+  fd = SPIFFS_open(FS, fname, SPIFFS_RDWR | SPIFFS_CREAT | SPIFFS_TRUNC, 0);
+  TEST_CHECK(fd > 0);
+  int i;
+  res = SPIFFS_OK;
+  char buf[500];
+  memset(buf, 0xaa, 500);
+  res = SPIFFS_write(FS, fd, buf, 500);
+  TEST_CHECK(res >= SPIFFS_OK);
+  SPIFFS_close(FS, fd);
 
-    sprintf(fname, "test%i.txt", j);
-    fd = SPIFFS_open(FS, fname, SPIFFS_RDWR | SPIFFS_CREAT | SPIFFS_TRUNC, 0);
-    TEST_CHECK(fd > 0);
-    int i;
-    res = SPIFFS_OK;
-    for (i = 0; i <= 999; i++) {
-      char *buf = "0123456789ABCDEF";
-      res = SPIFFS_write(FS, fd, buf, 16);
-    }
-    SPIFFS_close(FS, fd);
-
-    spiffs_stat s;
-    TEST_CHECK(SPIFFS_stat(FS, fname, &s) == SPIFFS_OK);
-    printf("file %s stat size %i\n", s.name, s.size);
-  }
   int errno = SPIFFS_errno(FS);
   TEST_CHECK(errno == SPIFFS_OK);
 
+  //SPIFFS_vis(FS);
   // unmount
   SPIFFS_unmount(FS);
 
@@ -272,16 +263,12 @@ TEST(robert) {
   res = fs_mount_specific(0, 1024*1024*2, 65536, 65536, 256);
   TEST_CHECK(res== SPIFFS_OK);
 
+  //SPIFFS_vis(FS);
 
-  spiffs_DIR d;
-  struct spiffs_dirent e;
-  struct spiffs_dirent *pe = &e;
-
-  SPIFFS_opendir(FS, "/", &d);
-  while ((pe = SPIFFS_readdir(&d, pe))) {
-    printf("%s [%04x] size:%i\n", pe->name, pe->obj_id, pe->size);
-  }
-  SPIFFS_closedir(&d);
+  spiffs_stat s;
+  TEST_CHECK(SPIFFS_stat(FS, fname, &s) == SPIFFS_OK);
+  printf("file %s stat size %i\n", s.name, s.size);
+  TEST_CHECK(s.size == 500);
 
   return TEST_RES_OK;
 
@@ -339,8 +326,6 @@ TEST(spiffs_12) {
   return TEST_RES_OK;
 
 } TEST_END(spiffs_12)
-
-
 
 
 SUITE_END(bug_tests)

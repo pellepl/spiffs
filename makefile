@@ -94,10 +94,16 @@ mkdirs:
 	-@${MKDIR} ${builddir}
 	-@${MKDIR} test_data
 
-test: all
+FILTER ?=
+
+test: $(BINARY)
+ifdef $(FILTER)
 		./build/$(BINARY)
-	
-test_failed: all
+else
+		./build/$(BINARY) -f $(FILTER)
+endif
+
+test_failed: $(BINARY)
 		./build/$(BINARY) _tests_fail
 	
 clean:
