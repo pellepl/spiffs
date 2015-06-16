@@ -357,7 +357,7 @@ void fs_reset_specific(u32_t addr_offset, u32_t phys_addr, u32_t phys_size,
   if (res != SPIFFS_OK) {
     printf("format failed, %i\n", SPIFFS_errno(&__fs));
   }
-  res = SPIFFS_mount(&__fs, &c, _work, _fds, sizeof(_fds), _cache, sizeof(_cache), spiffs_check_cb_f);
+  res = fs_mount_specific(phys_addr, phys_size, phys_sector_size, log_block_size, log_page_size);
   if (res != SPIFFS_OK) {
     printf("mount failed, %i\n", SPIFFS_errno(&__fs));
   }
