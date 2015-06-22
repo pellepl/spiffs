@@ -124,7 +124,7 @@
 #define SPIFFS_EV_IX_NEW                1
 #define SPIFFS_EV_IX_DEL                2
 
-#define SPIFFS_OBJ_ID_IX_FLAG           (1<<(8*sizeof(spiffs_obj_id)-1))
+#define SPIFFS_OBJ_ID_IX_FLAG           ((spiffs_obj_id)(1<<(8*sizeof(spiffs_obj_id)-1)))
 
 #define SPIFFS_UNDEFINED_LEN            (u32_t)(-1)
 
