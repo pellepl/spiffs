@@ -488,7 +488,7 @@ s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence) {
 
   SPIFFS_UNLOCK(fs);
 
-  return 0;
+  return offs;
 }
 
 s32_t SPIFFS_remove(spiffs *fs, char *path) {
