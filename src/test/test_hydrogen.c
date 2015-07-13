@@ -1048,6 +1048,73 @@ TEST(lseek_read) {
 TEST_END(lseek_read)
 
 
+TEST(gc_quick)
+{
+  char name[32];
+  int f;
+  int size = SPIFFS_DATA_PAGE_SIZE(FS);
+  int files = (SPIFFS_PAGES_PER_BLOCK(FS) - SPIFFS_OBJ_LOOKUP_PAGES(FS))/2;
+  int res;
+
+  // negative, try quick gc on clean sys
+  res = SPIFFS_gc_quick(FS, 0);
+  TEST_CHECK(res < 0);
+  TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_NO_DELETED_BLOCKS);
+
+  // fill block with files
+  for (f = 0; f < files; f++) {
+    sprintf(name, "file%i", f);
+    res = test_create_and_write_file(name, size, 1);
+    TEST_CHECK(res >= 0);
+  }
+  for (f = 0; f < files; f++) {
+    sprintf(name, "file%i", f);
+    res = read_and_verify(name);
+    TEST_CHECK(res >= 0);
+  }
+  // remove all files in block
+  for (f = 0; f < files; f++) {
+    sprintf(name, "file%i", f);
+    res = SPIFFS_remove(FS, name);
+    TEST_CHECK(res >= 0);
+  }
+
+  // do a quick gc
+  res = SPIFFS_gc_quick(FS, 0);
+  TEST_CHECK(res >= 0);
+
+  // fill another block with files but two pages
+  for (f = 0; f < files - 1; f++) {
+    sprintf(name, "file%i", f);
+    res = test_create_and_write_file(name, size, 1);
+    TEST_CHECK(res >= 0);
+  }
+  for (f = 0; f < files - 1; f++) {
+    sprintf(name, "file%i", f);
+    res = read_and_verify(name);
+    TEST_CHECK(res >= 0);
+  }
+  // remove all files in block leaving two free pages in block
+  for (f = 0; f < files - 1; f++) {
+    sprintf(name, "file%i", f);
+    res = SPIFFS_remove(FS, name);
+    TEST_CHECK(res >= 0);
+  }
+
+  // negative, try quick gc where no fully deleted blocks exist
+  res = SPIFFS_gc_quick(FS, 0);
+  TEST_CHECK(res < 0);
+  TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_NO_DELETED_BLOCKS);
+
+  // positive, try quick gc where allowing two free pages
+  res = SPIFFS_gc_quick(FS, 2);
+  TEST_CHECK(res >= 0);
+
+  return TEST_RES_OK;
+}
+TEST_END(gc_quick)
+
+
 TEST(write_small_file_chunks_1)
 {
   int res = test_create_and_write_file("smallfile", 256, 1);

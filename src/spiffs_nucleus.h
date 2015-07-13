@@ -665,7 +665,7 @@ s32_t spiffs_gc_clean(
     spiffs_block_ix bix);
 
 s32_t spiffs_gc_quick(
-    spiffs *fs);
+    spiffs *fs, u16_t max_free_pages);
 
 // ---------------
 

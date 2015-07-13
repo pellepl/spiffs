@@ -372,6 +372,12 @@ void fs_reset() {
   fs_reset_specific(0, SPIFFS_PHYS_ADDR, SPIFFS_FLASH_SIZE, SECTOR_SIZE, LOG_BLOCK, LOG_PAGE);
 }
 
+void fs_load_dump(char *fname) {
+  int pfd = open(fname, O_RDONLY, S_IRUSR | S_IWUSR);
+  read(pfd, area, sizeof(area));
+  close(pfd);
+}
+
 void set_flash_ops_log(int enable) {
   log_flash_ops = enable;
 }

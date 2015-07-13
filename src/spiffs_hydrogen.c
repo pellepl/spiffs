@@ -855,6 +855,34 @@ s32_t SPIFFS_info(spiffs *fs, u32_t *total, u32_t *used) {
   return res;
 }
 
+s32_t SPIFFS_gc_quick(spiffs *fs, u16_t max_free_pages) {
+  s32_t res;
+  SPIFFS_API_CHECK_CFG(fs);
+  SPIFFS_API_CHECK_MOUNT(fs);
+  SPIFFS_LOCK(fs);
+
+  res = spiffs_gc_quick(fs, max_free_pages);
+
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+  SPIFFS_UNLOCK(fs);
+  return 0;
+}
+
+
+s32_t SPIFFS_gc(spiffs *fs, u32_t size) {
+  s32_t res;
+  SPIFFS_API_CHECK_CFG(fs);
+  SPIFFS_API_CHECK_MOUNT(fs);
+  SPIFFS_LOCK(fs);
+
+  res = spiffs_gc_check(fs, size);
+
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+  SPIFFS_UNLOCK(fs);
+  return 0;
+}
+
+
 #if SPIFFS_TEST_VISUALISATION
 s32_t SPIFFS_vis(spiffs *fs) {
   s32_t res = SPIFFS_OK;
