@@ -80,7 +80,7 @@ For testing and contributions, see the docs/IMPLEMENTING file.
     SPIFFS_gc - call a full-scale intrusive gc
 
 0.3.1
-Removed two return warnings, was too triggerhappy on release
+  Removed two return warnings, was too triggerhappy on release
 
 0.3.0
   Added existing namecheck when creating files
