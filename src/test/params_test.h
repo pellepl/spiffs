@@ -34,6 +34,13 @@ typedef unsigned short u16_t;
 typedef signed char s8_t;
 typedef unsigned char u8_t;
 
+#define SPIFFS_DBG(...) //printf(__VA_ARGS__)
+#define SPIFFS_GC_DBG(...) //printf(__VA_ARGS__)
+#define SPIFFS_CACHE_DBG(...) //printf(__VA_ARGS__)
+#define SPIFFS_CHECK_DBG(...) //printf(__VA_ARGS__)
+
+// Enable/disable
+
 void real_assert(int c, const char *n, const char *file, int l);
 
 #endif /* PARAMS_TEST_H_ */
