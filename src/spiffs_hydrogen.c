@@ -91,7 +91,7 @@ s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
   }
 #if SPIFFS_CACHE
   fs->cache = cache;
-  fs->cache_size = cache_size;
+  fs->cache_size = (cache_size > (config->log_page_size*32)) ? config->log_page_size*32 : cache_size;
   spiffs_cache_init(fs);
 #endif
 
