@@ -711,9 +711,8 @@ s32_t SPIFFS_rename(spiffs *fs, char *old, char *new) {
   res = spiffs_object_update_index_hdr(fs, fd, fd->obj_id, fd->objix_hdr_pix, 0, (u8_t*)new,
       0, &pix_dummy);
 
-  if (res != SPIFFS_OK) {
-    spiffs_fd_return(fs, fd->file_nbr);
-  }
+  spiffs_fd_return(fs, fd->file_nbr);
+
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
   SPIFFS_UNLOCK(fs);
