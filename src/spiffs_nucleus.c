@@ -83,6 +83,7 @@ s32_t spiffs_phys_cpy(
     u32_t dst,
     u32_t src,
     u32_t len) {
+  (void)fh;
   s32_t res;
   u8_t b[SPIFFS_COPY_BUFFER_STACK];
   while (len > 0) {
