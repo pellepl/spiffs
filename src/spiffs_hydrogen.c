@@ -8,7 +8,9 @@
 #include "spiffs.h"
 #include "spiffs_nucleus.h"
 
+#if SPIFFS_CACHE == 1
 static s32_t spiffs_fflush_cache(spiffs *fs, spiffs_file fh);
+#endif
 
 #if SPIFFS_BUFFER_HELP
 u32_t SPIFFS_buffer_bytes_for_filedescs(spiffs *fs, u32_t num_descs) {
@@ -554,6 +556,7 @@ s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh) {
 }
 
 static s32_t spiffs_stat_pix(spiffs *fs, spiffs_page_ix pix, spiffs_file fh, spiffs_stat *s) {
+  (void)fh;
   spiffs_page_object_ix_header objix_hdr;
   spiffs_obj_id obj_id;
   s32_t res =_spiffs_rd(fs,  SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ, fh,
@@ -616,7 +619,10 @@ s32_t SPIFFS_fstat(spiffs *fs, spiffs_file fh, spiffs_stat *s) {
 
 // Checks if there are any cached writes for the object id associated with
 // given filehandle. If so, these writes are flushed.
+#if SPIFFS_CACHE == 1
 static s32_t spiffs_fflush_cache(spiffs *fs, spiffs_file fh) {
+  (void)fs;
+  (void)fh;
   s32_t res = SPIFFS_OK;
 #if SPIFFS_CACHE_WR
 
@@ -645,8 +651,10 @@ static s32_t spiffs_fflush_cache(spiffs *fs, spiffs_file fh) {
 
   return res;
 }
+#endif
 
 s32_t SPIFFS_fflush(spiffs *fs, spiffs_file fh) {
+  (void)fh;
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
   s32_t res = SPIFFS_OK;

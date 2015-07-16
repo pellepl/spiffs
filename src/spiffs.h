@@ -551,7 +551,7 @@ u32_t SPIFFS_buffer_bytes_for_cache(spiffs *fs, u32_t num_pages);
 #endif
 #endif
 
-#if SPIFFS_CHACHE
+#if SPIFFS_CACHE
 #endif
 #if defined(__cplusplus)
 }
