@@ -415,15 +415,10 @@ typedef struct __attribute(( packed )) {
 } spiffs_page_header;
 
 // object index header page header
-typedef struct __attribute(( packed ))
-#if SPIFFS_ALIGNED_OBJECT_INDEX_TABLES
-                __attribute(( aligned(sizeof(spiffs_page_ix)) ))
-#endif
+typedef struct __attribute(( packed, aligned(4) ))
 {
   // common page header
   spiffs_page_header p_hdr;
-  // alignment
-  u8_t _align[4 - (sizeof(spiffs_page_header)&3)==0 ? 4 : (sizeof(spiffs_page_header)&3)];
   // size of object
   u32_t size;
   // type of object
@@ -433,9 +428,8 @@ typedef struct __attribute(( packed ))
 } spiffs_page_object_ix_header;
 
 // object index page header
-typedef struct __attribute(( packed )) {
+typedef struct __attribute(( packed, aligned(4) )) {
  spiffs_page_header p_hdr;
- u8_t _align[4 - (sizeof(spiffs_page_header)&3)==0 ? 4 : (sizeof(spiffs_page_header)&3)];
 } spiffs_page_object_ix;
 
 // callback func for object lookup visitor
