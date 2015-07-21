@@ -787,7 +787,7 @@ struct spiffs_dirent *SPIFFS_readdir(spiffs_DIR *d, struct spiffs_dirent *e) {
     d->fs->err_code = SPIFFS_ERR_NOT_MOUNTED;
     return 0;
   }
-  SPIFFS_LOCK(fs);
+  SPIFFS_LOCK(d->fs);
 
   spiffs_block_ix bix;
   int entry;
@@ -811,7 +811,7 @@ struct spiffs_dirent *SPIFFS_readdir(spiffs_DIR *d, struct spiffs_dirent *e) {
   } else {
     d->fs->err_code = res;
   }
-  SPIFFS_UNLOCK(fs);
+  SPIFFS_UNLOCK(d->fs);
   return ret;
 }
 
