@@ -39,6 +39,10 @@ typedef unsigned char u8_t;
 #define SPIFFS_CACHE_DBG(...) //printf(__VA_ARGS__)
 #define SPIFFS_CHECK_DBG(...) //printf(__VA_ARGS__)
 
+#ifndef SPIFFS_HAL_CALLBACK_EXTRA
+#define SPIFFS_HAL_CALLBACK_EXTRA       1
+#endif
+
 // Enable/disable
 
 void real_assert(int c, const char *n, const char *file, int l);

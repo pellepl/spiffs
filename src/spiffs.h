@@ -63,12 +63,25 @@ typedef u16_t spiffs_mode;
 // object type
 typedef u8_t spiffs_obj_type;
 
+#if SPIFFS_HAL_CALLBACK_EXTRA
+struct spiffs_t;
+
+/* spi read call function type */
+typedef s32_t (*spiffs_read)(struct spiffs_t *fs, u32_t addr, u32_t size, u8_t *dst);
+/* spi write call function type */
+typedef s32_t (*spiffs_write)(struct spiffs_t *fs, u32_t addr, u32_t size, u8_t *src);
+/* spi erase call function type */
+typedef s32_t (*spiffs_erase)(struct spiffs_t *fs, u32_t addr, u32_t size);
+
+#else // SPIFFS_HAL_CALLBACK_EXTRA
+
 /* spi read call function type */
 typedef s32_t (*spiffs_read)(u32_t addr, u32_t size, u8_t *dst);
 /* spi write call function type */
 typedef s32_t (*spiffs_write)(u32_t addr, u32_t size, u8_t *src);
 /* spi erase call function type */
 typedef s32_t (*spiffs_erase)(u32_t addr, u32_t size);
+#endif // SPIFFS_HAL_CALLBACK_EXTRA
 
 /* file system check callback report operation */
 typedef enum {
@@ -89,8 +102,13 @@ typedef enum {
 } spiffs_check_report;
 
 /* file system check callback function */
+#if SPIFFS_HAL_CALLBACK_EXTRA
+typedef void (*spiffs_check_callback)(struct spiffs_t *fs, spiffs_check_type type, spiffs_check_report report,
+    u32_t arg1, u32_t arg2);
+#else // SPIFFS_HAL_CALLBACK_EXTRA
 typedef void (*spiffs_check_callback)(spiffs_check_type type, spiffs_check_report report,
     u32_t arg1, u32_t arg2);
+#endif // SPIFFS_HAL_CALLBACK_EXTRA
 
 #ifndef SPIFFS_DBG
 #define SPIFFS_DBG(...) \
@@ -167,7 +185,7 @@ typedef struct {
 #endif
 } spiffs_config;
 
-typedef struct {
+typedef struct spiffs_t {
   // file system configuration
   spiffs_config cfg;
   // number of logical blocks
@@ -225,6 +243,8 @@ typedef struct {
 
   // mounted flag
   u8_t mounted;
+  // user data
+  void *user_data;
   // config magic
   u32_t config_magic;
 } spiffs;

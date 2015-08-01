@@ -164,6 +164,12 @@
 #define SPIFFS_ALIGNED_OBJECT_INDEX_TABLES       0
 #endif
 
+// Enable this if you want the HAL callbacks to be called with the spiffs struct
+#ifndef SPIFFS_HAL_CALLBACK_EXTRA
+#define SPIFFS_HAL_CALLBACK_EXTRA         0
+#endif
+
+
 // Set SPIFFS_TEST_VISUALISATION to non-zero to enable SPIFFS_vis function
 // in the api. This function will visualize all filesystem using given printf
 // function.
