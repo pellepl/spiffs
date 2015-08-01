@@ -462,13 +462,6 @@ struct spiffs_dirent *SPIFFS_readdir(spiffs_DIR *d, struct spiffs_dirent *e);
 s32_t SPIFFS_check(spiffs *fs);
 
 /**
- * Searches for a block with only deleted entries. If found, it is erased.
- * @param fs            the file system struct
- */
-s32_t SPIFFS_erase_deleted_block(spiffs *fs);
-
-
-/**
  * Returns number of total bytes available and number of used bytes.
  * This is an estimation, and depends on if there a many files with little
  * data or few files with much data.
