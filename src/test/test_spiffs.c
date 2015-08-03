@@ -72,7 +72,7 @@ void clear_test_path() {
   }
 }
 
-static s32_t _read(u32_t addr, u32_t size, u8_t *dst) {
+static s32_t _read(spiffs *fs, u32_t addr, u32_t size, u8_t *dst) {
   if (log_flash_ops) {
     bytes_rd += size;
     reads++;
@@ -95,7 +95,7 @@ static s32_t _read(u32_t addr, u32_t size, u8_t *dst) {
   return 0;
 }
 
-static s32_t _write(u32_t addr, u32_t size, u8_t *src) {
+static s32_t _write(spiffs *fs, u32_t addr, u32_t size, u8_t *src) {
   int i;
   //printf("wr %08x %i\n", addr, size);
   if (log_flash_ops) {
@@ -132,7 +132,7 @@ static s32_t _write(u32_t addr, u32_t size, u8_t *src) {
   return 0;
 }
 
-static s32_t _erase(u32_t addr, u32_t size) {
+static s32_t _erase(spiffs *fs, u32_t addr, u32_t size) {
   if (addr & (__fs.cfg.phys_erase_block-1)) {
     printf("trying to erase at addr %08x, out of boundary\n", addr);
     return -1;
@@ -269,7 +269,7 @@ void dump_flash_access_stats() {
 
 
 static u32_t old_perc = 999;
-static void spiffs_check_cb_f(spiffs_check_type type, spiffs_check_report report,
+static void spiffs_check_cb_f(spiffs *fs, spiffs_check_type type, spiffs_check_report report,
     u32_t arg1, u32_t arg2) {
 /*  if (report == SPIFFS_CHECK_PROGRESS && old_perc != arg1) {
     old_perc = arg1;

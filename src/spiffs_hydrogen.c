@@ -669,24 +669,23 @@ s32_t SPIFFS_fflush(spiffs *fs, spiffs_file fh) {
   return res;
 }
 
-void SPIFFS_close(spiffs *fs, spiffs_file fh) {
-  if (!SPIFFS_CHECK_CFG((fs))) {
-    (fs)->err_code = SPIFFS_ERR_NOT_CONFIGURED;
-    return;
-  }
+s32_t SPIFFS_close(spiffs *fs, spiffs_file fh) {
+  SPIFFS_API_CHECK_CFG(fs);
+  SPIFFS_API_CHECK_MOUNT(fs);
 
-  if (!SPIFFS_CHECK_MOUNT(fs)) {
-    fs->err_code = SPIFFS_ERR_NOT_MOUNTED;
-    return;
-  }
+  s32_t res = SPIFFS_OK;
   SPIFFS_LOCK(fs);
 
 #if SPIFFS_CACHE
-  spiffs_fflush_cache(fs, fh);
+  res = spiffs_fflush_cache(fs, fh);
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 #endif
-  spiffs_fd_return(fs, fh);
+  res = spiffs_fd_return(fs, fh);
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
   SPIFFS_UNLOCK(fs);
+
+  return res;
 }
 
 s32_t SPIFFS_rename(spiffs *fs, char *old, char *new) {

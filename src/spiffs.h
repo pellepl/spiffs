@@ -408,7 +408,7 @@ s32_t SPIFFS_fflush(spiffs *fs, spiffs_file fh);
  * @param fs            the file system struct
  * @param fh            the filehandle of the file to close
  */
-void SPIFFS_close(spiffs *fs, spiffs_file fh);
+s32_t SPIFFS_close(spiffs *fs, spiffs_file fh);
 
 /**
  * Renames a file
