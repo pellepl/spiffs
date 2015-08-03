@@ -49,6 +49,8 @@ extern "C" {
 
 #define SPIFFS_ERR_NO_DELETED_BLOCKS    -10029
 
+#define SPIFFS_ERR_FILE_EXISTS          -10030
+
 #define SPIFFS_ERR_INTERNAL             -10050
 
 #define SPIFFS_ERR_TEST                 -10100
@@ -138,6 +140,8 @@ typedef void (*spiffs_check_callback)(spiffs_check_type type, spiffs_check_repor
 #define SPIFFS_RDWR                     (SPIFFS_RDONLY | SPIFFS_WRONLY)
 /* Any writes to the filehandle will never be cached */
 #define SPIFFS_DIRECT                   (1<<5)
+/* If SPIFFS_CREAT and SPIFFS_EXCL are set, SPIFFS_open() shall fail if the file exists */
+#define SPIFFS_EXCL                     (1<<6)
 
 #define SPIFFS_SEEK_SET                 (0)
 #define SPIFFS_SEEK_CUR                 (1)

@@ -191,6 +191,14 @@ spiffs_file SPIFFS_open(spiffs *fs, char *path, spiffs_flags flags, spiffs_mode 
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   }
 
+  if (res == SPIFFS_OK &&
+      (flags & (SPIFFS_CREAT | SPIFFS_EXCL)) == (SPIFFS_CREAT | SPIFFS_EXCL)) {
+    // creat and excl and file exists - fail
+    res = SPIFFS_ERR_FILE_EXISTS;
+    spiffs_fd_return(fs, fd->file_nbr);
+    SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+  }
+
   if ((flags & SPIFFS_CREAT) && res == SPIFFS_ERR_NOT_FOUND) {
     spiffs_obj_id obj_id;
     // no need to enter conflicting name here, already looked for it above

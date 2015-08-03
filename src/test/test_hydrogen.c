@@ -205,6 +205,26 @@ TEST(file_by_creat)
 }
 TEST_END(file_by_creat)
 
+TEST(file_by_open_excl)
+{
+  int res;
+  spiffs_stat s;
+  spiffs_file fd = SPIFFS_open(FS, "filebexcl", SPIFFS_CREAT | SPIFFS_EXCL, 0);
+  TEST_CHECK(fd >= 0);
+  res = SPIFFS_fstat(FS, fd, &s);
+  TEST_CHECK(res >= 0);
+  TEST_CHECK(strcmp((char*)s.name, "filebexcl") == 0);
+  TEST_CHECK(s.size == 0);
+  SPIFFS_close(FS, fd);
+
+  fd = SPIFFS_open(FS, "filebexcl", SPIFFS_CREAT | SPIFFS_EXCL, 0);
+  TEST_CHECK(fd < 0);
+  TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_FILE_EXISTS);
+
+  return TEST_RES_OK;
+}
+TEST_END(file_by_open_excl)
+
 TEST(list_dir)
 {
   int res;
