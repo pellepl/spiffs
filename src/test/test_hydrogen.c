@@ -1073,7 +1073,8 @@ TEST(gc_quick)
   char name[32];
   int f;
   int size = SPIFFS_DATA_PAGE_SIZE(FS);
-  int files = (SPIFFS_PAGES_PER_BLOCK(FS) - SPIFFS_OBJ_LOOKUP_PAGES(FS))/2;
+  int pages_per_block=SPIFFS_PAGES_PER_BLOCK(FS) - SPIFFS_OBJ_LOOKUP_PAGES(FS);
+  int files = (pages_per_block+1)/2;
   int res;
 
   // negative, try quick gc on clean sys
@@ -1104,18 +1105,22 @@ TEST(gc_quick)
   TEST_CHECK(res >= 0);
 
   // fill another block with files but two pages
-  for (f = 0; f < files - 1; f++) {
+  // We might have one deleted page left over from the previous gc, in case pages_per_block is odd.
+  int pages_already=2*files-pages_per_block;
+  int files2=(pages_per_block-pages_already+1)/2;
+
+  for (f = 0; f < files2 - 1; f++) {
     sprintf(name, "file%i", f);
     res = test_create_and_write_file(name, size, 1);
     TEST_CHECK(res >= 0);
   }
-  for (f = 0; f < files - 1; f++) {
+  for (f = 0; f < files2 - 1; f++) {
     sprintf(name, "file%i", f);
     res = read_and_verify(name);
     TEST_CHECK(res >= 0);
   }
   // remove all files in block leaving two free pages in block
-  for (f = 0; f < files - 1; f++) {
+  for (f = 0; f < files2 - 1; f++) {
     sprintf(name, "file%i", f);
     res = SPIFFS_remove(FS, name);
     TEST_CHECK(res >= 0);
