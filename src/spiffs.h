@@ -360,13 +360,14 @@ s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len);
 s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len);
 
 /**
- * Moves the read/write file offset
+ * Moves the read/write file offset. Resulting offset is returned or negative if error.
+ * lseek(fs, fd, 0, SPIFFS_SEEK_CUR) will thus return current offset.
  * @param fs            the file system struct
  * @param fh            the filehandle
  * @param offs          how much/where to move the offset
  * @param whence        if SPIFFS_SEEK_SET, the file offset shall be set to offset bytes
  *                      if SPIFFS_SEEK_CUR, the file offset shall be set to its current location plus offset
- *                      if SPIFFS_SEEK_END, the file offset shall be set to the size of the file plus offset
+ *                      if SPIFFS_SEEK_END, the file offset shall be set to the size of the file plus offse, which should be negative
  */
 s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence);
 
