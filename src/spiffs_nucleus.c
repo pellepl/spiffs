@@ -409,11 +409,11 @@ s32_t spiffs_obj_lu_find_free(
       fs->free_blocks--;
     }
   }
-  if (res == SPIFFS_VIS_END) {
+  if (res == SPIFFS_ERR_FULL) {
     SPIFFS_DBG("fs full\n");
   }
 
-  return res == SPIFFS_VIS_END ? SPIFFS_ERR_FULL : res;
+  return res;
 }
 
 // Find object lookup entry containing given id
@@ -1766,7 +1766,7 @@ static s32_t spiffs_obj_lu_find_free_obj_id_compact_v(spiffs *fs, spiffs_obj_id 
 // Scans thru all object lookup for object index header pages. If total possible number of
 // object ids cannot fit into a work buffer, these are grouped. When a group containing free
 // object ids is found, the object lu is again scanned for object ids within group and bitmasked.
-// Finally, the bitmasked is searched for a free id
+// Finally, the bitmask is searched for a free id
 s32_t spiffs_obj_lu_find_free_obj_id(spiffs *fs, spiffs_obj_id *obj_id, u8_t *conflicting_name) {
   s32_t res = SPIFFS_OK;
   u32_t max_objects = (SPIFFS_CFG_PHYS_SZ(fs) / (u32_t)SPIFFS_CFG_LOG_PAGE_SZ(fs)) / 2;
