@@ -328,4 +328,55 @@ TEST(spiffs_12) {
 } TEST_END(spiffs_12)
 
 
+TEST(zero_sized_file_44) {
+  fs_reset();
+
+  spiffs_file fd = SPIFFS_open(FS, "zero", SPIFFS_RDWR | SPIFFS_CREAT, 0);
+  TEST_CHECK_GE(fd, 0);
+
+  int res = SPIFFS_close(FS, fd);
+  TEST_CHECK_GE(res, 0);
+
+  fd = SPIFFS_open(FS, "zero", SPIFFS_RDWR, 0);
+  TEST_CHECK_GE(fd, 0);
+
+  u8_t buf[8];
+  res = SPIFFS_read(FS, fd, buf, 8);
+  TEST_CHECK_LT(res, 0);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_END_OF_OBJECT);
+
+  res = SPIFFS_read(FS, fd, buf, 0);
+  TEST_CHECK_GE(res, 0);
+
+  res = SPIFFS_read(FS, fd, buf, 0);
+  TEST_CHECK_GE(res, 0);
+
+  buf[0] = 1;
+  buf[1] = 2;
+
+  res = SPIFFS_write(FS, fd, buf, 2);
+  TEST_CHECK_EQ(res, 2);
+
+  res = SPIFFS_lseek(FS, fd, 0, SPIFFS_SEEK_SET);
+  TEST_CHECK_GE(res, 0);
+
+  u8_t b;
+  res = SPIFFS_read(FS, fd, &b, 1);
+  TEST_CHECK_EQ(res, 1);
+  TEST_CHECK_EQ(b, 1);
+
+  res = SPIFFS_read(FS, fd, &b, 1);
+  TEST_CHECK_EQ(res, 1);
+  TEST_CHECK_EQ(b, 2);
+
+  res = SPIFFS_read(FS, fd, buf, 8);
+  TEST_CHECK_LT(res, 0);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_END_OF_OBJECT);
+
+
+
+
+  return TEST_RES_OK;
+} TEST_END(zero_sized_file_44)
+
 SUITE_END(bug_tests)

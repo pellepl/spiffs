@@ -285,6 +285,12 @@ s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   }
 
+  if (fd->size == SPIFFS_UNDEFINED_LEN && len > 0) {
+    // special case for zero sized files
+    res = SPIFFS_ERR_END_OF_OBJECT;
+    SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+  }
+
 #if SPIFFS_CACHE_WR
   spiffs_fflush_cache(fs, fh);
 #endif
