@@ -1769,7 +1769,7 @@ static s32_t spiffs_obj_lu_find_free_obj_id_compact_v(spiffs *fs, spiffs_obj_id 
 // Finally, the bitmask is searched for a free id
 s32_t spiffs_obj_lu_find_free_obj_id(spiffs *fs, spiffs_obj_id *obj_id, u8_t *conflicting_name) {
   s32_t res = SPIFFS_OK;
-  u32_t max_objects = (SPIFFS_CFG_PHYS_SZ(fs) / (u32_t)SPIFFS_CFG_LOG_PAGE_SZ(fs)) / 2;
+  u32_t max_objects = (fs->block_count * SPIFFS_OBJ_LOOKUP_MAX_ENTRIES(fs)) / 2;
   spiffs_free_obj_id_state state;
   spiffs_obj_id free_obj_id = SPIFFS_OBJ_ID_FREE;
   state.min_obj_id = 1;
