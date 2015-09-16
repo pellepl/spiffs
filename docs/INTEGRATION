@@ -76,7 +76,7 @@ signatures, so go wrap them:
   }
 
   static s32_t my_spiffs_write(u32_t addr, u32_t size, u8_t *src) {
-    my_spi_write(addr, size, dst);
+    my_spi_write(addr, size, src);
     return SPIFFS_OK;
   }
 
