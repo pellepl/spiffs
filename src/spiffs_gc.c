@@ -36,7 +36,7 @@ s32_t spiffs_gc_quick(
   int cur_entry = 0;
   spiffs_obj_id *obj_lu_buf = (spiffs_obj_id *)fs->lu_work;
 
-  SPIFFS_GC_DBG("gc_quick: running\n", cur_block);
+  SPIFFS_GC_DBG("gc_quick: running\n");
 #if SPIFFS_GC_STATS
   fs->stats_gc_runs++;
 #endif
