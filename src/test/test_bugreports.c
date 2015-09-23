@@ -373,10 +373,48 @@ TEST(zero_sized_file_44) {
   TEST_CHECK_LT(res, 0);
   TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_END_OF_OBJECT);
 
-
-
-
   return TEST_RES_OK;
 } TEST_END(zero_sized_file_44)
+
+TEST(truncate_48) {
+  fs_reset();
+
+  u32_t len = SPIFFS_DATA_PAGE_SIZE(FS)/2;
+
+  s32_t res = test_create_and_write_file("small", len, len);
+  TEST_CHECK_GE(res, 0);
+
+  spiffs_file fd = SPIFFS_open(FS, "small", SPIFFS_RDWR, 0);
+  TEST_CHECK_GE(fd, 0);
+
+  spiffs_fd *desc;
+  res = spiffs_fd_get(FS, fd, &desc);
+  TEST_CHECK_GE(res, 0);
+
+  TEST_CHECK_EQ(desc->size, len);
+
+  u32_t new_len = len/2;
+  res = spiffs_object_truncate(desc, new_len, 0);
+  TEST_CHECK_GE(res, 0);
+
+  TEST_CHECK_EQ(desc->size, new_len);
+
+  res = SPIFFS_close(FS, fd);
+  TEST_CHECK_GE(res, 0);
+
+  spiffs_stat s;
+  res = SPIFFS_stat(FS, "small", &s);
+  TEST_CHECK_GE(res, 0);
+  TEST_CHECK_EQ(s.size, new_len);
+
+  res = SPIFFS_remove(FS, "small");
+  TEST_CHECK_GE(res, 0);
+
+  fd = SPIFFS_open(FS, "small", SPIFFS_RDWR, 0);
+  TEST_CHECK_LT(fd, 0);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NOT_FOUND);
+
+  return TEST_RES_OK;
+} TEST_END(truncate_48)
 
 SUITE_END(bug_tests)

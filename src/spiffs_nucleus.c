@@ -1482,7 +1482,7 @@ s32_t spiffs_object_truncate(
 
     SPIFFS_DBG("truncate: got data pix %04x\n", data_pix);
 
-    if (cur_size - SPIFFS_DATA_PAGE_SIZE(fs) >= new_size) {
+    if (new_size == 0 || remove || cur_size - new_size >= SPIFFS_DATA_PAGE_SIZE(fs)) {
       // delete full data page
       res = spiffs_page_data_check(fs, fd, data_pix, data_spix);
       if (res != SPIFFS_ERR_DELETED && res != SPIFFS_OK && res != SPIFFS_ERR_INDEX_REF_FREE) {
