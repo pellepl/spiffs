@@ -225,6 +225,42 @@ TEST(file_by_open_excl)
 }
 TEST_END(file_by_open_excl)
 
+#if SPIFFS_FILEHDL_OFFSET
+TEST(open_fh_offs)
+{
+  int res;
+  spiffs_stat s;
+  spiffs_file fd1, fd2, fd3;
+  fd1 = SPIFFS_open(FS, "1", SPIFFS_CREAT | SPIFFS_EXCL, 0);
+  fd2 = SPIFFS_open(FS, "2", SPIFFS_CREAT | SPIFFS_EXCL, 0);
+  fd3 = SPIFFS_open(FS, "3", SPIFFS_CREAT | SPIFFS_EXCL, 0);
+  TEST_CHECK(fd1 >= TEST_SPIFFS_FILEHDL_OFFSET);
+  TEST_CHECK(fd2 >= TEST_SPIFFS_FILEHDL_OFFSET);
+  TEST_CHECK(fd3 >= TEST_SPIFFS_FILEHDL_OFFSET);
+  SPIFFS_close(FS, fd1);
+  fd1 = SPIFFS_open(FS, "2", SPIFFS_RDONLY, 0);
+  TEST_CHECK(fd1 >= TEST_SPIFFS_FILEHDL_OFFSET);
+  SPIFFS_close(FS, fd2);
+  fd2 = SPIFFS_open(FS, "3", SPIFFS_RDONLY, 0);
+  TEST_CHECK(fd2 >= TEST_SPIFFS_FILEHDL_OFFSET);
+  SPIFFS_close(FS, fd3);
+  fd3 = SPIFFS_open(FS, "1", SPIFFS_RDONLY, 0);
+  TEST_CHECK(fd3 >= TEST_SPIFFS_FILEHDL_OFFSET);
+  SPIFFS_close(FS, fd1);
+  SPIFFS_close(FS, fd2);
+  SPIFFS_close(FS, fd3);
+  fd1 = SPIFFS_open(FS, "3", SPIFFS_RDONLY, 0);
+  TEST_CHECK(fd1 >= TEST_SPIFFS_FILEHDL_OFFSET);
+  SPIFFS_close(FS, fd1);
+  fd1 = SPIFFS_open(FS, "foo", SPIFFS_RDONLY, 0);
+  TEST_CHECK(fd1 < TEST_SPIFFS_FILEHDL_OFFSET);
+
+  return TEST_RES_OK;
+}
+TEST_END(open_fh_offs)
+
+#endif //SPIFFS_FILEHDL_OFFSET
+
 TEST(list_dir)
 {
   int res;

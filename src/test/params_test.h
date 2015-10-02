@@ -43,6 +43,11 @@ typedef unsigned char u8_t;
 #define SPIFFS_HAL_CALLBACK_EXTRA       1
 #endif
 
+#define SPIFFS_FILEHDL_OFFSET           1
+#if SPIFFS_FILEHDL_OFFSET
+#define TEST_SPIFFS_FILEHDL_OFFSET      0x1000
+#endif
+
 // Enable/disable
 
 void real_assert(int c, const char *n, const char *file, int l);

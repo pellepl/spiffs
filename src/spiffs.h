@@ -186,6 +186,11 @@ typedef struct {
   // logical size of a page, must be at least
   // log_block_size / 8
   u32_t log_page_size;
+
+#endif
+#if SPIFFS_FILEHDL_OFFSET
+  // an integer offset added to each file handle
+  u16_t fh_ix_offset;
 #endif
 } spiffs_config;
 

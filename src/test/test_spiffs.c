@@ -332,7 +332,9 @@ s32_t fs_mount_specific(u32_t phys_addr, u32_t phys_size,
   c.phys_addr = phys_addr;
   c.phys_erase_block = phys_sector_size;
   c.phys_size = phys_size;
-
+#if SPIFFS_FILEHDL_OFFSET
+  c.fh_ix_offset = TEST_SPIFFS_FILEHDL_OFFSET;
+#endif
   return SPIFFS_mount(&__fs, &c, _work, _fds, sizeof(_fds), _cache, sizeof(_cache), spiffs_check_cb_f);
 }
 

@@ -8,6 +8,14 @@
 #include "spiffs.h"
 #include "spiffs_nucleus.h"
 
+#if SPIFFS_FILEHDL_OFFSET
+#define SPIFFS_FH_OFFS(fs, fh)   ((fh) != 0 ? ((fh) + (fs)->cfg.fh_ix_offset) : 0)
+#define SPIFFS_FH_UNOFFS(fs, fh) ((fh) != 0 ? ((fh) - (fs)->cfg.fh_ix_offset) : 0)
+#else
+#define SPIFFS_FH_OFFS(fs, fh)   (fh)
+#define SPIFFS_FH_UNOFFS(fs, fh) (fh)
+#endif
+
 #if SPIFFS_CACHE == 1
 static s32_t spiffs_fflush_cache(spiffs *fs, spiffs_file fh);
 #endif
@@ -236,7 +244,7 @@ spiffs_file SPIFFS_open(spiffs *fs, char *path, spiffs_flags flags, spiffs_mode 
 
   SPIFFS_UNLOCK(fs);
 
-  return fd->file_nbr;
+  return SPIFFS_FH_OFFS(fs, fd->file_nbr);
 }
 
 spiffs_file SPIFFS_open_by_dirent(spiffs *fs, struct spiffs_dirent *e, spiffs_flags flags, spiffs_mode mode) {
@@ -266,7 +274,7 @@ spiffs_file SPIFFS_open_by_dirent(spiffs *fs, struct spiffs_dirent *e, spiffs_fl
 
   SPIFFS_UNLOCK(fs);
 
-  return fd->file_nbr;
+  return SPIFFS_FH_OFFS(fs, fd->file_nbr);
 }
 
 s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
@@ -277,6 +285,7 @@ s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
   spiffs_fd *fd;
   s32_t res;
 
+  fh = SPIFFS_FH_UNOFFS(fs, fh);
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
@@ -353,6 +362,7 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
   s32_t res;
   u32_t offset;
 
+  fh = SPIFFS_FH_UNOFFS(fs, fh);
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
@@ -470,6 +480,7 @@ s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence) {
 
   spiffs_fd *fd;
   s32_t res;
+  fh = SPIFFS_FH_UNOFFS(fs, fh);
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES(fs, res);
 
@@ -549,6 +560,7 @@ s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh) {
 
   spiffs_fd *fd;
   s32_t res;
+  fh = SPIFFS_FH_UNOFFS(fs, fh);
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
@@ -618,6 +630,7 @@ s32_t SPIFFS_fstat(spiffs *fs, spiffs_file fh, spiffs_stat *s) {
   spiffs_fd *fd;
   s32_t res;
 
+  fh = SPIFFS_FH_UNOFFS(fs, fh);
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
@@ -675,6 +688,7 @@ s32_t SPIFFS_fflush(spiffs *fs, spiffs_file fh) {
   s32_t res = SPIFFS_OK;
 #if SPIFFS_CACHE_WR
   SPIFFS_LOCK(fs);
+  fh = SPIFFS_FH_UNOFFS(fs, fh);
   res = spiffs_fflush_cache(fs, fh);
   SPIFFS_API_CHECK_RES_UNLOCK(fs,res);
   SPIFFS_UNLOCK(fs);
@@ -690,6 +704,7 @@ s32_t SPIFFS_close(spiffs *fs, spiffs_file fh) {
   s32_t res = SPIFFS_OK;
   SPIFFS_LOCK(fs);
 
+  fh = SPIFFS_FH_UNOFFS(fs, fh);
 #if SPIFFS_CACHE
   res = spiffs_fflush_cache(fs, fh);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);

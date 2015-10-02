@@ -388,7 +388,12 @@ TEST(truncate_48) {
   TEST_CHECK_GE(fd, 0);
 
   spiffs_fd *desc;
+#if SPIFFS_FILEHDL_OFFSET
+  res = spiffs_fd_get(FS, fd - TEST_SPIFFS_FILEHDL_OFFSET, &desc);
+#else
   res = spiffs_fd_get(FS, fd, &desc);
+#endif
+
   TEST_CHECK_GE(res, 0);
 
   TEST_CHECK_EQ(desc->size, len);
