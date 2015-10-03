@@ -65,7 +65,7 @@ For testing and contributions, see the docs/IMPLEMENTING file.
   Update spiffs_gc.c - remove unnecessary parameter (thanks @PawelDefee)
   Update INTEGRATION docs (thanks @PawelDefee)
   Fix pointer truncation in 64-bit platforms (thanks @igrr)
-  Zero-sized files cannot be read #44 (thanks @)
+  Zero-sized files cannot be read #44 (thanks @rojer)
   (More) correct calculation of max_id in obj_lu_find #42 #41 (thanks @lishen2)
   Check correct error code in obj_lu_find_free #41 (thanks @lishen2)
   Moar comments for SPIFFS_lseek (thanks @igrr)
