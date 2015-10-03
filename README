@@ -1,5 +1,5 @@
 SPIFFS (SPI Flash File System)
-V0.3.2
+V0.3.3
 
 Copyright (c) 2013-2015 Peter Andersson (pelleplutt1976<at>gmail.com)
 
@@ -57,6 +57,30 @@ For use and design, see the docs/TECH_SPEC file.
 For testing and contributions, see the docs/IMPLEMENTING file.
 
 * HISTORY
+
+0.3.3
+  Possibility to add integer offset to file handles
+  Truncate function presumes too few free pages #49
+  Bug in truncate function #48 (thanks @PawelDefee)
+  Update spiffs_gc.c - remove unnecessary parameter (thanks @PawelDefee)
+  Update INTEGRATION docs (thanks @PawelDefee)
+  Fix pointer truncation in 64-bit platforms (thanks @igrr)
+  Zero-sized files cannot be read #44 (thanks @)
+  (More) correct calculation of max_id in obj_lu_find #42 #41 (thanks @lishen2)
+  Check correct error code in obj_lu_find_free #41 (thanks @lishen2)
+  Moar comments for SPIFFS_lseek (thanks @igrr)
+  Fixed padding in spiffs_page_object_ix #40 (thanks @jmattsson @lishen2)
+  Fixed gc_quick test (thanks @jmattsson)
+  Add SPIFFS_EXCL flag #36 
+  SPIFFS_close may fail silently if cache is enabled #37 
+  User data in callbacks #34
+  Ignoring SINGLETON build in cache setup (thanks Luca)
+  Compilation error fixed #32 (thanks @chotasanjiv)
+  Align cand_scores (thanks @hefloryd)
+  Fix build warnings when SPIFFS_CACHE is 0 (thanks @ajaybhargav)
+
+  New config defines:
+    SPIFFS_FILEHDL_OFFSET
 
 0.3.2
   Limit cache size if too much cache is given (thanks pgeiem)
