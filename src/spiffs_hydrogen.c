@@ -65,9 +65,12 @@ s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
     u8_t *fd_space, u32_t fd_space_size,
     void *cache, u32_t cache_size,
     spiffs_check_callback check_cb_f) {
+  void *user_data;
   SPIFFS_LOCK(fs);
+  user_data = fs->user_data;
   memset(fs, 0, sizeof(spiffs));
   memcpy(&fs->cfg, config, sizeof(spiffs_config));
+  fs->user_data = user_data;
   fs->block_count = SPIFFS_CFG_PHYS_SZ(fs) / SPIFFS_CFG_LOG_BLOCK_SZ(fs);
   fs->work = &work[0];
   fs->lu_work = &work[SPIFFS_CFG_LOG_PAGE_SZ(fs)];
