@@ -58,7 +58,7 @@ For testing and contributions, see the docs/IMPLEMENTING file.
 
 * HISTORY
 
-0.3.3
+0.3.3 - Might not be compatible with 0.3.2 structures. See issue #40
   Possibility to add integer offset to file handles
   Truncate function presumes too few free pages #49
   Bug in truncate function #48 (thanks @PawelDefee)
