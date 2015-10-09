@@ -460,7 +460,7 @@ typedef struct __attribute(( packed )) {
 
 // callback func for object lookup visitor
 typedef s32_t (*spiffs_visitor_f)(spiffs *fs, spiffs_obj_id id, spiffs_block_ix bix, int ix_entry,
-    u32_t user_data, void *user_p);
+    u32_t user_data, const void *user_const_p, void *user_var_p);
 
 
 #if SPIFFS_CACHE
@@ -522,7 +522,8 @@ s32_t spiffs_obj_lu_find_entry_visitor(
     spiffs_obj_id obj_id,
     spiffs_visitor_f v,
     u32_t user_data,
-    void *user_p,
+    const void *user_const_p,
+    void *user_var_p,
     spiffs_block_ix *block_ix,
     int *lu_entry);
 
@@ -538,7 +539,7 @@ s32_t spiffs_obj_lu_scan(
 s32_t spiffs_obj_lu_find_free_obj_id(
     spiffs *fs,
     spiffs_obj_id *obj_id,
-    u8_t *conflicting_name);
+    const u8_t *conflicting_name);
 
 s32_t spiffs_obj_lu_find_free(
     spiffs *fs,
@@ -599,7 +600,7 @@ s32_t spiffs_page_delete(
 s32_t spiffs_object_create(
     spiffs *fs,
     spiffs_obj_id obj_id,
-    u8_t name[SPIFFS_OBJ_NAME_LEN],
+    const u8_t name[SPIFFS_OBJ_NAME_LEN],
     spiffs_obj_type type,
     spiffs_page_ix *objix_hdr_pix);
 
@@ -609,7 +610,7 @@ s32_t spiffs_object_update_index_hdr(
     spiffs_obj_id obj_id,
     spiffs_page_ix objix_hdr_pix,
     u8_t *new_objix_hdr_data,
-    u8_t name[SPIFFS_OBJ_NAME_LEN],
+    const u8_t name[SPIFFS_OBJ_NAME_LEN],
     u32_t size,
     spiffs_page_ix *new_pix);
 
@@ -661,7 +662,7 @@ s32_t spiffs_object_truncate(
 
 s32_t spiffs_object_find_object_index_header_by_name(
     spiffs *fs,
-    u8_t name[SPIFFS_OBJ_NAME_LEN],
+    const u8_t name[SPIFFS_OBJ_NAME_LEN],
     spiffs_page_ix *pix);
 
 // ---------------
