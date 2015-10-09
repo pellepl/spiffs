@@ -166,7 +166,7 @@ void SPIFFS_clearerr(spiffs *fs) {
   fs->err_code = SPIFFS_OK;
 }
 
-s32_t SPIFFS_creat(spiffs *fs, char *path, spiffs_mode mode) {
+s32_t SPIFFS_creat(spiffs *fs, const char *path, spiffs_mode mode) {
   (void)mode;
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
@@ -182,7 +182,7 @@ s32_t SPIFFS_creat(spiffs *fs, char *path, spiffs_mode mode) {
   return 0;
 }
 
-spiffs_file SPIFFS_open(spiffs *fs, char *path, spiffs_flags flags, spiffs_mode mode) {
+spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs_mode mode) {
   (void)mode;
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
@@ -522,7 +522,7 @@ s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence) {
   return offs;
 }
 
-s32_t SPIFFS_remove(spiffs *fs, char *path) {
+s32_t SPIFFS_remove(spiffs *fs, const char *path) {
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
   SPIFFS_LOCK(fs);
@@ -607,7 +607,7 @@ static s32_t spiffs_stat_pix(spiffs *fs, spiffs_page_ix pix, spiffs_file fh, spi
   return res;
 }
 
-s32_t SPIFFS_stat(spiffs *fs, char *path, spiffs_stat *s) {
+s32_t SPIFFS_stat(spiffs *fs, const char *path, spiffs_stat *s) {
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
   SPIFFS_LOCK(fs);
@@ -720,7 +720,7 @@ s32_t SPIFFS_close(spiffs *fs, spiffs_file fh) {
   return res;
 }
 
-s32_t SPIFFS_rename(spiffs *fs, char *old, char *new) {
+s32_t SPIFFS_rename(spiffs *fs, const char *old, const char *new) {
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
   SPIFFS_LOCK(fs);
@@ -760,7 +760,7 @@ s32_t SPIFFS_rename(spiffs *fs, char *old, char *new) {
   return res;
 }
 
-spiffs_DIR *SPIFFS_opendir(spiffs *fs, char *name, spiffs_DIR *d) {
+spiffs_DIR *SPIFFS_opendir(spiffs *fs, const char *name, spiffs_DIR *d) {
   (void)name;
 
   if (!SPIFFS_CHECK_CFG((fs))) {
