@@ -784,10 +784,8 @@ static s32_t spiffs_read_dir_v(
     spiffs_obj_id obj_id,
     spiffs_block_ix bix,
     int ix_entry,
-    u32_t user_data,
     const void *user_const_p,
     void *user_var_p) {
-  (void)user_data;
   (void)user_const_p;
   s32_t res;
   spiffs_page_object_ix_header objix_hdr;
@@ -834,7 +832,6 @@ struct spiffs_dirent *SPIFFS_readdir(spiffs_DIR *d, struct spiffs_dirent *e) {
       SPIFFS_VIS_NO_WRAP,
       0,
       spiffs_read_dir_v,
-      0,
       0,
       e,
       &bix,

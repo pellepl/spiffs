@@ -460,7 +460,7 @@ typedef struct __attribute(( packed )) {
 
 // callback func for object lookup visitor
 typedef s32_t (*spiffs_visitor_f)(spiffs *fs, spiffs_obj_id id, spiffs_block_ix bix, int ix_entry,
-    u32_t user_data, const void *user_const_p, void *user_var_p);
+    const void *user_const_p, void *user_var_p);
 
 
 #if SPIFFS_CACHE
@@ -521,7 +521,6 @@ s32_t spiffs_obj_lu_find_entry_visitor(
     u8_t flags,
     spiffs_obj_id obj_id,
     spiffs_visitor_f v,
-    u32_t user_data,
     const void *user_const_p,
     void *user_var_p,
     spiffs_block_ix *block_ix,

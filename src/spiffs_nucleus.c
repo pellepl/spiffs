@@ -101,7 +101,7 @@ s32_t spiffs_phys_cpy(
 
 // Find object lookup entry containing given id with visitor.
 // Iterate over object lookup pages in each block until a given object id entry is found.
-// When found, the visitor function is called with block index, entry index and user_data.
+// When found, the visitor function is called with block index, entry index and user data.
 // If visitor returns SPIFFS_VIS_CONTINUE, the search goes on. Otherwise, the search will be
 // ended and visitor's return code is returned to caller.
 // If no visitor is given (0) the search returns on first entry with matching object id.
@@ -113,7 +113,6 @@ s32_t spiffs_phys_cpy(
 //                              SPIFFS_VIS_NO_WRAP
 // @param obj_id                argument object id
 // @param v                     visitor callback function
-// @param user_data             any data, passed to the callback visitor function
 // @param user_const_p          any const pointer, passed to the callback visitor function
 // @param user_var_p            any pointer, passed to the callback visitor function
 // @param block_ix              reported block index where match was found
@@ -125,7 +124,6 @@ s32_t spiffs_obj_lu_find_entry_visitor(
     u8_t flags,
     spiffs_obj_id obj_id,
     spiffs_visitor_f v,
-    u32_t user_data,
     const void *user_const_p,
     void *user_var_p,
     spiffs_block_ix *block_ix,
@@ -177,7 +175,6 @@ s32_t spiffs_obj_lu_find_entry_visitor(
                 (flags & SPIFFS_VIS_CHECK_PH) ? obj_id : obj_lu_buf[cur_entry-entry_offset],
                 cur_block,
                 cur_entry,
-                user_data,
                 user_const_p,
                 user_var_p);
             if (res == SPIFFS_VIS_COUNTINUE || res == SPIFFS_VIS_COUNTINUE_RELOAD) {
@@ -267,11 +264,9 @@ static s32_t spiffs_obj_lu_scan_v(
     spiffs_obj_id obj_id,
     spiffs_block_ix bix,
     int ix_entry,
-    u32_t user_data,
     const void *user_const_p,
     void *user_var_p) {
   (void)bix;
-  (void)user_data;
   (void)user_const_p;
   (void)user_var_p;
   if (obj_id == SPIFFS_OBJ_ID_FREE) {
@@ -374,7 +369,6 @@ s32_t spiffs_obj_lu_scan(
       spiffs_obj_lu_scan_v,
       0,
       0,
-      0,
       &bix,
       &entry);
 
@@ -432,7 +426,7 @@ s32_t spiffs_obj_lu_find_id(
     spiffs_block_ix *block_ix,
     int *lu_entry) {
   s32_t res = spiffs_obj_lu_find_entry_visitor(
-      fs, starting_block, starting_lu_entry, SPIFFS_VIS_CHECK_ID, obj_id, 0, 0, 0, 0, block_ix, lu_entry);
+      fs, starting_block, starting_lu_entry, SPIFFS_VIS_CHECK_ID, obj_id, 0, 0, 0, block_ix, lu_entry);
   if (res == SPIFFS_VIS_END) {
     res = SPIFFS_ERR_NOT_FOUND;
   }
@@ -445,10 +439,8 @@ static s32_t spiffs_obj_lu_find_id_and_span_v(
     spiffs_obj_id obj_id,
     spiffs_block_ix bix,
     int ix_entry,
-    u32_t user_data,
     const void *user_const_p,
     void *user_var_p) {
-  (void)user_var_p;
   s32_t res;
   spiffs_page_header ph;
   spiffs_page_ix pix = SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(fs, bix, ix_entry);
@@ -456,7 +448,7 @@ static s32_t spiffs_obj_lu_find_id_and_span_v(
       SPIFFS_PAGE_TO_PADDR(fs, pix), sizeof(spiffs_page_header), (u8_t *)&ph);
   SPIFFS_CHECK_RES(res);
   if (ph.obj_id == obj_id &&
-      ph.span_ix == (spiffs_span_ix)user_data &&
+      ph.span_ix == *((spiffs_span_ix*)user_var_p) &&
       (ph.flags & (SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_DELET | SPIFFS_PH_FLAG_USED)) == SPIFFS_PH_FLAG_DELET &&
       !((obj_id & SPIFFS_OBJ_ID_IX_FLAG) && (ph.flags & SPIFFS_PH_FLAG_IXDELE) == 0 && ph.span_ix == 0) &&
       (user_const_p == 0 || *((const spiffs_page_ix*)user_const_p) != pix)) {
@@ -484,9 +476,8 @@ s32_t spiffs_obj_lu_find_id_and_span(
       SPIFFS_VIS_CHECK_ID,
       obj_id,
       spiffs_obj_lu_find_id_and_span_v,
-      (u32_t)spix,
       exclusion_pix ? &exclusion_pix : 0,
-      0,
+      &spix,
       &bix,
       &entry);
 
@@ -524,9 +515,8 @@ s32_t spiffs_obj_lu_find_id_and_span_by_phdr(
       SPIFFS_VIS_CHECK_PH,
       obj_id,
       spiffs_obj_lu_find_id_and_span_v,
-      (u32_t)spix,
       exclusion_pix ? &exclusion_pix : 0,
-      0,
+      &spix,
       &bix,
       &entry);
 
@@ -1345,10 +1335,8 @@ static s32_t spiffs_object_find_object_index_header_by_name_v(
     spiffs_obj_id obj_id,
     spiffs_block_ix bix,
     int ix_entry,
-    u32_t user_data,
     const void *user_const_p,
     void *user_var_p) {
-  (void)user_data;
   (void)user_var_p;
   s32_t res;
   spiffs_page_object_ix_header objix_hdr;
@@ -1386,7 +1374,6 @@ s32_t spiffs_object_find_object_index_header_by_name(
       0,
       0,
       spiffs_object_find_object_index_header_by_name_v,
-      0,
       name,
       0,
       &bix,
@@ -1715,10 +1702,9 @@ typedef struct {
 } spiffs_free_obj_id_state;
 
 static s32_t spiffs_obj_lu_find_free_obj_id_bitmap_v(spiffs *fs, spiffs_obj_id id, spiffs_block_ix bix, int ix_entry,
-    u32_t user_data, const void *user_const_p, void *user_var_p) {
-  (void)user_var_p;
+    const void *user_const_p, void *user_var_p) {
   if (id != SPIFFS_OBJ_ID_FREE && id != SPIFFS_OBJ_ID_DELETED) {
-    spiffs_obj_id min_obj_id = user_data;
+    spiffs_obj_id min_obj_id = *((spiffs_obj_id*)user_var_p);
     const u8_t *conflicting_name = (const u8_t*)user_const_p;
 
     // if conflicting name parameter is given, also check if this name is found in object index hdrs
@@ -1749,8 +1735,7 @@ static s32_t spiffs_obj_lu_find_free_obj_id_bitmap_v(spiffs *fs, spiffs_obj_id i
 }
 
 static s32_t spiffs_obj_lu_find_free_obj_id_compact_v(spiffs *fs, spiffs_obj_id id, spiffs_block_ix bix, int ix_entry,
-    u32_t user_data, const void *user_const_p, void *user_var_p) {
-  (void)user_data;
+    const void *user_const_p, void *user_var_p) {
   (void)user_var_p;
   if (id != SPIFFS_OBJ_ID_FREE && id != SPIFFS_OBJ_ID_DELETED && (id & SPIFFS_OBJ_ID_IX_FLAG)) {
     s32_t res;
@@ -1802,8 +1787,8 @@ s32_t spiffs_obj_lu_find_free_obj_id(spiffs *fs, spiffs_obj_id *obj_id, const u8
       SPIFFS_DBG("free_obj_id: BITM min:%04x max:%04x\n", state.min_obj_id, state.max_obj_id);
 
       memset(fs->work, 0, SPIFFS_CFG_LOG_PAGE_SZ(fs));
-      res = spiffs_obj_lu_find_entry_visitor(fs, 0, 0, 0, 0, spiffs_obj_lu_find_free_obj_id_bitmap_v, state.min_obj_id,
-          conflicting_name, 0, 0, 0);
+      res = spiffs_obj_lu_find_entry_visitor(fs, 0, 0, 0, 0, spiffs_obj_lu_find_free_obj_id_bitmap_v,
+          conflicting_name, &state.min_obj_id, 0, 0);
       if (res == SPIFFS_VIS_END) res = SPIFFS_OK;
       SPIFFS_CHECK_RES(res);
       // traverse bitmask until found free obj_id
@@ -1867,7 +1852,7 @@ s32_t spiffs_obj_lu_find_free_obj_id(spiffs *fs, spiffs_obj_id *obj_id, const u8
       SPIFFS_DBG("free_obj_id: COMP min:%04x max:%04x compact:%i\n", state.min_obj_id, state.max_obj_id, state.compaction);
 
       memset(fs->work, 0, SPIFFS_CFG_LOG_PAGE_SZ(fs));
-      res = spiffs_obj_lu_find_entry_visitor(fs, 0, 0, 0, 0, spiffs_obj_lu_find_free_obj_id_compact_v, 0, &state, 0, 0, 0);
+      res = spiffs_obj_lu_find_entry_visitor(fs, 0, 0, 0, 0, spiffs_obj_lu_find_free_obj_id_compact_v, &state, 0, 0, 0);
       if (res == SPIFFS_VIS_END) res = SPIFFS_OK;
       SPIFFS_CHECK_RES(res);
       state.conflicting_name = 0; // searched for conflicting name once, no need to do it again
