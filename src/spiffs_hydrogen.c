@@ -922,6 +922,52 @@ s32_t SPIFFS_gc(spiffs *fs, u32_t size) {
   return 0;
 }
 
+s32_t SPIFFS_eof(spiffs *fs, spiffs_file fh) {
+  s32_t res;
+  SPIFFS_API_CHECK_CFG(fs);
+  SPIFFS_API_CHECK_MOUNT(fs);
+  SPIFFS_LOCK(fs);
+
+  fh = SPIFFS_FH_UNOFFS(fs, fh);
+
+  spiffs_fd *fd;
+  res = spiffs_fd_get(fs, fh, &fd);
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+#if SPIFFS_CACHE_WR
+  res = spiffs_fflush_cache(fs, fh);
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+#endif
+
+  res = (fd->fdoffset == fd->size);
+
+  SPIFFS_UNLOCK(fs);
+  return res;
+}
+
+s32_t SPIFFS_tell(spiffs *fs, spiffs_file fh) {
+  s32_t res;
+  SPIFFS_API_CHECK_CFG(fs);
+  SPIFFS_API_CHECK_MOUNT(fs);
+  SPIFFS_LOCK(fs);
+
+  fh = SPIFFS_FH_UNOFFS(fs, fh);
+
+  spiffs_fd *fd;
+  res = spiffs_fd_get(fs, fh, &fd);
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+#if SPIFFS_CACHE_WR
+  res = spiffs_fflush_cache(fs, fh);
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+#endif
+
+  res = fd->fdoffset;
+
+  SPIFFS_UNLOCK(fs);
+  return res;
+}
+
 
 #if SPIFFS_TEST_VISUALISATION
 s32_t SPIFFS_vis(spiffs *fs) {
