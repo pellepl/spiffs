@@ -41,11 +41,9 @@ What spiffs does not:
  
 ## MORE INFO 
  
-See the [wiki](https://github.com/pellepl/spiffs/wiki).
+See the [wiki](https://github.com/pellepl/spiffs/wiki) for configuring, integrating and using spiffs.
  
-For integration, see [docs/INTEGRATION](https://github.com/pellepl/spiffs/blob/master/docs/INTEGRATION).
-
-For use and design, see [docs/TECH_SPEC](https://github.com/pellepl/spiffs/blob/master/docs/TECH_SPEC).
+For design, see [docs/TECH_SPEC](https://github.com/pellepl/spiffs/blob/master/docs/TECH_SPEC).
 
 ## HISTORY
 
