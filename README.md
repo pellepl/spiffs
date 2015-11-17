@@ -45,6 +45,8 @@ See the [wiki](https://github.com/pellepl/spiffs/wiki) for configuring, integrat
  
 For design, see [docs/TECH_SPEC](https://github.com/pellepl/spiffs/blob/master/docs/TECH_SPEC).
 
+For a generic spi flash driver, see [this](https://github.com/pellepl/spiflash_driver).
+
 ## HISTORY
 
 ### 0.3.3
