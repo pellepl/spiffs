@@ -49,6 +49,8 @@ extern "C" {
 
 #define SPIFFS_ERR_FILE_EXISTS          -10030
 
+#define SPIFFS_ERR_NOT_A_FILE           -10031
+
 #define SPIFFS_ERR_INTERNAL             -10050
 
 #define SPIFFS_ERR_TEST                 -10100
@@ -326,14 +328,13 @@ s32_t SPIFFS_creat(spiffs *fs, const char *path, spiffs_mode mode);
  */
 spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs_mode mode);
 
-
 /**
  * Opens a file by given dir entry.
  * Optimization purposes, when traversing a file system with SPIFFS_readdir
  * a normal SPIFFS_open would need to traverse the filesystem again to find
  * the file, whilst SPIFFS_open_by_dirent already knows where the file resides.
  * @param fs            the file system struct
- * @param path          the dir entry to the file
+ * @param e             the dir entry to the file
  * @param flags         the flags for the open command, can be combinations of
  *                      SPIFFS_APPEND, SPIFFS_TRUNC, SPIFFS_CREAT, SPIFFS_RD_ONLY,
  *                      SPIFFS_WR_ONLY, SPIFFS_RDWR, SPIFFS_DIRECT.
@@ -341,6 +342,22 @@ spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs
  * @param mode          ignored, for posix compliance
  */
 spiffs_file SPIFFS_open_by_dirent(spiffs *fs, struct spiffs_dirent *e, spiffs_flags flags, spiffs_mode mode);
+
+/**
+ * Opens a file by given page index.
+ * Optimization purposes, opens a file by directly pointing to the page
+ * index in the spi flash.
+ * If the page index does not point to a file header SPIFFS_ERR_NOT_A_FILE
+ * is returned.
+ * @param fs            the file system struct
+ * @param page_ix       the page index
+ * @param flags         the flags for the open command, can be combinations of
+ *                      SPIFFS_APPEND, SPIFFS_TRUNC, SPIFFS_CREAT, SPIFFS_RD_ONLY,
+ *                      SPIFFS_WR_ONLY, SPIFFS_RDWR, SPIFFS_DIRECT.
+ *                      SPIFFS_CREAT will have no effect in this case.
+ * @param mode          ignored, for posix compliance
+ */
+spiffs_file SPIFFS_open_by_page(spiffs *fs, spiffs_page_ix page_ix, spiffs_flags flags, spiffs_mode mode);
 
 /**
  * Reads from given filehandle.

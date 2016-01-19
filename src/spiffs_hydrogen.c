@@ -280,6 +280,49 @@ spiffs_file SPIFFS_open_by_dirent(spiffs *fs, struct spiffs_dirent *e, spiffs_fl
   return SPIFFS_FH_OFFS(fs, fd->file_nbr);
 }
 
+spiffs_file SPIFFS_open_by_page(spiffs *fs, spiffs_page_ix page_ix, spiffs_flags flags, spiffs_mode mode) {
+  SPIFFS_API_CHECK_CFG(fs);
+  SPIFFS_API_CHECK_MOUNT(fs);
+  SPIFFS_LOCK(fs);
+
+  spiffs_fd *fd;
+
+  s32_t res = spiffs_fd_find_new(fs, &fd);
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  if (SPIFFS_IS_LOOKUP_PAGE(fs, page_ix)) {
+    res = SPIFFS_ERR_NOT_A_FILE;
+    spiffs_fd_return(fs, fd->file_nbr);
+    SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+  }
+
+  res = spiffs_object_open_by_page(fs, page_ix, fd, flags, mode);
+  if (res == SPIFFS_ERR_IS_FREE ||
+      res == SPIFFS_ERR_DELETED ||
+      res == SPIFFS_ERR_NOT_FINALIZED ||
+      res == SPIFFS_ERR_NOT_INDEX ||
+      res == SPIFFS_ERR_INDEX_SPAN_MISMATCH) {
+    res = SPIFFS_ERR_NOT_A_FILE;
+  }
+  if (res < SPIFFS_OK) {
+    spiffs_fd_return(fs, fd->file_nbr);
+  }
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+  if (flags & SPIFFS_TRUNC) {
+    res = spiffs_object_truncate(fd, 0, 0);
+    if (res < SPIFFS_OK) {
+      spiffs_fd_return(fs, fd->file_nbr);
+    }
+    SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+  }
+
+  fd->fdoffset = 0;
+
+  SPIFFS_UNLOCK(fs);
+
+  return SPIFFS_FH_OFFS(fs, fd->file_nbr);
+}
+
 s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);

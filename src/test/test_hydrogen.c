@@ -359,6 +359,70 @@ TEST(open_by_dirent) {
 } TEST_END(open_by_dirent)
 
 
+TEST(open_by_page) {
+  int res;
+
+  char *files[4] = {
+      "file1",
+      "file2",
+      "file3",
+      "file4"
+  };
+  int file_cnt = sizeof(files)/sizeof(char *);
+
+  int i;
+  int size = SPIFFS_DATA_PAGE_SIZE(FS);
+
+  for (i = 0; i < file_cnt; i++) {
+    res = test_create_and_write_file(files[i], size, size);
+    TEST_CHECK(res >= 0);
+  }
+
+  spiffs_DIR d;
+  struct spiffs_dirent e;
+  struct spiffs_dirent *pe = &e;
+
+  int found = 0;
+  SPIFFS_opendir(FS, "/", &d);
+  while ((pe = SPIFFS_readdir(&d, pe))) {
+    spiffs_file fd = SPIFFS_open_by_dirent(FS, pe, SPIFFS_RDWR, 0);
+    TEST_CHECK(fd >= 0);
+    res = read_and_verify_fd(fd, pe->name);
+    TEST_CHECK(res == SPIFFS_OK);
+    fd = SPIFFS_open_by_page(FS, pe->pix, SPIFFS_RDWR, 0);
+    TEST_CHECK(fd >= 0);
+    res = SPIFFS_fremove(FS, fd);
+    TEST_CHECK(res == SPIFFS_OK);
+    SPIFFS_close(FS, fd);
+    found++;
+  }
+  SPIFFS_closedir(&d);
+
+  TEST_CHECK(found == file_cnt);
+
+  found = 0;
+  SPIFFS_opendir(FS, "/", &d);
+  while ((pe = SPIFFS_readdir(&d, pe))) {
+    found++;
+  }
+  SPIFFS_closedir(&d);
+
+  TEST_CHECK(found == 0);
+
+  spiffs_file fd;
+  // test opening a lookup page
+  fd = SPIFFS_open_by_page(FS, 0, SPIFFS_RDWR, 0);
+  TEST_CHECK_LT(fd, 0);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NOT_A_FILE);
+  // test opening a proper page but not being object index
+  fd = SPIFFS_open_by_page(FS, SPIFFS_OBJ_LOOKUP_PAGES(FS)+1, SPIFFS_RDWR, 0);
+  TEST_CHECK_LT(fd, 0);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NOT_A_FILE);
+
+  return TEST_RES_OK;
+} TEST_END(open_by_page)
+
+
 TEST(rename) {
   int res;
 
