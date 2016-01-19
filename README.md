@@ -3,7 +3,7 @@
 
 Copyright (c) 2013-2016 Peter Andersson (pelleplutt1976 at gmail.com)
 
-For legal stuff, see [LICENCE](https://github.com/pellepl/spiffs/blob/master/LICENSE). Basically, you may do whatever you want with the source. Use, modify, sell, print it out, roll it and smoke it - as long as I won't be held responsible.
+For legal stuff, see [LICENSE](https://github.com/pellepl/spiffs/blob/master/LICENSE). Basically, you may do whatever you want with the source. Use, modify, sell, print it out, roll it and smoke it - as long as I won't be held responsible.
 
 Love to hear feedback though!
 
