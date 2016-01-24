@@ -132,6 +132,8 @@
 #define SPIFFS_OBJ_ID_FREE              ((spiffs_obj_id)-1)
 
 #define SPIFFS_MAGIC(fs)                ((spiffs_obj_id)(0x20140529 ^ SPIFFS_CFG_LOG_PAGE_SZ(fs)))
+#define SPIFFS_MAGIC_START(fs)			((spiffs_obj_id)(0x20140527 ^ SPIFFS_CFG_LOG_PAGE_SZ(fs)))
+#define SPIFFS_MAGIC_END(fs)			((spiffs_obj_id)(0x20140528 ^ SPIFFS_CFG_LOG_PAGE_SZ(fs)))
 
 #define SPIFFS_CONFIG_MAGIC             (0x20090315)
 

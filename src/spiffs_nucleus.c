@@ -244,6 +244,8 @@ s32_t spiffs_erase_block(
 #if SPIFFS_USE_MAGIC
   // finally, write magic
   spiffs_obj_id magic = SPIFFS_MAGIC(fs);
+  if ( (bix == 0) || (bix ==1)) { magic = SPIFFS_MAGIC_START(fs);}
+  if ( (bix == fs->block_count-1) || (bix == fs->block_count -2)) { magic = SPIFFS_MAGIC_END(fs);}
   res = _spiffs_wr(fs, SPIFFS_OP_C_WRTHRU | SPIFFS_OP_T_OBJ_LU2, 0,
       SPIFFS_MAGIC_PADDR(fs, bix),
       sizeof(spiffs_obj_id), (u8_t *)&magic);
@@ -302,6 +304,7 @@ s32_t spiffs_obj_lu_scan(
   spiffs_obj_id erase_count_final;
   spiffs_obj_id erase_count_min = SPIFFS_OBJ_ID_FREE;
   spiffs_obj_id erase_count_max = 0;
+//  debugf("MAGIC = %x, log %x", SPIFFS_MAGIC(fs),SPIFFS_CFG_LOG_PAGE_SZ(fs));
   while (bix < fs->block_count) {
 #if SPIFFS_USE_MAGIC
     spiffs_obj_id magic;
@@ -311,7 +314,18 @@ s32_t spiffs_obj_lu_scan(
         sizeof(spiffs_obj_id), (u8_t *)&magic);
 
     SPIFFS_CHECK_RES(res);
-    if (magic != SPIFFS_MAGIC(fs)) {
+
+    u8_t magicOK = 0;
+    if (((bix == 0) || (bix == 1)) && (magic == SPIFFS_MAGIC_START(fs)))
+    	{ magicOK = 1 ;}
+    else if (((bix == fs->block_count-1) || (bix == fs->block_count-2)) && (magic == SPIFFS_MAGIC_END(fs))) {
+			{ magicOK = 1;}
+		}
+    else {
+    	if (magic == SPIFFS_MAGIC(fs)) {magicOK = 1;}
+    }
+
+    if (!magicOK) {
       if (unerased_bix == (spiffs_block_ix)-1) {
         // allow one unerased block as it might be powered down during an erase
         unerased_bix = bix;
