@@ -50,6 +50,8 @@ extern "C" {
 #define SPIFFS_ERR_FILE_EXISTS          -10030
 
 #define SPIFFS_ERR_NOT_A_FILE           -10031
+#define SPIFFS_ERR_RO_NOT_IMPL          -10032
+#define SPIFFS_ERR_RO_ABORTED_OPERATION -10033
 
 #define SPIFFS_ERR_INTERNAL             -10050
 

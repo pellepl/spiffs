@@ -36,6 +36,10 @@ u8_t SPIFFS_mounted(spiffs *fs) {
 }
 
 s32_t SPIFFS_format(spiffs *fs) {
+#if SPIFFS_READ_ONLY
+  (void)fs;
+  return SPIFFS_ERR_RO_NOT_IMPL;
+#else
   SPIFFS_API_CHECK_CFG(fs);
   if (SPIFFS_CHECK_MOUNT(fs)) {
     fs->err_code = SPIFFS_ERR_MOUNTED;
@@ -59,6 +63,7 @@ s32_t SPIFFS_format(spiffs *fs) {
   SPIFFS_UNLOCK(fs);
 
   return 0;
+#endif // SPIFFS_READ_ONLY
 }
 
 #if SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH
@@ -178,6 +183,10 @@ void SPIFFS_clearerr(spiffs *fs) {
 }
 
 s32_t SPIFFS_creat(spiffs *fs, const char *path, spiffs_mode mode) {
+#if SPIFFS_READ_ONLY
+  (void)fs; (void)path; (void)mode;
+  return SPIFFS_ERR_RO_NOT_IMPL;
+#else
   (void)mode;
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
@@ -191,6 +200,7 @@ s32_t SPIFFS_creat(spiffs *fs, const char *path, spiffs_mode mode) {
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   SPIFFS_UNLOCK(fs);
   return 0;
+#endif // SPIFFS_READ_ONLY
 }
 
 spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs_mode mode) {
@@ -201,6 +211,11 @@ spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs
 
   spiffs_fd *fd;
   spiffs_page_ix pix;
+
+#if SPIFFS_READ_ONLY
+  // not valid flags in read only mode
+  flags &= ~SPIFFS_WRONLY | SPIFFS_CREAT | SPIFFS_TRUNC;
+#endif // SPIFFS_READ_ONLY
 
   s32_t res = spiffs_fd_find_new(fs, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
@@ -222,6 +237,7 @@ spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs
   }
 
   if ((flags & SPIFFS_CREAT) && res == SPIFFS_ERR_NOT_FOUND) {
+#if !SPIFFS_READ_ONLY
     spiffs_obj_id obj_id;
     // no need to enter conflicting name here, already looked for it above
     res = spiffs_obj_lu_find_free_obj_id(fs, &obj_id, 0);
@@ -235,6 +251,7 @@ spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs
     }
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
     flags &= ~SPIFFS_TRUNC;
+#endif // !SPIFFS_READ_ONLY
   } else {
     if (res < SPIFFS_OK) {
       spiffs_fd_return(fs, fd->file_nbr);
@@ -246,6 +263,7 @@ spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs
     spiffs_fd_return(fs, fd->file_nbr);
   }
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+#if !SPIFFS_READ_ONLY
   if (flags & SPIFFS_TRUNC) {
     res = spiffs_object_truncate(fd, 0, 0);
     if (res < SPIFFS_OK) {
@@ -253,6 +271,7 @@ spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs
     }
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   }
+#endif // !SPIFFS_READ_ONLY
 
   fd->fdoffset = 0;
 
@@ -276,6 +295,7 @@ spiffs_file SPIFFS_open_by_dirent(spiffs *fs, struct spiffs_dirent *e, spiffs_fl
     spiffs_fd_return(fs, fd->file_nbr);
   }
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+#if !SPIFFS_READ_ONLY
   if (flags & SPIFFS_TRUNC) {
     res = spiffs_object_truncate(fd, 0, 0);
     if (res < SPIFFS_OK) {
@@ -283,6 +303,7 @@ spiffs_file SPIFFS_open_by_dirent(spiffs *fs, struct spiffs_dirent *e, spiffs_fl
     }
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   }
+#endif // !SPIFFS_READ_ONLY
 
   fd->fdoffset = 0;
 
@@ -319,6 +340,8 @@ spiffs_file SPIFFS_open_by_page(spiffs *fs, spiffs_page_ix page_ix, spiffs_flags
     spiffs_fd_return(fs, fd->file_nbr);
   }
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+#if !SPIFFS_READ_ONLY
   if (flags & SPIFFS_TRUNC) {
     res = spiffs_object_truncate(fd, 0, 0);
     if (res < SPIFFS_OK) {
@@ -326,6 +349,7 @@ spiffs_file SPIFFS_open_by_page(spiffs *fs, spiffs_page_ix page_ix, spiffs_flags
     }
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   }
+#endif // !SPIFFS_READ_ONLY
 
   fd->fdoffset = 0;
 
@@ -388,6 +412,7 @@ s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
   return len;
 }
 
+#if !SPIFFS_READ_ONLY
 static s32_t spiffs_hydro_write(spiffs *fs, spiffs_fd *fd, void *buf, u32_t offset, s32_t len) {
   (void)fs;
   s32_t res = SPIFFS_OK;
@@ -409,8 +434,13 @@ static s32_t spiffs_hydro_write(spiffs *fs, spiffs_fd *fd, void *buf, u32_t offs
   return len;
 
 }
+#endif // !SPIFFS_READ_ONLY
 
 s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
+#if SPIFFS_READ_ONLY
+  (void)fs; (void)fh; (void)buf; (void)len;
+  return SPIFFS_ERR_RO_NOT_IMPL;
+#else
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
   SPIFFS_LOCK(fs);
@@ -528,6 +558,7 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
   SPIFFS_UNLOCK(fs);
 
   return res;
+#endif // SPIFFS_READ_ONLY
 }
 
 s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence) {
@@ -577,6 +608,10 @@ s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence) {
 }
 
 s32_t SPIFFS_remove(spiffs *fs, const char *path) {
+#if SPIFFS_READ_ONLY
+  (void)fs; (void)path;
+  return SPIFFS_ERR_RO_NOT_IMPL;
+#else
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
   SPIFFS_LOCK(fs);
@@ -608,9 +643,14 @@ s32_t SPIFFS_remove(spiffs *fs, const char *path) {
 
   SPIFFS_UNLOCK(fs);
   return 0;
+#endif // SPIFFS_READ_ONLY
 }
 
 s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh) {
+#if SPIFFS_READ_ONLY
+  (void)fs; (void)fh;
+  return SPIFFS_ERR_RO_NOT_IMPL;
+#else
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
   SPIFFS_LOCK(fs);
@@ -637,6 +677,7 @@ s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh) {
   SPIFFS_UNLOCK(fs);
 
   return 0;
+#endif // SPIFFS_READ_ONLY
 }
 
 static s32_t spiffs_stat_pix(spiffs *fs, spiffs_page_ix pix, spiffs_file fh, spiffs_stat *s) {
@@ -709,7 +750,7 @@ static s32_t spiffs_fflush_cache(spiffs *fs, spiffs_file fh) {
   (void)fs;
   (void)fh;
   s32_t res = SPIFFS_OK;
-#if SPIFFS_CACHE_WR
+#if !SPIFFS_READ_ONLY && SPIFFS_CACHE_WR
 
   spiffs_fd *fd;
   res = spiffs_fd_get(fs, fh, &fd);
@@ -743,7 +784,7 @@ s32_t SPIFFS_fflush(spiffs *fs, spiffs_file fh) {
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
   s32_t res = SPIFFS_OK;
-#if SPIFFS_CACHE_WR
+#if !SPIFFS_READ_ONLY && SPIFFS_CACHE_WR
   SPIFFS_LOCK(fs);
   fh = SPIFFS_FH_UNOFFS(fs, fh);
   res = spiffs_fflush_cache(fs, fh);
@@ -775,6 +816,10 @@ s32_t SPIFFS_close(spiffs *fs, spiffs_file fh) {
 }
 
 s32_t SPIFFS_rename(spiffs *fs, const char *old, const char *new) {
+#if SPIFFS_READ_ONLY
+  (void)fs; (void)old; (void)new;
+  return SPIFFS_ERR_RO_NOT_IMPL;
+#else
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
   SPIFFS_LOCK(fs);
@@ -812,6 +857,7 @@ s32_t SPIFFS_rename(spiffs *fs, const char *old, const char *new) {
   SPIFFS_UNLOCK(fs);
 
   return res;
+#endif // SPIFFS_READ_ONLY
 }
 
 spiffs_DIR *SPIFFS_opendir(spiffs *fs, const char *name, spiffs_DIR *d) {
@@ -908,6 +954,10 @@ s32_t SPIFFS_closedir(spiffs_DIR *d) {
 }
 
 s32_t SPIFFS_check(spiffs *fs) {
+#if SPIFFS_READ_ONLY
+  (void)fs;
+  return SPIFFS_ERR_RO_NOT_IMPL;
+#else
   s32_t res;
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
@@ -923,6 +973,7 @@ s32_t SPIFFS_check(spiffs *fs) {
 
   SPIFFS_UNLOCK(fs);
   return res;
+#endif // SPIFFS_READ_ONLY
 }
 
 s32_t SPIFFS_info(spiffs *fs, u32_t *total, u32_t *used) {
@@ -950,6 +1001,10 @@ s32_t SPIFFS_info(spiffs *fs, u32_t *total, u32_t *used) {
 }
 
 s32_t SPIFFS_gc_quick(spiffs *fs, u16_t max_free_pages) {
+#if SPIFFS_READ_ONLY
+  (void)fs; (void)max_free_pages;
+  return SPIFFS_ERR_RO_NOT_IMPL;
+#else
   s32_t res;
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
@@ -960,10 +1015,15 @@ s32_t SPIFFS_gc_quick(spiffs *fs, u16_t max_free_pages) {
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   SPIFFS_UNLOCK(fs);
   return 0;
+#endif // SPIFFS_READ_ONLY
 }
 
 
 s32_t SPIFFS_gc(spiffs *fs, u32_t size) {
+#if SPIFFS_READ_ONLY
+  (void)fs; (void)size;
+  return SPIFFS_ERR_RO_NOT_IMPL;
+#else
   s32_t res;
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
@@ -974,6 +1034,7 @@ s32_t SPIFFS_gc(spiffs *fs, u32_t size) {
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   SPIFFS_UNLOCK(fs);
   return 0;
+#endif // SPIFFS_READ_ONLY
 }
 
 s32_t SPIFFS_eof(spiffs *fs, spiffs_file fh) {

@@ -376,6 +376,7 @@ TEST(zero_sized_file_44) {
   return TEST_RES_OK;
 } TEST_END(zero_sized_file_44)
 
+#if !SPIFFS_READ_ONLY
 TEST(truncate_48) {
   fs_reset();
 
@@ -421,5 +422,6 @@ TEST(truncate_48) {
 
   return TEST_RES_OK;
 } TEST_END(truncate_48)
+#endif
 
 SUITE_END(bug_tests)

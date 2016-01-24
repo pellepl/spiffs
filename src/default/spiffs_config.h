@@ -189,6 +189,20 @@
 #define SPIFFS_FILEHDL_OFFSET                 0
 #endif
 
+// Enable this to compile a read only version of spiffs.
+// This will reduce binary size of spiffs. All code comprising modification
+// of the file system will not be compiled. Some config will be ignored.
+// HAL functions for erasing and writing to spi-flash may be null. Cache
+// can be disabled for even further binary size reduction (and ram savings).
+// Functions modifying the fs will return SPIFFS_ERR_RO_NOT_IMPL.
+// If the file system cannot be mounted due to aborted erase operation and
+// SPIFFS_USE_MAGIC is enabled, SPIFFS_ERR_RO_ABORTED_OPERATION will be
+// returned.
+// Might be useful for e.g. bootloaders and such.
+#ifndef SPIFFS_READ_ONLY
+#define SPIFFS_READ_ONLY                      0
+#endif
+
 // Set SPIFFS_TEST_VISUALISATION to non-zero to enable SPIFFS_vis function
 // in the api. This function will visualize all filesystem using given printf
 // function.
