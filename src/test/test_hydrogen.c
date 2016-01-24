@@ -35,6 +35,76 @@ TEST(info)
 }
 TEST_END(info)
 
+#if SPIFFS_USE_MAGIC
+TEST(magic)
+{
+  fs_reset_specific(0, 0, 65536*16, 65536, 65536, 256);
+  SPIFFS_unmount(FS);
+
+  TEST_CHECK_EQ(fs_mount_specific(0, 65536*16, 65536, 65536, 256), SPIFFS_OK);
+  SPIFFS_unmount(FS);
+
+  TEST_CHECK_NEQ(fs_mount_specific(0, 65536*16, 65536, 65536, 128), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NOT_A_FS);
+
+  TEST_CHECK_NEQ(fs_mount_specific(4, 65536*16, 65536, 65536, 256), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NOT_A_FS);
+
+  return TEST_RES_OK;
+}
+TEST_END(magic)
+
+
+#if SPIFFS_USE_MAGIC_LENGTH
+TEST(magic_length)
+{
+  fs_reset_specific(0, 0, 65536*16, 65536, 65536, 256);
+  SPIFFS_unmount(FS);
+
+  TEST_CHECK_EQ(fs_mount_specific(0, 65536*16, 65536, 65536, 256), SPIFFS_OK);
+  SPIFFS_unmount(FS);
+
+  TEST_CHECK_NEQ(fs_mount_specific(0, 65536*8, 65536, 65536, 256), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NOT_A_FS);
+
+  TEST_CHECK_NEQ(fs_mount_specific(0, 65536*15, 65536, 65536, 256), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NOT_A_FS);
+
+  TEST_CHECK_NEQ(fs_mount_specific(0, 65536*17, 65536, 65536, 256), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NOT_A_FS);
+
+  TEST_CHECK_NEQ(fs_mount_specific(0, 65536*256, 65536, 65536, 256), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NOT_A_FS);
+
+  return TEST_RES_OK;
+}
+TEST_END(magic_length)
+
+
+TEST(magic_length_probe)
+{
+  fs_reset_specific(0, 0, 65536*16, 65536, 65536, 256);
+  TEST_CHECK_EQ(SPIFFS_probe_nbr_of_blocks(&__fs.cfg), 16);
+
+  fs_reset_specific(0, 0, 65536*24, 65536, 65536, 256);
+  TEST_CHECK_EQ(SPIFFS_probe_nbr_of_blocks(&__fs.cfg), 24);
+
+  fs_reset_specific(0, 0, 32768*16, 32768, 32768, 128);
+  TEST_CHECK_EQ(SPIFFS_probe_nbr_of_blocks(&__fs.cfg), 16);
+
+  fs_reset_specific(0, 0, 16384*37, 16384, 16384, 128);
+  TEST_CHECK_EQ(SPIFFS_probe_nbr_of_blocks(&__fs.cfg), 37);
+
+  fs_reset_specific(0, 0, 4096*11, 4096, 4096, 256);
+  TEST_CHECK_EQ(SPIFFS_probe_nbr_of_blocks(&__fs.cfg), 11);
+
+  return TEST_RES_OK;
+}
+TEST_END(magic_length_probe)
+
+#endif // SPIFFS_USE_MAGIC_LENGTH
+
+#endif // SPIFFS_USE_MAGIC
 
 TEST(missing_file)
 {

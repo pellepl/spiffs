@@ -243,7 +243,7 @@ s32_t spiffs_erase_block(
 
 #if SPIFFS_USE_MAGIC
   // finally, write magic
-  spiffs_obj_id magic = SPIFFS_MAGIC(fs);
+  spiffs_obj_id magic = SPIFFS_MAGIC(fs, bix);
   res = _spiffs_wr(fs, SPIFFS_OP_C_WRTHRU | SPIFFS_OP_T_OBJ_LU2, 0,
       SPIFFS_MAGIC_PADDR(fs, bix),
       sizeof(spiffs_obj_id), (u8_t *)&magic);
@@ -257,6 +257,30 @@ s32_t spiffs_erase_block(
 
   return res;
 }
+
+
+#if SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH
+s32_t spiffs_probe(
+    spiffs_config *cfg) {
+  s32_t res;
+  spiffs dummy_fs; // create a dummy fs struct just to be able to use macros
+  memcpy(&dummy_fs.cfg, cfg, sizeof(spiffs_config));
+  spiffs_obj_id magic;
+  u32_t paddr = SPIFFS_MAGIC_PADDR(&dummy_fs, (spiffs_block_ix)0);
+#if SPIFFS_HAL_CALLBACK_EXTRA
+  // not any proper fs to report here, so callback with null
+  // (cross fingers that no-one gets angry)
+  res = cfg->hal_read_f((void *)0, paddr, sizeof(spiffs_obj_id), (u8_t *)&magic);
+#else
+  res = cfg->hal_read_f(paddr, sizeof(spiffs_obj_id), (u8_t *)&magic);
+#endif
+  SPIFFS_CHECK_RES(res);
+
+  // unwind the magic crap to get nbr of blocks
+  dummy_fs.block_count = 0;
+  return SPIFFS_MAGIC(&dummy_fs, 0) ^ magic;
+}
+#endif // SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH
 
 
 static s32_t spiffs_obj_lu_scan_v(
@@ -311,7 +335,7 @@ s32_t spiffs_obj_lu_scan(
         sizeof(spiffs_obj_id), (u8_t *)&magic);
 
     SPIFFS_CHECK_RES(res);
-    if (magic != SPIFFS_MAGIC(fs)) {
+    if (magic != SPIFFS_MAGIC(fs, bix)) {
       if (unerased_bix == (spiffs_block_ix)-1) {
         // allow one unerased block as it might be powered down during an erase
         unerased_bix = bix;

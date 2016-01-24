@@ -282,6 +282,33 @@ typedef struct {
 
 // functions
 
+#if SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH
+/**
+ * Special function. This takes a spiffs config struct and returns
+ * the number of blocks this file system was formatted with.
+ * This function relies on following in the passed config struct:
+ * hal_read_f, phys_addr, and log_page_size.
+ *
+ * Do note, that caution should be taken with the value returned here.
+ *
+ * There is no check whatsoever that the flash actually contains a file
+ * system - meaning that just any number could be returned.
+ *
+ * There is neither any check that the configuration is set correctly.
+ * The block size may for instance differ.
+ *
+ * One must be sure of the page size and the physical address when
+ * calling this function.
+ *
+ * The resulting value can then be used to set the config structs
+ * phys_size by multiplying it with the known block size.
+ *
+ * @param config        essential parts of the physical and logical
+ *                      configuration of the file system
+ */
+s32_t SPIFFS_probe_nbr_of_blocks(spiffs_config *config);
+#endif // SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH
+
 /**
  * Initializes the file system dynamic parameters and mounts the filesystem.
  * If SPIFFS_USE_MAGIC is enabled the mounting may fail with SPIFFS_ERR_NOT_A_FS

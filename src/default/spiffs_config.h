@@ -119,6 +119,17 @@
 #define SPIFFS_USE_MAGIC                (0)
 #endif
 
+#if SPIFFS_USE_MAGIC
+// Only valid when SPIFFS_USE_MAGIC is enabled. If SPIFFS_USE_MAGIC_LENGTH is
+// enabled, the magic will also be dependent on the length of the filesystem.
+// For example, a filesystem configured and formatted for 4 megabytes will not
+// be accepted for mounting with a configuration defining the filesystem as 2
+// megabytes.
+#ifndef SPIFFS_USE_MAGIC_LENGTH
+#define SPIFFS_USE_MAGIC_LENGTH         (0)
+#endif
+#endif
+
 // SPIFFS_LOCK and SPIFFS_UNLOCK protects spiffs from reentrancy on api level
 // These should be defined on a multithreaded system
 
@@ -130,7 +141,6 @@
 #ifndef SPIFFS_UNLOCK
 #define SPIFFS_UNLOCK(fs)
 #endif
-
 
 // Enable if only one spiffs instance with constant configuration will exist
 // on the target. This will reduce calculations, flash and memory accesses.

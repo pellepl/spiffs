@@ -16,7 +16,9 @@
 #define SPIFFS_PHYS_ADDR      (4*1024*1024)
 
 // test using filesystem magic
-//#define SPIFFS_USE_MAGIC    1
+#define SPIFFS_USE_MAGIC    1
+// test using filesystem magic length
+#define SPIFFS_USE_MAGIC_LENGTH   1
 
 #define SECTOR_SIZE         65536
 #define LOG_BLOCK           (SECTOR_SIZE*2)
