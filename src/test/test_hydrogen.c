@@ -80,27 +80,80 @@ TEST(magic_length)
 }
 TEST_END(magic_length)
 
-
+#if SPIFFS_SINGLETON==0
 TEST(magic_length_probe)
 {
   fs_reset_specific(0, 0, 65536*16, 65536, 65536, 256);
-  TEST_CHECK_EQ(SPIFFS_probe_nbr_of_blocks(&__fs.cfg), 16);
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), 65536*16);
 
   fs_reset_specific(0, 0, 65536*24, 65536, 65536, 256);
-  TEST_CHECK_EQ(SPIFFS_probe_nbr_of_blocks(&__fs.cfg), 24);
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), 65536*24);
 
   fs_reset_specific(0, 0, 32768*16, 32768, 32768, 128);
-  TEST_CHECK_EQ(SPIFFS_probe_nbr_of_blocks(&__fs.cfg), 16);
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), 32768*16);
 
   fs_reset_specific(0, 0, 16384*37, 16384, 16384, 128);
-  TEST_CHECK_EQ(SPIFFS_probe_nbr_of_blocks(&__fs.cfg), 37);
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), 16384*37);
 
   fs_reset_specific(0, 0, 4096*11, 4096, 4096, 256);
-  TEST_CHECK_EQ(SPIFFS_probe_nbr_of_blocks(&__fs.cfg), 11);
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), 4096*11);
+
+  fs_reset_specific(0, 0, 4096*8, 4096, 4096, 256);
+  __fs.cfg.log_page_size = 128;
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), SPIFFS_ERR_PROBE_NOT_A_FS);
+  __fs.cfg.log_page_size = 512;
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), SPIFFS_ERR_PROBE_NOT_A_FS);
+  __fs.cfg.log_page_size = 256;
+  __fs.cfg.log_block_size = 8192;
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), SPIFFS_ERR_PROBE_NOT_A_FS);
+  __fs.cfg.log_block_size = 2048;
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), SPIFFS_ERR_PROBE_NOT_A_FS);
+  __fs.cfg.log_block_size = 4096;
+  __fs.cfg.phys_addr += 2;
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), SPIFFS_ERR_PROBE_NOT_A_FS);
+
+  fs_reset_specific(0, 0, 4096*8, 4096, 4096, 256);
+  __fs.cfg.phys_addr += 4096*6;
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), SPIFFS_ERR_PROBE_TOO_FEW_BLOCKS);
+
+  fs_reset_specific(0, 0, 4096*8, 4096, 4096, 256);
+  area_set(4096*0, 0xff, 4096); // "erase" block 0
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), 4096*8);
+
+  fs_reset_specific(0, 0, 4096*8, 4096, 4096, 256);
+  area_set(4096*0, 0xff, 4096); // "erase" block 1
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), 4096*8);
+
+  fs_reset_specific(0, 0, 4096*8, 4096, 4096, 256);
+  area_set(4096*0, 0xff, 4096); // "erase" block 2
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), 4096*8);
+
+  fs_reset_specific(0, 0, 4096*8, 4096, 4096, 256);
+  area_set(4096*0, 0xff, 4096*2); // "erase" block 0 & 1
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), SPIFFS_ERR_PROBE_NOT_A_FS);
+
+  fs_reset_specific(0, 0, 4096*8, 4096, 4096, 256);
+  area_set(4096*0, 0xff, 4096*2); // "erase" block 0
+  area_set(4096*0, 0xff, 4096); // "erase" block 2
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), SPIFFS_ERR_PROBE_NOT_A_FS);
+
+  fs_reset_specific(0, 0, 4096*8, 4096, 4096, 256);
+  area_set(4096*1, 0xff, 4096*2); // "erase" block 1 & 2
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), SPIFFS_ERR_PROBE_NOT_A_FS);
+
+  fs_reset_specific(0, 0, 4096*8, 4096, 4096, 256);
+  area_set(4096*0, 0xff, 4096*8); // "erase" all
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), SPIFFS_ERR_PROBE_NOT_A_FS);
+
+  fs_reset_specific(0, 0, 4096*8, 4096, 4096, 256);
+  area_set(4096*0, 0xdd, 4096*8); // garble all
+  TEST_CHECK_EQ(SPIFFS_probe_fs(&__fs.cfg), SPIFFS_ERR_PROBE_NOT_A_FS);
 
   return TEST_RES_OK;
 }
 TEST_END(magic_length_probe)
+
+#endif // SPIFFS_SINGLETON==0
 
 #endif // SPIFFS_USE_MAGIC_LENGTH
 

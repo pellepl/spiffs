@@ -71,6 +71,7 @@ void hexdump(u32_t addr, u32_t len);
 char *make_test_fname(const char *name);
 void clear_test_path();
 void area_write(u32_t addr, u8_t *buf, u32_t size);
+void area_set(u32_t addr, u8_t d, u32_t size);
 void area_read(u32_t addr, u8_t *buf, u32_t size);
 void dump_erase_counts(spiffs *fs);
 void dump_flash_access_stats();

@@ -52,7 +52,8 @@ extern "C" {
 #define SPIFFS_ERR_NOT_A_FILE           -10031
 #define SPIFFS_ERR_RO_NOT_IMPL          -10032
 #define SPIFFS_ERR_RO_ABORTED_OPERATION -10033
-
+#define SPIFFS_ERR_PROBE_TOO_FEW_BLOCKS -10034
+#define SPIFFS_ERR_PROBE_NOT_A_FS       -10035
 #define SPIFFS_ERR_INTERNAL             -10050
 
 #define SPIFFS_ERR_TEST                 -10100
@@ -284,32 +285,39 @@ typedef struct {
 
 // functions
 
-#if SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH
+#if SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH && SPIFFS_SINGLETON==0
 /**
- * Special function. This takes a spiffs config struct and returns
- * the number of blocks this file system was formatted with.
- * This function relies on following in the passed config struct:
- * hal_read_f, phys_addr, and log_page_size.
+ * Special function. This takes a spiffs config struct and returns the number
+ * of blocks this file system was formatted with. This function relies on
+ * that following info is set correctly in given config struct:
  *
- * Do note, that caution should be taken with the value returned here.
+ * phys_addr, log_page_size, and log_block_size.
  *
- * There is no check whatsoever that the flash actually contains a file
- * system - meaning that just any number could be returned.
+ * Also, hal_read_f must be set in the config struct.
  *
- * There is neither any check that the configuration is set correctly.
- * The block size may for instance differ.
+ * One must be sure of the correct page size and that the physical address is
+ * correct in the probed file system when calling this function. It is not
+ * checked if the phys_addr actually points to the start of the file system,
+ * so one might get a false positive if entering a phys_addr somewhere in the
+ * middle of the file system at block boundary. In addition, it is not checked
+ * if the page size is actually correct. If it is not, weird file system sizes
+ * will be returned.
  *
- * One must be sure of the page size and the physical address when
- * calling this function.
+ * If this function detects a file system it returns the assumed file system
+ * size, which can be used to set the phys_size.
  *
- * The resulting value can then be used to set the config structs
- * phys_size by multiplying it with the known block size.
+ * Otherwise, it returns an error indicating why it is not regarded as a file
+ * system.
+ *
+ * Note: this function is not protected with SPIFFS_LOCK and SPIFFS_UNLOCK
+ * macros. It returns the error code directly, instead of as read by
+ * SPIFFS_errno.
  *
  * @param config        essential parts of the physical and logical
- *                      configuration of the file system
+ *                      configuration of the file system.
  */
-s32_t SPIFFS_probe_nbr_of_blocks(spiffs_config *config);
-#endif // SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH
+s32_t SPIFFS_probe_fs(spiffs_config *config);
+#endif // SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH && SPIFFS_SINGLETON==0
 
 /**
  * Initializes the file system dynamic parameters and mounts the filesystem.

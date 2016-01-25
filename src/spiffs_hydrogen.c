@@ -66,16 +66,14 @@ s32_t SPIFFS_format(spiffs *fs) {
 #endif // SPIFFS_READ_ONLY
 }
 
-#if SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH
+#if SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH && SPIFFS_SINGLETON==0
 
-s32_t SPIFFS_probe_nbr_of_blocks(spiffs_config *config) {
-  SPIFFS_LOCK(fs);
-  s32_t block_count = spiffs_probe(config);
-  SPIFFS_UNLOCK(fs);
-  return block_count;
+s32_t SPIFFS_probe_fs(spiffs_config *config) {
+  s32_t res = spiffs_probe(config);
+  return res;
 }
 
-#endif // SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH
+#endif // SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH && SPIFFS_SINGLETON==0
 
 s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
     u8_t *fd_space, u32_t fd_space_size,

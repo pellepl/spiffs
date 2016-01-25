@@ -264,28 +264,57 @@ s32_t spiffs_erase_block(
 }
 #endif // !SPIFFS_READ_ONLY
 
-#if SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH
+#if SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH && SPIFFS_SINGLETON==0
 s32_t spiffs_probe(
     spiffs_config *cfg) {
   s32_t res;
+  u32_t paddr;
   spiffs dummy_fs; // create a dummy fs struct just to be able to use macros
   memcpy(&dummy_fs.cfg, cfg, sizeof(spiffs_config));
-  spiffs_obj_id magic;
-  u32_t paddr = SPIFFS_MAGIC_PADDR(&dummy_fs, (spiffs_block_ix)0);
-#if SPIFFS_HAL_CALLBACK_EXTRA
-  // not any proper fs to report here, so callback with null
-  // (cross fingers that no-one gets angry)
-  res = cfg->hal_read_f((void *)0, paddr, sizeof(spiffs_obj_id), (u8_t *)&magic);
-#else
-  res = cfg->hal_read_f(paddr, sizeof(spiffs_obj_id), (u8_t *)&magic);
-#endif
-  SPIFFS_CHECK_RES(res);
-
-  // unwind the magic crap to get nbr of blocks
   dummy_fs.block_count = 0;
-  return SPIFFS_MAGIC(&dummy_fs, 0) ^ magic;
+
+  // Read three magics, as one block may be in an aborted erase state.
+  // At least two of these must contain magic and be in decreasing order.
+  spiffs_obj_id magic[3];
+  spiffs_obj_id bix_count[3];
+
+  spiffs_block_ix bix;
+  for (bix = 0; bix < 3; bix++) {
+    paddr = SPIFFS_MAGIC_PADDR(&dummy_fs, bix);
+#if SPIFFS_HAL_CALLBACK_EXTRA
+    // not any proper fs to report here, so callback with null
+    // (cross fingers that no-one gets angry)
+    res = cfg->hal_read_f((void *)0, paddr, sizeof(spiffs_obj_id), (u8_t *)&magic[bix]);
+#else
+    res = cfg->hal_read_f(paddr, sizeof(spiffs_obj_id), (u8_t *)&magic[bix]);
+#endif
+    bix_count[bix] = magic[bix] ^ SPIFFS_MAGIC(&dummy_fs, 0);
+    SPIFFS_CHECK_RES(res);
+  }
+
+  // check that we have sane number of blocks
+  if (bix_count[0] < 3) return SPIFFS_ERR_PROBE_TOO_FEW_BLOCKS;
+  // check that the order is correct, take aborted erases in calculation
+  // first block aborted erase
+  if (magic[0] == (spiffs_obj_id)(-1) && bix_count[1] - bix_count[2] == 1) {
+    return (bix_count[1]+1) * cfg->log_block_size;
+  }
+  // second block aborted erase
+  if (magic[1] == (spiffs_obj_id)(-1) && bix_count[0] - bix_count[2] == 2) {
+    return bix_count[0] * cfg->log_block_size;
+  }
+  // third block aborted erase
+  if (magic[2] == (spiffs_obj_id)(-1) && bix_count[0] - bix_count[1] == 1) {
+    return bix_count[0] * cfg->log_block_size;
+  }
+  // no block has aborted erase
+  if (bix_count[0] - bix_count[1] == 1 && bix_count[1] - bix_count[2] == 1) {
+    return bix_count[0] * cfg->log_block_size;
+  }
+
+  return SPIFFS_ERR_PROBE_NOT_A_FS;
 }
-#endif // SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH
+#endif // SPIFFS_USE_MAGIC && SPIFFS_USE_MAGIC_LENGTH && SPIFFS_SINGLETON==0
 
 
 static s32_t spiffs_obj_lu_scan_v(

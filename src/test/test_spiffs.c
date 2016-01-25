@@ -131,7 +131,6 @@ static s32_t _write(spiffs *fs, u32_t addr, u32_t size, u8_t *src) {
   }
   return 0;
 }
-
 static s32_t _erase(spiffs *fs, u32_t addr, u32_t size) {
   if (addr & (__fs.cfg.phys_erase_block-1)) {
     printf("trying to erase at addr %08x, out of boundary\n", addr);
@@ -232,6 +231,13 @@ void area_write(u32_t addr, u8_t *buf, u32_t size) {
   int i;
   for (i = 0; i < size; i++) {
     AREA(addr + i) = *buf++;
+  }
+}
+
+void area_set(u32_t addr, u8_t d, u32_t size) {
+  int i;
+  for (i = 0; i < size; i++) {
+    AREA(addr + i) = d;
   }
 }
 
