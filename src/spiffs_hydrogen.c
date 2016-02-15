@@ -80,11 +80,14 @@ s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
     void *cache, u32_t cache_size,
     spiffs_check_callback check_cb_f) {
   void *user_data;
+  spiffs_file_callback fcb;
   SPIFFS_LOCK(fs);
   user_data = fs->user_data;
+  fcb = fs->file_cb_f;
   memset(fs, 0, sizeof(spiffs));
   memcpy(&fs->cfg, config, sizeof(spiffs_config));
   fs->user_data = user_data;
+  fs->file_cb_f = fcb;
   fs->block_count = SPIFFS_CFG_PHYS_SZ(fs) / SPIFFS_CFG_LOG_BLOCK_SZ(fs);
   fs->work = &work[0];
   fs->lu_work = &work[SPIFFS_CFG_LOG_PAGE_SZ(fs)];
@@ -692,9 +695,10 @@ static s32_t spiffs_stat_pix(spiffs *fs, spiffs_page_ix pix, spiffs_file fh, spi
       obj_id_addr, sizeof(spiffs_obj_id), (u8_t *)&obj_id);
   SPIFFS_API_CHECK_RES(fs, res);
 
-  s->obj_id = obj_id;
+  s->obj_id = obj_id & ~SPIFFS_OBJ_ID_IX_FLAG;
   s->type = objix_hdr.type;
   s->size = objix_hdr.size == SPIFFS_UNDEFINED_LEN ? 0 : objix_hdr.size;
+  s->pix = pix;
   strncpy((char *)s->name, (char *)objix_hdr.name, SPIFFS_OBJ_NAME_LEN);
 
   return res;
@@ -1081,6 +1085,12 @@ s32_t SPIFFS_tell(spiffs *fs, spiffs_file fh) {
   return res;
 }
 
+s32_t SPIFFS_set_file_callback_func(spiffs *fs, spiffs_file_callback cb_func) {
+  SPIFFS_LOCK(fs);
+  fs->file_cb_f = cb_func;
+  SPIFFS_UNLOCK(fs);
+  return 0;
+}
 
 #if SPIFFS_TEST_VISUALISATION
 s32_t SPIFFS_vis(spiffs *fs) {

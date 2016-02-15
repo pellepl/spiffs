@@ -68,8 +68,9 @@ typedef u16_t spiffs_mode;
 // object type
 typedef u8_t spiffs_obj_type;
 
-#if SPIFFS_HAL_CALLBACK_EXTRA
 struct spiffs_t;
+
+#if SPIFFS_HAL_CALLBACK_EXTRA
 
 /* spi read call function type */
 typedef s32_t (*spiffs_read)(struct spiffs_t *fs, u32_t addr, u32_t size, u8_t *dst);
@@ -114,6 +115,19 @@ typedef void (*spiffs_check_callback)(struct spiffs_t *fs, spiffs_check_type typ
 typedef void (*spiffs_check_callback)(spiffs_check_type type, spiffs_check_report report,
     u32_t arg1, u32_t arg2);
 #endif // SPIFFS_HAL_CALLBACK_EXTRA
+
+/* file system listener callback operation */
+typedef enum {
+  /* the file has been created */
+  SPIFFS_CB_CREATED = 0,
+  /* the file has been updated or moved to another page */
+  SPIFFS_CB_UPDATED,
+  /* the file has been deleted */
+  SPIFFS_CB_DELETED,
+} spiffs_fileop_type;
+
+/* file system listener callback function */
+typedef void (*spiffs_file_callback)(struct spiffs_t *fs, spiffs_fileop_type op, spiffs_obj_id obj_id, spiffs_page_ix pix);
 
 #ifndef SPIFFS_DBG
 #define SPIFFS_DBG(...) \
@@ -252,7 +266,8 @@ typedef struct spiffs_t {
 
   // check callback function
   spiffs_check_callback check_cb_f;
-
+  // file callback function
+  spiffs_file_callback file_cb_f;
   // mounted flag
   u8_t mounted;
   // user data
@@ -266,6 +281,7 @@ typedef struct {
   spiffs_obj_id obj_id;
   u32_t size;
   spiffs_obj_type type;
+  spiffs_page_ix pix;
   u8_t name[SPIFFS_OBJ_NAME_LEN];
 } spiffs_stat;
 
@@ -615,6 +631,21 @@ s32_t SPIFFS_eof(spiffs *fs, spiffs_file fh);
  * @param fh            the filehandle of the file to check
  */
 s32_t SPIFFS_tell(spiffs *fs, spiffs_file fh);
+
+/**
+ * Registers a callback function that keeps track on operations on file
+ * headers. Do note, that this callback is called from within internal spiffs
+ * mechanisms. Any operations on the actual file system being callbacked from
+ * in this callback will mess things up for sure - do not do this.
+ * This can be used to track where files are and move around during garbage
+ * collection, which in turn can be used to build location tables in ram.
+ * Used in conjuction with SPIFFS_open_by_page this may improve performance
+ * when opening a lot of files.
+ *
+ * @param fs            the file system struct
+ * @param cb_func       the callback on file operations
+ */
+s32_t SPIFFS_set_file_callback_func(spiffs *fs, spiffs_file_callback cb_func);
 
 #if SPIFFS_TEST_VISUALISATION
 /**

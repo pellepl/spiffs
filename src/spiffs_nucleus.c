@@ -871,13 +871,13 @@ void spiffs_cb_object_event(
     spiffs *fs,
     spiffs_fd *fd,
     int ev,
-    spiffs_obj_id obj_id,
+    spiffs_obj_id obj_id_raw,
     spiffs_span_ix spix,
     spiffs_page_ix new_pix,
     u32_t new_size) {
   (void)fd;
   // update index caches in all file descriptors
-  obj_id &= ~SPIFFS_OBJ_ID_IX_FLAG;
+  spiffs_obj_id obj_id = obj_id_raw & ~SPIFFS_OBJ_ID_IX_FLAG;
   u32_t i;
   spiffs_fd *fds = (spiffs_fd *)fs->fd_space;
   for (i = 0; i < fs->fd_count; i++) {
@@ -903,6 +903,22 @@ void spiffs_cb_object_event(
         cur_fd->cursor_objix_pix = 0;
       }
     }
+  }
+
+  // callback to user if object index header
+  if (fs->file_cb_f && spix == 0 && (obj_id_raw & SPIFFS_OBJ_ID_IX_FLAG)) {
+    spiffs_fileop_type op;
+    if (ev == SPIFFS_EV_IX_NEW) {
+      op = SPIFFS_CB_CREATED;
+    } else if (ev == SPIFFS_EV_IX_UPD) {
+      op = SPIFFS_CB_UPDATED;
+    } else if (ev == SPIFFS_EV_IX_DEL) {
+      op = SPIFFS_CB_DELETED;
+    } else {
+      SPIFFS_DBG("       callback: WARNING unknown callback event %02x\n", ev);
+      return; // bail out
+    }
+    fs->file_cb_f(fs, op, obj_id, new_pix);
   }
 }
 
