@@ -641,6 +641,7 @@ s32_t SPIFFS_tell(spiffs *fs, spiffs_file fh);
  * collection, which in turn can be used to build location tables in ram.
  * Used in conjuction with SPIFFS_open_by_page this may improve performance
  * when opening a lot of files.
+ * Must be invoked after mount.
  *
  * @param fs            the file system struct
  * @param cb_func       the callback on file operations

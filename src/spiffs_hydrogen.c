@@ -80,14 +80,11 @@ s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
     void *cache, u32_t cache_size,
     spiffs_check_callback check_cb_f) {
   void *user_data;
-  spiffs_file_callback fcb;
   SPIFFS_LOCK(fs);
   user_data = fs->user_data;
-  fcb = fs->file_cb_f;
   memset(fs, 0, sizeof(spiffs));
   memcpy(&fs->cfg, config, sizeof(spiffs_config));
   fs->user_data = user_data;
-  fs->file_cb_f = fcb;
   fs->block_count = SPIFFS_CFG_PHYS_SZ(fs) / SPIFFS_CFG_LOG_BLOCK_SZ(fs);
   fs->work = &work[0];
   fs->lu_work = &work[SPIFFS_CFG_LOG_PAGE_SZ(fs)];
