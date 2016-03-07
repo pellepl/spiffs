@@ -492,5 +492,49 @@ TEST(eof_tell_72) {
   return TEST_RES_OK;
 } TEST_END(eof_tell_72)
 
+TEST(spiffs_dup_file_74) {
+  fs_reset_specific(0, 0, 64*1024, 4096, 4096*2, 256);
+  {
+    spiffs_file fd = SPIFFS_open(FS, "/config", SPIFFS_CREAT | SPIFFS_TRUNC | SPIFFS_WRONLY, 0);
+    TEST_CHECK(fd >= 0);
+    char buf[5];
+    strncpy(buf, "test", sizeof(buf));
+    SPIFFS_write(FS, fd, buf, 4);
+    SPIFFS_close(FS, fd);
+  }
+  {
+    spiffs_file fd = SPIFFS_open(FS, "/data", SPIFFS_CREAT | SPIFFS_TRUNC | SPIFFS_WRONLY, 0);
+    TEST_CHECK(fd >= 0);
+    SPIFFS_close(FS, fd);
+  }
+  {
+    spiffs_file fd = SPIFFS_open(FS, "/config", SPIFFS_RDONLY, 0);
+    TEST_CHECK(fd >= 0);
+    char buf[5];
+    int cb = SPIFFS_read(FS, fd, buf, sizeof(buf));
+    TEST_CHECK(cb > 0 && cb < sizeof(buf));
+    TEST_CHECK(strncmp("test", buf, cb) == 0);
+    SPIFFS_close(FS, fd);
+  }
+  {
+    spiffs_file fd = SPIFFS_open(FS, "/data", SPIFFS_CREAT | SPIFFS_TRUNC | SPIFFS_WRONLY, 0);
+    TEST_CHECK(fd >= 0);
+    spiffs_stat stat;
+    SPIFFS_fstat(FS, fd, &stat);
+    if (strcmp((const char*) stat.name, "/data") != 0) {
+      // oops! lets check the list of files...
+      spiffs_DIR dir;
+      SPIFFS_opendir(FS, "/", &dir);
+      struct spiffs_dirent dirent;
+      while (SPIFFS_readdir(&dir, &dirent)) {
+        printf("%s\n", dirent.name);
+      }
+      // this will print "/config" two times
+      TEST_CHECK(0);
+    }
+    SPIFFS_close(FS, fd);
+  }
+  return TEST_RES_OK;
+} TEST_END(spiffs_dup_file_74)
 
 SUITE_END(bug_tests)

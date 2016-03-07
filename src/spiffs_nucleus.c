@@ -1497,6 +1497,11 @@ s32_t spiffs_object_truncate(
   s32_t res = SPIFFS_OK;
   spiffs *fs = fd->fs;
 
+  if ((fd->size == SPIFFS_UNDEFINED_LEN || fd->size == 0) && !remove) {
+    // no op
+    return res;
+  }
+
   // need 2 pages if not removing: object index page + possibly chopped data page
   res = spiffs_gc_check(fs, remove ? 0 : SPIFFS_DATA_PAGE_SIZE(fs) * 2);
   SPIFFS_CHECK_RES(res);
