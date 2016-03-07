@@ -456,6 +456,10 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   }
 
+  if ((fd->flags & SPIFFS_APPEND)) {
+    fd->fdoffset = fd->size == SPIFFS_UNDEFINED_LEN ? 0 : fd->size;
+  }
+
   offset = fd->fdoffset;
 
 #if SPIFFS_CACHE_WR
@@ -1053,7 +1057,7 @@ s32_t SPIFFS_eof(spiffs *fs, spiffs_file fh) {
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 #endif
 
-  res = (fd->fdoffset == fd->size);
+  res = (fd->fdoffset >= (fd->size == SPIFFS_UNDEFINED_LEN ? 0 : fd->size));
 
   SPIFFS_UNLOCK(fs);
   return res;

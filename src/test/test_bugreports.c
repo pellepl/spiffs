@@ -424,4 +424,73 @@ TEST(truncate_48) {
 } TEST_END(truncate_48)
 #endif
 
+TEST(eof_tell_72) {
+  fs_reset();
+
+  s32_t res;
+
+  spiffs_file fd = SPIFFS_open(FS, "file", SPIFFS_CREAT | SPIFFS_RDWR | SPIFFS_APPEND, 0);
+  TEST_CHECK_GT(fd, 0);
+  TEST_CHECK_EQ(SPIFFS_eof(FS, fd), 1);
+  TEST_CHECK_EQ(SPIFFS_tell(FS, fd), 0);
+
+  res = SPIFFS_write(FS, fd, "test", 4);
+  TEST_CHECK_EQ(res, 4);
+  TEST_CHECK_EQ(SPIFFS_eof(FS, fd), 1);
+  TEST_CHECK_EQ(SPIFFS_tell(FS, fd), 4);
+
+  res = SPIFFS_fflush(FS, fd);
+  TEST_CHECK_EQ(res, SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_eof(FS, fd), 1);
+  TEST_CHECK_EQ(SPIFFS_tell(FS, fd), 4);
+
+  res = SPIFFS_lseek(FS, fd, 2, SPIFFS_SEEK_SET);
+  TEST_CHECK_EQ(res, 2);
+  TEST_CHECK_EQ(SPIFFS_eof(FS, fd), 0);
+  TEST_CHECK_EQ(SPIFFS_tell(FS, fd), 2);
+
+  res = SPIFFS_write(FS, fd, "test", 4);
+  TEST_CHECK_EQ(res, 4);
+  TEST_CHECK_EQ(SPIFFS_eof(FS, fd), 1);
+  TEST_CHECK_EQ(SPIFFS_tell(FS, fd), 8);
+
+  res = SPIFFS_fflush(FS, fd);
+  TEST_CHECK_EQ(res, SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_eof(FS, fd), 1);
+  TEST_CHECK_EQ(SPIFFS_tell(FS, fd), 8);
+
+  res = SPIFFS_close(FS, fd);
+  TEST_CHECK_EQ(res, SPIFFS_OK);
+  TEST_CHECK_LT(SPIFFS_eof(FS, fd), SPIFFS_OK);
+  TEST_CHECK_LT(SPIFFS_tell(FS, fd), SPIFFS_OK);
+
+  fd = SPIFFS_open(FS, "file", SPIFFS_RDWR, 0);
+  TEST_CHECK_GT(fd, 0);
+  TEST_CHECK_EQ(SPIFFS_eof(FS, fd), 0);
+  TEST_CHECK_EQ(SPIFFS_tell(FS, fd), 0);
+
+  res = SPIFFS_lseek(FS, fd, 2, SPIFFS_SEEK_SET);
+  TEST_CHECK_EQ(res, 2);
+  TEST_CHECK_EQ(SPIFFS_eof(FS, fd), 0);
+  TEST_CHECK_EQ(SPIFFS_tell(FS, fd), 2);
+
+  res = SPIFFS_write(FS, fd, "test", 4);
+  TEST_CHECK_EQ(res, 4);
+  TEST_CHECK_EQ(SPIFFS_eof(FS, fd), 0);
+  TEST_CHECK_EQ(SPIFFS_tell(FS, fd), 6);
+
+  res = SPIFFS_fflush(FS, fd);
+  TEST_CHECK_EQ(res, SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_eof(FS, fd), 0);
+  TEST_CHECK_EQ(SPIFFS_tell(FS, fd), 6);
+
+  res = SPIFFS_lseek(FS, fd, 0, SPIFFS_SEEK_END);
+  TEST_CHECK_EQ(res, 8);
+  TEST_CHECK_EQ(SPIFFS_eof(FS, fd), 1);
+  TEST_CHECK_EQ(SPIFFS_tell(FS, fd), 8);
+
+  return TEST_RES_OK;
+} TEST_END(eof_tell_72)
+
+
 SUITE_END(bug_tests)
