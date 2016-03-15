@@ -627,8 +627,9 @@ void _teardown() {
   if ((FS)->stats_gc_runs > 0)
 #endif
   dump_erase_counts(FS);
-  printf("  fs consistency check:\n");
+  printf("  fs consistency check output begin\n");
   SPIFFS_check(FS);
+  printf("  fs consistency check output end\n");
   clear_test_path();
 
   //hexdump_mem(&AREA(SPIFFS_PHYS_ADDR - 16), 32);
