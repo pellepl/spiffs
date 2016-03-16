@@ -24,8 +24,8 @@
 #define LOG_BLOCK           (SECTOR_SIZE*2)
 #define LOG_PAGE            (SECTOR_SIZE/256)
 
-#define FD_BUF_SIZE     64*6
-#define CACHE_BUF_SIZE  (LOG_PAGE + 32)*8
+#define DEFAULT_NUM_FD            8
+#define DEFAULT_NUM_CACHE_PAGES   8
 
 #define ASSERT(c, m) real_assert((c),(m), __FILE__, __LINE__);
 
