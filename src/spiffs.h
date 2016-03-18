@@ -54,6 +54,8 @@ extern "C" {
 #define SPIFFS_ERR_RO_ABORTED_OPERATION -10033
 #define SPIFFS_ERR_PROBE_TOO_FEW_BLOCKS -10034
 #define SPIFFS_ERR_PROBE_NOT_A_FS       -10035
+#define SPIFFS_ERR_NAME_TOO_LONG        -10036
+
 #define SPIFFS_ERR_INTERNAL             -10050
 
 #define SPIFFS_ERR_TEST                 -10100

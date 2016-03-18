@@ -99,7 +99,9 @@
 #define SPIFFS_GC_HEUR_W_ERASE_AGE      (50)
 #endif
 
-// Object name maximum length.
+// Object name maximum length. Note that this length include the
+// zero-termination character, meaning maximum string of characters
+// can at most be SPIFFS_OBJ_NAME_LEN - 1.
 #ifndef SPIFFS_OBJ_NAME_LEN
 #define SPIFFS_OBJ_NAME_LEN             (32)
 #endif

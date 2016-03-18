@@ -671,6 +671,37 @@ TEST(user_callback_gc) {
 } TEST_END(user_callback_gc)
 
 
+TEST(name_too_long) {
+  char name[SPIFFS_OBJ_NAME_LEN*2];
+  memset(name, 0, sizeof(name));
+  int i;
+  for (i = 0; i < SPIFFS_OBJ_NAME_LEN; i++) {
+    name[i] = 'A';
+  }
+
+  TEST_CHECK_LT(SPIFFS_creat(FS, name, 0), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NAME_TOO_LONG);
+
+  TEST_CHECK_LT(SPIFFS_open(FS, name, SPIFFS_CREAT | SPIFFS_TRUNC, 0), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NAME_TOO_LONG);
+
+  TEST_CHECK_LT(SPIFFS_remove(FS, name), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NAME_TOO_LONG);
+
+  spiffs_stat s;
+  TEST_CHECK_LT(SPIFFS_stat(FS, name, &s), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NAME_TOO_LONG);
+
+  TEST_CHECK_LT(SPIFFS_rename(FS, name, "a"), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NAME_TOO_LONG);
+
+  TEST_CHECK_LT(SPIFFS_rename(FS, "a", name), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NAME_TOO_LONG);
+
+  return TEST_RES_OK;
+} TEST_END(name_too_long)
+
+
 TEST(rename) {
   int res;
 
