@@ -23,6 +23,7 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <errno.h>
 
 #define AREA(x) _area[(x) - addr_offset]
 
@@ -52,11 +53,73 @@ static u32_t _cache_sz;
 
 static int check_valid_flash = 1;
 
-#define TEST_PATH "test_data/"
+#ifndef TEST_PATH
+#define TEST_PATH "/dev/shm/spiffs/test-data/"
+#endif
+
+// taken from http://stackoverflow.com/questions/675039/how-can-i-create-directory-tree-in-c-linux
+// thanks Jonathan Leffler
+
+static int do_mkdir(const char *path, mode_t mode)
+{
+  struct stat st;
+  int status = 0;
+
+  if (stat(path, &st) != 0) {
+    /* Directory does not exist. EEXIST for race condition */
+    if (mkdir(path, mode) != 0 && errno != EEXIST) {
+      status = -1;
+    }
+  } else if (!S_ISDIR(st.st_mode)) {
+    errno = ENOTDIR;
+    status = -1;
+  }
+
+  return status;
+}
+
+/**
+** mkpath - ensure all directories in path exist
+** Algorithm takes the pessimistic view and works top-down to ensure
+** each directory in path exists, rather than optimistically creating
+** the last element and working backwards.
+*/
+static int mkpath(const char *path, mode_t mode) {
+  char *pp;
+  char *sp;
+  int status;
+  char *copypath = strdup(path);
+
+  status = 0;
+  pp = copypath;
+  while (status == 0 && (sp = strchr(pp, '/')) != 0) {
+    if (sp != pp)  {
+      /* Neither root nor double slash in path */
+      *sp = '\0';
+      status = do_mkdir(copypath, mode);
+      *sp = '/';
+    }
+    pp = sp + 1;
+  }
+  if (status == 0) {
+      status = do_mkdir(path, mode);
+  }
+  free(copypath);
+  return status;
+}
+
+// end take
 
 char *make_test_fname(const char *name) {
-  sprintf(_path, "%s%s", TEST_PATH, name);
+  sprintf(_path, "%s/%s", TEST_PATH, name);
   return _path;
+}
+
+void create_test_path(void) {
+  if (mkpath(TEST_PATH, 0755)) {
+    printf("could not create path %s\n", TEST_PATH);
+    exit(1);
+  }
 }
 
 void clear_test_path() {
@@ -67,7 +130,7 @@ void clear_test_path() {
   if (dp != NULL) {
     while ((ep = readdir(dp))) {
       if (ep->d_name[0] != '.') {
-        sprintf(_path, "%s%s", TEST_PATH, ep->d_name);
+        sprintf(_path, "%s/%s", TEST_PATH, ep->d_name);
         remove(_path);
       }
     }
@@ -640,6 +703,7 @@ static u32_t cmiss_tot = 0;
 #endif
 
 void _setup_test_only() {
+  create_test_path();
   fs_set_validate_flashing(1);
   test_init(test_on_stop);
 }
