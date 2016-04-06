@@ -37,6 +37,7 @@ What spiffs does not:
  - It is not a realtime stack. One write operation might take much longer than another.
  - Poor scalability. Spiffs is intended for small memory devices - the normal sizes for SPI flashes. Going beyond ~128MB is probably a bad idea. This is a side effect of the design goal to use as little ram as possible.
  - Presently, it does not detect or handle bad blocks.
+ - One configuration, one binary. There's no generic spiffs binary that handles all types of configurations.
 
  
 ## MORE INFO 
