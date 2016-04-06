@@ -57,10 +57,10 @@ TEST(nodemcu_full_fs_1) {
 
   TEST_CHECK(res == SPIFFS_OK);
   res2 = SPIFFS_fstat(FS, fd, &s);
-  TEST_CHECK(res2 == -1);
+  TEST_CHECK(res2 < 0);
   TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_FILE_CLOSED);
   res2 = SPIFFS_stat(FS, "test1.txt", &s);
-  TEST_CHECK(res2 == -1);
+  TEST_CHECK(res2 < 0);
   TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_NOT_FOUND);
 
   printf("  create small file\n");
