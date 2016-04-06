@@ -37,15 +37,23 @@ void real_assert(int c, const char *n, const char *file, int l);
 /////////// SPIFFS BUILD CONFIG  ////////////
 
 // test using filesystem magic
+#ifndef SPIFFS_USE_MAGIC
 #define SPIFFS_USE_MAGIC    1
+#endif
 // test using filesystem magic length
+#ifndef SPIFFS_USE_MAGIC_LENGTH
 #define SPIFFS_USE_MAGIC_LENGTH   1
+#endif
 // test using extra param in callback
+#ifndef SPIFFS_HAL_CALLBACK_EXTRA
 #define SPIFFS_HAL_CALLBACK_EXTRA       1
+#endif
 // test using filehandle offset
+#ifndef SPIFFS_FILEHDL_OFFSET
 #define SPIFFS_FILEHDL_OFFSET           1
 // use this offset
 #define TEST_SPIFFS_FILEHDL_OFFSET      0x1000
+#endif
 
 // dbg output
 #define SPIFFS_DBG(...) //printf(__VA_ARGS__)

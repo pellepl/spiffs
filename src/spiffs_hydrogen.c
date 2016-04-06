@@ -89,12 +89,9 @@ s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
   fs->work = &work[0];
   fs->lu_work = &work[SPIFFS_CFG_LOG_PAGE_SZ(fs)];
   memset(fd_space, 0, fd_space_size);
-  // align fd_space pointer to pointer size byte boundary, below is safe
+  // align fd_space pointer to pointer size byte boundary
   u8_t ptr_size = sizeof(void*);
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
-  u8_t addr_lsb = ((u8_t)fd_space) & (ptr_size-1);
-#pragma GCC diagnostic pop
+  u8_t addr_lsb = ((u8_t)(intptr_t)fd_space) & (ptr_size-1);
   if (addr_lsb) {
     fd_space += (ptr_size-addr_lsb);
     fd_space_size -= (ptr_size-addr_lsb);
@@ -102,11 +99,8 @@ s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
   fs->fd_space = fd_space;
   fs->fd_count = (fd_space_size/sizeof(spiffs_fd));
 
-  // align cache pointer to 4 byte boundary, below is safe
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpointer-to-int-cast"
-  addr_lsb = ((u8_t)cache) & (ptr_size-1);
-#pragma GCC diagnostic pop
+  // align cache pointer to 4 byte boundary
+  addr_lsb = ((u8_t)(intptr_t)cache) & (ptr_size-1);
   if (addr_lsb) {
     u8_t *cache_8 = (u8_t *)cache;
     cache_8 += (ptr_size-addr_lsb);

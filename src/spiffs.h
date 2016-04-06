@@ -106,7 +106,7 @@ typedef enum {
   SPIFFS_CHECK_FIX_LOOKUP,
   SPIFFS_CHECK_DELETE_ORPHANED_INDEX,
   SPIFFS_CHECK_DELETE_PAGE,
-  SPIFFS_CHECK_DELETE_BAD_FILE,
+  SPIFFS_CHECK_DELETE_BAD_FILE
 } spiffs_check_report;
 
 /* file system check callback function */
@@ -125,7 +125,7 @@ typedef enum {
   /* the file has been updated or moved to another page */
   SPIFFS_CB_UPDATED,
   /* the file has been deleted */
-  SPIFFS_CB_DELETED,
+  SPIFFS_CB_DELETED
 } spiffs_fileop_type;
 
 /* file system listener callback function */
