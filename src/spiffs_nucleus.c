@@ -871,13 +871,13 @@ void spiffs_cb_object_event(
     spiffs *fs,
     spiffs_fd *fd,
     int ev,
-    spiffs_obj_id obj_id,
+    spiffs_obj_id obj_id_raw,
     spiffs_span_ix spix,
     spiffs_page_ix new_pix,
     u32_t new_size) {
   (void)fd;
   // update index caches in all file descriptors
-  obj_id &= ~SPIFFS_OBJ_ID_IX_FLAG;
+  spiffs_obj_id obj_id = obj_id_raw & ~SPIFFS_OBJ_ID_IX_FLAG;
   u32_t i;
   spiffs_fd *fds = (spiffs_fd *)fs->fd_space;
   for (i = 0; i < fs->fd_count; i++) {
@@ -903,6 +903,22 @@ void spiffs_cb_object_event(
         cur_fd->cursor_objix_pix = 0;
       }
     }
+  }
+
+  // callback to user if object index header
+  if (fs->file_cb_f && spix == 0 && (obj_id_raw & SPIFFS_OBJ_ID_IX_FLAG)) {
+    spiffs_fileop_type op;
+    if (ev == SPIFFS_EV_IX_NEW) {
+      op = SPIFFS_CB_CREATED;
+    } else if (ev == SPIFFS_EV_IX_UPD) {
+      op = SPIFFS_CB_UPDATED;
+    } else if (ev == SPIFFS_EV_IX_DEL) {
+      op = SPIFFS_CB_DELETED;
+    } else {
+      SPIFFS_DBG("       callback: WARNING unknown callback event %02x\n", ev);
+      return; // bail out
+    }
+    fs->file_cb_f(fs, op, obj_id, new_pix);
   }
 }
 
@@ -1481,9 +1497,16 @@ s32_t spiffs_object_truncate(
   s32_t res = SPIFFS_OK;
   spiffs *fs = fd->fs;
 
+  if ((fd->size == SPIFFS_UNDEFINED_LEN || fd->size == 0) && !remove) {
+    // no op
+    return res;
+  }
+
   // need 2 pages if not removing: object index page + possibly chopped data page
-  res = spiffs_gc_check(fs, remove ? 0 : SPIFFS_DATA_PAGE_SIZE(fs) * 2);
-  SPIFFS_CHECK_RES(res);
+  if (remove == 0) {
+    res = spiffs_gc_check(fs, SPIFFS_DATA_PAGE_SIZE(fs) * 2);
+    SPIFFS_CHECK_RES(res);
+  }
 
   spiffs_page_ix objix_pix = fd->objix_hdr_pix;
   spiffs_span_ix data_spix = (fd->size > 0 ? fd->size-1 : 0) / SPIFFS_DATA_PAGE_SIZE(fs);
@@ -1522,11 +1545,18 @@ s32_t spiffs_object_truncate(
         SPIFFS_CHECK_RES(res);
         spiffs_cb_object_event(fs, fd, SPIFFS_EV_IX_DEL, fd->obj_id, objix->p_hdr.span_ix, objix_pix, 0);
         if (prev_objix_spix > 0) {
-          // update object index header page
-          SPIFFS_DBG("truncate: update objix hdr page %04x:%04x to size %i\n", fd->objix_hdr_pix, prev_objix_spix, cur_size);
-          res = spiffs_object_update_index_hdr(fs, fd, fd->obj_id,
-              fd->objix_hdr_pix, 0, 0, cur_size, &new_objix_hdr_pix);
-          SPIFFS_CHECK_RES(res);
+          // Update object index header page, unless we totally want to remove the file.
+          // If fully removing, we're not keeping consistency as good as when storing the header between chunks,
+          // would we be aborted. But when removing full files, a crammed system may otherwise
+          // report ERR_FULL a la windows. We cannot have that.
+          // Hence, take the risk - if aborted, a file check would free the lost pages and mend things
+          // as the file is marked as fully deleted in the beginning.
+          if (remove == 0) {
+            SPIFFS_DBG("truncate: update objix hdr page %04x:%04x to size %i\n", fd->objix_hdr_pix, prev_objix_spix, cur_size);
+            res = spiffs_object_update_index_hdr(fs, fd, fd->obj_id,
+                fd->objix_hdr_pix, 0, 0, cur_size, &new_objix_hdr_pix);
+            SPIFFS_CHECK_RES(res);
+          }
           fd->size = cur_size;
         }
       }

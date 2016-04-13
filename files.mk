@@ -1,4 +1,4 @@
-ifndef niffs
+ifndef spiffs
 $(warn defaulting path to generic spiffs module, spiffs variable not set)
 spiffs = ../generic/spiffs
 endif

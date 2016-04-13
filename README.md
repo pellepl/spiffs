@@ -1,5 +1,5 @@
 # SPIFFS (SPI Flash File System) 
-**V0.3.3**
+**V0.3.4**
 
 Copyright (c) 2013-2016 Peter Andersson (pelleplutt1976 at gmail.com)
 
@@ -37,6 +37,7 @@ What spiffs does not:
  - It is not a realtime stack. One write operation might take much longer than another.
  - Poor scalability. Spiffs is intended for small memory devices - the normal sizes for SPI flashes. Going beyond ~128MB is probably a bad idea. This is a side effect of the design goal to use as little ram as possible.
  - Presently, it does not detect or handle bad blocks.
+ - One configuration, one binary. There's no generic spiffs binary that handles all types of configurations.
 
  
 ## MORE INFO 
@@ -48,6 +49,29 @@ For design, see [docs/TECH_SPEC](https://github.com/pellepl/spiffs/blob/master/d
 For a generic spi flash driver, see [this](https://github.com/pellepl/spiflash_driver).
 
 ## HISTORY
+
+### 0.3.4
+- Added user callback file func.
+- Fixed a stat bug with obj id.
+- SPIFFS_probe_fs added
+- Add possibility to compile a read-only version of spiffs
+- Make magic dependent on fs length, if needed (see #59 & #66) (thanks @hreintke)
+- Exposed SPIFFS_open_by_page_function
+- Zero-size file cannot be seek #57 (thanks @lishen2)
+- Add tell and eof functions #54 (thanks @raburton)
+- Make api string params const #53 (thanks @raburton)
+- Preserve user_data during mount() #51 (thanks @rojer)
+
+New API functions:
+- `SPIFFS_set_file_callback_func` - register a callback informing about file events
+- `SPIFFS_probe_fs` - probe a spi flash trying to figure out size of fs
+- `SPIFFS_open_by_page` - open a file by page index
+- `SPIFFS_eof` - checks if end of file is reached
+- `SPIFFS_tell` - returns current file offset
+
+New config defines:
+- `SPIFFS_READ_ONLY`
+- `SPIFFS_USE_MAGIC_LENGTH`
 
 ### 0.3.3
 **Might not be compatible with 0.3.2 structures. See issue #40**

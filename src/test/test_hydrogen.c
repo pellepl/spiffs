@@ -546,6 +546,162 @@ TEST(open_by_page) {
 } TEST_END(open_by_page)
 
 
+static struct {
+  u32_t calls;
+  spiffs_fileop_type op;
+  spiffs_obj_id obj_id;
+  spiffs_page_ix pix;
+} ucb;
+
+void test_cb(spiffs *fs, spiffs_fileop_type op, spiffs_obj_id obj_id, spiffs_page_ix pix) {
+  ucb.calls++;
+  ucb.op = op;
+  ucb.obj_id = obj_id;
+  ucb.pix = pix;
+  //printf("%4i  op:%i objid:%04x pix:%04x\n", ucb.calls, ucb.op, ucb.obj_id, ucb.pix);
+}
+
+TEST(user_callback_basic) {
+  SPIFFS_set_file_callback_func(FS, test_cb);
+  int res;
+  memset(&ucb, 0, sizeof(ucb));
+  spiffs_file fd = SPIFFS_open(FS, "foo", SPIFFS_CREAT | SPIFFS_APPEND | SPIFFS_RDWR, 0);
+  TEST_CHECK_GE(fd, 0);
+  TEST_CHECK_EQ(ucb.calls, 1);
+  TEST_CHECK_EQ(ucb.op, SPIFFS_CB_CREATED);
+  spiffs_stat s;
+  res = SPIFFS_fstat(FS, fd, &s);
+  TEST_CHECK_GE(res, 0);
+  TEST_CHECK_EQ(ucb.obj_id, s.obj_id);
+  TEST_CHECK_EQ(ucb.pix, s.pix);
+
+  res = SPIFFS_write(FS, fd, "howdy partner", 14);
+  TEST_CHECK_GE(res, 0);
+  res = SPIFFS_fflush(FS, fd);
+  TEST_CHECK_GE(res, 0);
+  TEST_CHECK_EQ(ucb.calls, 2);
+  TEST_CHECK_EQ(ucb.op, SPIFFS_CB_UPDATED);
+  TEST_CHECK_EQ(ucb.obj_id, s.obj_id);
+  TEST_CHECK_EQ(ucb.pix, s.pix);
+
+  res = SPIFFS_fremove(FS, fd);
+  TEST_CHECK_GE(res, 0);
+  TEST_CHECK_EQ(ucb.calls, 3);
+  TEST_CHECK_EQ(ucb.op, SPIFFS_CB_DELETED);
+  TEST_CHECK_EQ(ucb.obj_id, s.obj_id);
+  TEST_CHECK_EQ(ucb.pix, s.pix);
+
+  return TEST_RES_OK;
+} TEST_END(user_callback_basic)
+
+
+TEST(user_callback_gc) {
+  SPIFFS_set_file_callback_func(FS, test_cb);
+
+  char name[32];
+  int f;
+  int size = SPIFFS_DATA_PAGE_SIZE(FS);
+  int pages_per_block = SPIFFS_PAGES_PER_BLOCK(FS) - SPIFFS_OBJ_LOOKUP_PAGES(FS);
+  int files = (pages_per_block-1)/2;
+  int res;
+
+  // fill block with files
+  for (f = 0; f < files; f++) {
+    sprintf(name, "file%i", f);
+    res = test_create_and_write_file(name, size, 1);
+    TEST_CHECK(res >= 0);
+  }
+  for (f = 0; f < files; f++) {
+    sprintf(name, "file%i", f);
+    res = read_and_verify(name);
+    TEST_CHECK(res >= 0);
+  }
+  // remove all files in block
+  for (f = 0; f < files; f++) {
+    sprintf(name, "file%i", f);
+    res = SPIFFS_remove(FS, name);
+    TEST_CHECK(res >= 0);
+  }
+
+  memset(&ucb, 0, sizeof(ucb));
+  spiffs_file fd = SPIFFS_open(FS, "foo", SPIFFS_CREAT | SPIFFS_APPEND | SPIFFS_RDWR, 0);
+  TEST_CHECK_GE(fd, 0);
+  TEST_CHECK_EQ(ucb.calls, 1);
+  TEST_CHECK_EQ(ucb.op, SPIFFS_CB_CREATED);
+  spiffs_stat s;
+  res = SPIFFS_fstat(FS, fd, &s);
+  TEST_CHECK_GE(res, 0);
+  TEST_CHECK_EQ(ucb.obj_id, s.obj_id);
+  TEST_CHECK_EQ(ucb.pix, s.pix);
+
+  res = SPIFFS_write(FS, fd, "howdy partner", 14);
+  TEST_CHECK_GE(res, 0);
+  res = SPIFFS_fflush(FS, fd);
+  TEST_CHECK_GE(res, 0);
+  TEST_CHECK_EQ(ucb.calls, 2);
+  TEST_CHECK_EQ(ucb.op, SPIFFS_CB_UPDATED);
+  TEST_CHECK_EQ(ucb.obj_id, s.obj_id);
+  TEST_CHECK_EQ(ucb.pix, s.pix);
+
+  u32_t tot, us;
+  SPIFFS_info(FS, &tot, &us);
+
+  // do a hard gc, should move our file
+  res = SPIFFS_gc(FS, tot-us*2);
+  TEST_CHECK_GE(res, 0);
+
+  TEST_CHECK_GE(res, 0);
+  TEST_CHECK_EQ(ucb.calls, 3);
+  TEST_CHECK_EQ(ucb.op, SPIFFS_CB_UPDATED);
+  TEST_CHECK_EQ(ucb.obj_id, s.obj_id);
+  TEST_CHECK_NEQ(ucb.pix, s.pix);
+
+  res = SPIFFS_fstat(FS, fd, &s);
+  TEST_CHECK_GE(res, 0);
+  TEST_CHECK_EQ(ucb.pix, s.pix);
+
+  res = SPIFFS_fremove(FS, fd);
+  TEST_CHECK_GE(res, 0);
+  TEST_CHECK_EQ(ucb.calls, 4);
+  TEST_CHECK_EQ(ucb.op, SPIFFS_CB_DELETED);
+  TEST_CHECK_EQ(ucb.obj_id, s.obj_id);
+  TEST_CHECK_EQ(ucb.pix, s.pix);
+
+  return TEST_RES_OK;
+} TEST_END(user_callback_gc)
+
+
+TEST(name_too_long) {
+  char name[SPIFFS_OBJ_NAME_LEN*2];
+  memset(name, 0, sizeof(name));
+  int i;
+  for (i = 0; i < SPIFFS_OBJ_NAME_LEN; i++) {
+    name[i] = 'A';
+  }
+
+  TEST_CHECK_LT(SPIFFS_creat(FS, name, 0), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NAME_TOO_LONG);
+
+  TEST_CHECK_LT(SPIFFS_open(FS, name, SPIFFS_CREAT | SPIFFS_TRUNC, 0), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NAME_TOO_LONG);
+
+  TEST_CHECK_LT(SPIFFS_remove(FS, name), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NAME_TOO_LONG);
+
+  spiffs_stat s;
+  TEST_CHECK_LT(SPIFFS_stat(FS, name, &s), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NAME_TOO_LONG);
+
+  TEST_CHECK_LT(SPIFFS_rename(FS, name, "a"), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NAME_TOO_LONG);
+
+  TEST_CHECK_LT(SPIFFS_rename(FS, "a", name), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NAME_TOO_LONG);
+
+  return TEST_RES_OK;
+} TEST_END(name_too_long)
+
+
 TEST(rename) {
   int res;
 

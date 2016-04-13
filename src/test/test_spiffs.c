@@ -23,13 +23,15 @@
 #include <fcntl.h>
 #include <dirent.h>
 #include <unistd.h>
+#include <errno.h>
 
-#define AREA(x) area[(x) - addr_offset]
+#define AREA(x) _area[(x) - addr_offset]
 
-static unsigned char area[PHYS_FLASH_SIZE];
+static u32_t _area_sz;
+static unsigned char *_area;
 static u32_t addr_offset = 0;
 
-static int erases[PHYS_FLASH_SIZE/SECTOR_SIZE];
+static int *_erases;
 static char _path[256];
 static u32_t bytes_rd = 0;
 static u32_t bytes_wr = 0;
@@ -43,17 +45,81 @@ static char log_flash_ops = 1;
 static u32_t fs_check_fixes = 0;
 
 spiffs __fs;
-static u8_t _work[LOG_PAGE*2];
-static u8_t _fds[FD_BUF_SIZE];
-static u8_t _cache[CACHE_BUF_SIZE];
+static u8_t *_work;
+static u8_t *_fds;
+static u32_t _fds_sz;
+static u8_t *_cache;
+static u32_t _cache_sz;
 
 static int check_valid_flash = 1;
 
-#define TEST_PATH "test_data/"
+#ifndef TEST_PATH
+#define TEST_PATH "/dev/shm/spiffs/test-data/"
+#endif
+
+// taken from http://stackoverflow.com/questions/675039/how-can-i-create-directory-tree-in-c-linux
+// thanks Jonathan Leffler
+
+static int do_mkdir(const char *path, mode_t mode)
+{
+  struct stat st;
+  int status = 0;
+
+  if (stat(path, &st) != 0) {
+    /* Directory does not exist. EEXIST for race condition */
+    if (mkdir(path, mode) != 0 && errno != EEXIST) {
+      status = -1;
+    }
+  } else if (!S_ISDIR(st.st_mode)) {
+    errno = ENOTDIR;
+    status = -1;
+  }
+
+  return status;
+}
+
+/**
+** mkpath - ensure all directories in path exist
+** Algorithm takes the pessimistic view and works top-down to ensure
+** each directory in path exists, rather than optimistically creating
+** the last element and working backwards.
+*/
+static int mkpath(const char *path, mode_t mode) {
+  char *pp;
+  char *sp;
+  int status;
+  char *copypath = strdup(path);
+
+  status = 0;
+  pp = copypath;
+  while (status == 0 && (sp = strchr(pp, '/')) != 0) {
+    if (sp != pp)  {
+      /* Neither root nor double slash in path */
+      *sp = '\0';
+      status = do_mkdir(copypath, mode);
+      *sp = '/';
+    }
+    pp = sp + 1;
+  }
+  if (status == 0) {
+      status = do_mkdir(path, mode);
+  }
+  free(copypath);
+  return status;
+}
+
+// end take
 
 char *make_test_fname(const char *name) {
-  sprintf(_path, "%s%s", TEST_PATH, name);
+  sprintf(_path, "%s/%s", TEST_PATH, name);
   return _path;
+}
+
+void create_test_path(void) {
+  if (mkpath(TEST_PATH, 0755)) {
+    printf("could not create path %s\n", TEST_PATH);
+    exit(1);
+  }
 }
 
 void clear_test_path() {
@@ -64,7 +130,7 @@ void clear_test_path() {
   if (dp != NULL) {
     while ((ep = readdir(dp))) {
       if (ep->d_name[0] != '.') {
-        sprintf(_path, "%s%s", TEST_PATH, ep->d_name);
+        sprintf(_path, "%s/%s", TEST_PATH, ep->d_name);
         remove(_path);
       }
     }
@@ -73,6 +139,7 @@ void clear_test_path() {
 }
 
 static s32_t _read(spiffs *fs, u32_t addr, u32_t size, u8_t *dst) {
+  //printf("rd @ addr %08x => %p\n", addr, &AREA(addr));
   if (log_flash_ops) {
     bytes_rd += size;
     reads++;
@@ -140,7 +207,7 @@ static s32_t _erase(spiffs *fs, u32_t addr, u32_t size) {
     printf("trying to erase at with size %08x, out of boundary\n", size);
     return -1;
   }
-  erases[(addr-__fs.cfg.phys_addr)/__fs.cfg.phys_erase_block]++;
+  _erases[(addr-__fs.cfg.phys_addr)/__fs.cfg.phys_erase_block]++;
   memset(&AREA(addr), 0xff, size);
   return 0;
 }
@@ -259,10 +326,10 @@ void dump_erase_counts(spiffs *fs) {
   for (bix = 0; bix < fs->block_count; bix++) {
     spiffs_obj_id erase_mark;
     _spiffs_rd(fs, 0, 0, SPIFFS_ERASE_COUNT_PADDR(fs, bix), sizeof(spiffs_obj_id), (u8_t *)&erase_mark);
-    if (erases[bix] == 0) {
+    if (_erases[bix] == 0) {
       printf("            |");
     } else {
-      printf("%7i %4i|", (fs->max_erase_count - erase_mark), erases[bix]);
+      printf("%7i %4i|", (fs->max_erase_count - erase_mark), _erases[bix]);
     }
   }
   printf("\n");
@@ -341,19 +408,61 @@ s32_t fs_mount_specific(u32_t phys_addr, u32_t phys_size,
 #if SPIFFS_FILEHDL_OFFSET
   c.fh_ix_offset = TEST_SPIFFS_FILEHDL_OFFSET;
 #endif
-  return SPIFFS_mount(&__fs, &c, _work, _fds, sizeof(_fds), _cache, sizeof(_cache), spiffs_check_cb_f);
+  return SPIFFS_mount(&__fs, &c, _work, _fds, _fds_sz, _cache, _cache_sz, spiffs_check_cb_f);
 }
 
+static void fs_create(u32_t spiflash_size,
+    u32_t phys_sector_size,
+    u32_t log_page_size,
+    u32_t descriptors, u32_t cache_pages) {
+  _area_sz = spiflash_size;
+  _area = malloc(spiflash_size);
+  ASSERT(_area != NULL, "testbench area could not be malloced");
+
+  const u32_t erase_sz = sizeof(int) * (spiflash_size / phys_sector_size);
+  _erases = malloc(erase_sz);
+  ASSERT(_erases != NULL, "testbench erase log could not be malloced");
+  memset(_erases, 0, erase_sz);
+
+  _fds_sz = descriptors * sizeof(spiffs_fd);
+  _fds = malloc(_fds_sz);
+  ASSERT(_fds != NULL, "testbench fd buffer could not be malloced");
+  memset(_fds, 0, _fds_sz);
+
+  _cache_sz = sizeof(spiffs_cache) + cache_pages * (sizeof(spiffs_cache_page) + log_page_size);
+  _cache = malloc(_cache_sz);
+  ASSERT(_cache != NULL, "testbench cache could not be malloced");
+  memset(_cache, 0, _cache_sz);
+
+  const u32_t work_sz = log_page_size * 2;
+  _work = malloc(work_sz);
+  ASSERT(_work != NULL, "testbench work buffer could not be malloced");
+  memset(_work, 0, work_sz);
+}
+
+static void fs_free(void) {
+  free(_area);
+  free(_erases);
+  free(_fds);
+  free(_cache);
+  free(_work);
+}
+
+/**
+ * addr_offset
+ */
 void fs_reset_specific(u32_t addr_offset, u32_t phys_addr, u32_t phys_size,
     u32_t phys_sector_size,
     u32_t log_block_size, u32_t log_page_size) {
+  fs_create(phys_size + phys_addr - addr_offset,
+            phys_sector_size,
+            log_page_size,
+            DEFAULT_NUM_FD,
+            DEFAULT_NUM_CACHE_PAGES);
   fs_set_addr_offset(addr_offset);
-  memset(area, 0xcc, sizeof(area));
+  memset(&AREA(addr_offset), 0xcc, _area_sz);
   memset(&AREA(phys_addr), 0xff, phys_size);
   memset(&__fs, 0, sizeof(__fs));
-
-  memset(erases,0,sizeof(erases));
-  memset(_cache,0,sizeof(_cache));
 
   s32_t res = fs_mount_specific(phys_addr, phys_size, phys_sector_size, log_block_size, log_page_size);
 
@@ -382,7 +491,7 @@ void fs_reset() {
 
 void fs_load_dump(char *fname) {
   int pfd = open(fname, O_RDONLY, S_IRUSR | S_IWUSR);
-  read(pfd, area, sizeof(area));
+  read(pfd, _area, _area_sz);
   close(pfd);
 }
 
@@ -594,6 +703,7 @@ static u32_t cmiss_tot = 0;
 #endif
 
 void _setup_test_only() {
+  create_test_path();
   fs_set_validate_flashing(1);
   test_init(test_on_stop);
 }
@@ -627,24 +737,23 @@ void _teardown() {
   if ((FS)->stats_gc_runs > 0)
 #endif
   dump_erase_counts(FS);
-  printf("  fs consistency check:\n");
+  printf("  fs consistency check output begin\n");
   SPIFFS_check(FS);
+  printf("  fs consistency check output end\n");
   clear_test_path();
-
-  //hexdump_mem(&AREA(SPIFFS_PHYS_ADDR - 16), 32);
-  //hexdump_mem(&AREA(SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE - 16), 32);
+  fs_free();
 }
 
 u32_t tfile_get_size(tfile_size s) {
   switch (s) {
   case EMPTY:
     return 0;
-  case SMALL:
+  case SMALL: // half a data page
     return SPIFFS_DATA_PAGE_SIZE(FS)/2;
-  case MEDIUM:
+  case MEDIUM: // one block
     return SPIFFS_DATA_PAGE_SIZE(FS) * (SPIFFS_PAGES_PER_BLOCK(FS) - SPIFFS_OBJ_LOOKUP_PAGES(FS));
-  case LARGE:
-    return (FS)->cfg.phys_size/3;
+  case LARGE: // third of fs
+    return SPIFFS_DATA_PAGE_SIZE(FS) * (SPIFFS_PAGES_PER_BLOCK(FS) - SPIFFS_OBJ_LOOKUP_PAGES(FS)) * (FS)->block_count/3;
   }
   return 0;
 }
