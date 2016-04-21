@@ -65,7 +65,7 @@ static char check_excl_filter(char *name) {
   return strstr(name, test_main.excl_filter) == 0 ? 1 : 0;
 }
 
-void add_test(test_f f, char *name, void (*setup)(test *t), void (*teardown)(test *t)) {
+void _add_test(test_f f, char *name, void (*setup)(test *t), void (*teardown)(test *t)) {
   if (f == 0) return;
   if (!check_spec(name)) return;
   if (!check_incl_filter(name)) return;

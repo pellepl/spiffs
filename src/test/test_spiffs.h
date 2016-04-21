@@ -37,8 +37,8 @@ typedef enum {
 } tfile_type;
 
 typedef enum {
-  SHORT = 4,
-  NORMAL = 20,
+  SHORT = 3,
+  NORMAL = 15,
   LONG = 100,
 } tfile_life;
 
@@ -81,6 +81,7 @@ u32_t get_flash_ops_log_read_bytes();
 u32_t get_flash_ops_log_write_bytes();
 void invoke_error_after_read_bytes(u32_t b, char once_only);
 void invoke_error_after_write_bytes(u32_t b, char once_only);
+void fs_set_validate_flashing(int i);
 
 void memrand(u8_t *b, int len);
 int test_create_file(char *name);

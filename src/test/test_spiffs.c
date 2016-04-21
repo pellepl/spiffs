@@ -884,7 +884,7 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
           res = SPIFFS_remove(FS, tf->name);
           CHECK_RES(res);
           remove(make_test_fname(tf->name));
-          memset(tf, 0, sizeof(tf));
+          memset(tf, 0, sizeof(tfile));
         }
 
       }

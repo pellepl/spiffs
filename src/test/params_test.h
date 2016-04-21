@@ -23,7 +23,7 @@
 // default test logical page size
 #define LOG_PAGE            (SECTOR_SIZE/256)
 // default test number of filedescs
-#define DEFAULT_NUM_FD            8
+#define DEFAULT_NUM_FD            16
 // default test number of cache pages
 #define DEFAULT_NUM_CACHE_PAGES   8
 

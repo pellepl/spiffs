@@ -18,10 +18,10 @@
 #include <unistd.h>
 
 SUITE(bug_tests)
-void setup() {
+static void setup() {
   _setup_test_only();
 }
-void teardown() {
+static void teardown() {
   _teardown();
 }
 
@@ -82,7 +82,7 @@ TEST(nodemcu_full_fs_1) {
 
   return TEST_RES_OK;
 
-} TEST_END(nodemcu_full_fs_1)
+} TEST_END
 
 TEST(nodemcu_full_fs_2) {
   fs_reset_specific(0, 0, 4096*22, 4096, 4096, 256);
@@ -161,7 +161,7 @@ TEST(nodemcu_full_fs_2) {
 
   return TEST_RES_OK;
 
-} TEST_END(nodemcu_full_fs_2)
+} TEST_END
 
 TEST(magic_test) {
   // one obj lu page, not full
@@ -176,7 +176,7 @@ TEST(magic_test) {
 
   return TEST_RES_OK;
 
-} TEST_END(magic_test)
+} TEST_END
 
 TEST(nodemcu_309) {
   fs_reset_specific(0, 0, 4096*20, 4096, 4096, 256);
@@ -229,7 +229,7 @@ TEST(nodemcu_309) {
 
   return TEST_RES_OK;
 
-} TEST_END(nodemcu_309)
+} TEST_END
 
 
 TEST(robert) {
@@ -272,7 +272,7 @@ TEST(robert) {
 
   return TEST_RES_OK;
 
-} TEST_END(robert)
+} TEST_END
 
 
 TEST(spiffs_12) {
@@ -325,7 +325,7 @@ TEST(spiffs_12) {
 
   return TEST_RES_OK;
 
-} TEST_END(spiffs_12)
+} TEST_END
 
 
 TEST(zero_sized_file_44) {
@@ -374,7 +374,7 @@ TEST(zero_sized_file_44) {
   TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_END_OF_OBJECT);
 
   return TEST_RES_OK;
-} TEST_END(zero_sized_file_44)
+} TEST_END
 
 #if !SPIFFS_READ_ONLY
 TEST(truncate_48) {
@@ -421,7 +421,7 @@ TEST(truncate_48) {
   TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NOT_FOUND);
 
   return TEST_RES_OK;
-} TEST_END(truncate_48)
+} TEST_END
 #endif
 
 TEST(eof_tell_72) {
@@ -490,7 +490,7 @@ TEST(eof_tell_72) {
   TEST_CHECK_EQ(SPIFFS_tell(FS, fd), 8);
 
   return TEST_RES_OK;
-} TEST_END(eof_tell_72)
+} TEST_END
 
 TEST(spiffs_dup_file_74) {
   fs_reset_specific(0, 0, 64*1024, 4096, 4096*2, 256);
@@ -535,6 +535,17 @@ TEST(spiffs_dup_file_74) {
     SPIFFS_close(FS, fd);
   }
   return TEST_RES_OK;
-} TEST_END(spiffs_dup_file_74)
+} TEST_END
 
+SUITE_TESTS(bug_tests)
+  ADD_TEST(nodemcu_full_fs_1)
+  ADD_TEST(nodemcu_full_fs_2)
+  ADD_TEST(magic_test)
+  ADD_TEST(nodemcu_309)
+  ADD_TEST(robert)
+  ADD_TEST(spiffs_12)
+  ADD_TEST(zero_sized_file_44)
+  ADD_TEST(truncate_48)
+  ADD_TEST(eof_tell_72)
+  ADD_TEST(spiffs_dup_file_74)
 SUITE_END(bug_tests)

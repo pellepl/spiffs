@@ -18,10 +18,10 @@
 
 
 SUITE(dev_tests)
-void setup() {
+static void setup() {
   _setup();
 }
-void teardown() {
+static void teardown() {
   _teardown();
 }
 
@@ -115,6 +115,8 @@ TEST(interrupted_write) {
 
   return TEST_RES_OK;
 
-} TEST_END(interrupted_write)
+} TEST_END
 
+SUITE_TESTS(dev_tests)
+  ADD_TEST(interrupted_write)
 SUITE_END(dev_tests)
