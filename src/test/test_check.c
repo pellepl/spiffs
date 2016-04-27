@@ -113,7 +113,7 @@ TEST(page_cons1) {
   u32_t addr = SPIFFS_PAGE_TO_PADDR(FS, pix) + sizeof(spiffs_page_object_ix_header) + 0 * sizeof(spiffs_page_ix);
   spiffs_page_ix bad_pix_ref = 0x55;
   area_write(addr, (u8_t*)&bad_pix_ref, sizeof(spiffs_page_ix));
-  area_write(addr+2, (u8_t*)&bad_pix_ref, sizeof(spiffs_page_ix));
+  area_write(addr + sizeof(spiffs_page_ix), (u8_t*)&bad_pix_ref, sizeof(spiffs_page_ix));
 
   // delete all cache
 #if SPIFFS_CACHE

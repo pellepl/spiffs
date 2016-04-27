@@ -28,7 +28,7 @@
 #define AREA(x) _area[(x) - addr_offset]
 
 static u32_t _area_sz;
-static unsigned char *_area;
+static unsigned char *_area = NULL;
 static u32_t addr_offset = 0;
 
 static int *_erases;
@@ -45,10 +45,10 @@ static char log_flash_ops = 1;
 static u32_t fs_check_fixes = 0;
 
 spiffs __fs;
-static u8_t *_work;
-static u8_t *_fds;
+static u8_t *_work = NULL;
+static u8_t *_fds = NULL;
 static u32_t _fds_sz;
-static u8_t *_cache;
+static u8_t *_cache = NULL;
 static u32_t _cache_sz;
 
 static int check_valid_flash = 1;
@@ -441,11 +441,16 @@ static void fs_create(u32_t spiflash_size,
 }
 
 static void fs_free(void) {
-  free(_area);
-  free(_erases);
-  free(_fds);
-  free(_cache);
-  free(_work);
+  if (_area) free(_area);
+  _area = NULL;
+  if (_erases) free(_erases);
+  _erases = NULL;
+  if (_fds) free(_fds);
+  _fds = NULL;
+  if (_cache) free(_cache);
+  _cache = NULL;
+  if (_work) free(_work);
+  _work = NULL;
 }
 
 /**
@@ -615,7 +620,7 @@ int read_and_verify_fd(spiffs_file fd, char *name) {
 static void test_on_stop(test *t) {
   printf("  spiffs errno:%i\n", SPIFFS_errno(&__fs));
 #if SPIFFS_TEST_VISUALISATION
-  SPIFFS_vis(FS);
+  if (_area) SPIFFS_vis(FS);
 #endif
 
 }
@@ -731,15 +736,17 @@ void _teardown() {
   cmiss_tot = 0;
 #endif
 #endif
-  dump_flash_access_stats();
-  clear_flash_ops_log();
+  if (_area) {
+    dump_flash_access_stats();
+    clear_flash_ops_log();
 #if SPIFFS_GC_STATS
-  if ((FS)->stats_gc_runs > 0)
+    if ((FS)->stats_gc_runs > 0)
 #endif
-  dump_erase_counts(FS);
-  printf("  fs consistency check output begin\n");
-  SPIFFS_check(FS);
-  printf("  fs consistency check output end\n");
+    dump_erase_counts(FS);
+    printf("  fs consistency check output begin\n");
+    SPIFFS_check(FS);
+    printf("  fs consistency check output end\n");
+  }
   clear_test_path();
   fs_free();
 }
