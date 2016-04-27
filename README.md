@@ -1,5 +1,5 @@
 # SPIFFS (SPI Flash File System) 
-**V0.3.4**
+**V0.3.5**
 
 Copyright (c) 2013-2016 Peter Andersson (pelleplutt1976 at gmail.com)
 
@@ -49,6 +49,17 @@ For design, see [docs/TECH_SPEC](https://github.com/pellepl/spiffs/blob/master/d
 For a generic spi flash driver, see [this](https://github.com/pellepl/spiflash_driver).
 
 ## HISTORY
+
+### 0.3.5
+- Fixed a bug in fs check
+- API returns actual error codes #84) (thanks @Nails)
+- Fix compiler warnings for non-gcc #83 #81 (thanks @Nails)
+- Unable to recover from full fs #82 (thanks @rojer)
+- Define SPIFFS_O_* flags #80
+- Problem with long filenames #79 (thanks @psjg)
+- Duplicate file name bug fix #74 (thanks @igrr)
+- SPIFFS_eof and SPIFFS_tell return wrong value #72 (thanks @ArtemPisarenko)
+- Bunch of testframe updates #77 #78 #86 (thanks @dpreussner, @psjg a.o)  
 
 ### 0.3.4
 - Added user callback file func.
