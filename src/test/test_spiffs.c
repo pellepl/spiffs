@@ -43,6 +43,7 @@ static char error_after_bytes_written_once_only = 0;
 static char error_after_bytes_read_once_only = 0;
 static char log_flash_ops = 1;
 static u32_t fs_check_fixes = 0;
+static u32_t _fs_locks;
 
 spiffs __fs;
 static u8_t *_work = NULL;
@@ -393,6 +394,22 @@ void fs_set_addr_offset(u32_t offset) {
   addr_offset = offset;
 }
 
+void test_lock(spiffs *fs) {
+  if (_fs_locks != 0) {
+    printf("FATAL: reentrant locks. Abort.\n");
+    exit(-1);
+  }
+  _fs_locks++;
+}
+
+void test_unlock(spiffs *fs) {
+  if (_fs_locks != 1) {
+    printf("FATAL: unlocking unlocked. Abort.\n");
+    exit(-1);
+  }
+  _fs_locks--;
+}
+
 s32_t fs_mount_specific(u32_t phys_addr, u32_t phys_size,
     u32_t phys_sector_size,
     u32_t log_block_size, u32_t log_page_size) {
@@ -714,6 +731,7 @@ void _setup_test_only() {
 }
 
 void _setup() {
+  _fs_locks = 0;
   fs_reset();
   _setup_test_only();
 }
@@ -749,6 +767,11 @@ void _teardown() {
   }
   clear_test_path();
   fs_free();
+  printf("  locks : %i\n", _fs_locks);
+  if (_fs_locks != 0) {
+    printf("FATAL: lock asymmetry. Abort.\n");
+    exit(-1);
+  }
 }
 
 u32_t tfile_get_size(tfile_size s) {

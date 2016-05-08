@@ -92,5 +92,7 @@ void _teardown();
 u32_t tfile_get_size(tfile_size s);
 int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concurrent_files, int dbg);
 
+void test_lock(spiffs *fs);
+void test_unlock(spiffs *fs);
 
 #endif /* TEST_SPIFFS_H_ */

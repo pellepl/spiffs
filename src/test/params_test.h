@@ -55,6 +55,11 @@ void real_assert(int c, const char *n, const char *file, int l);
 #define TEST_SPIFFS_FILEHDL_OFFSET      0x1000
 #endif
 
+#define SPIFFS_LOCK(fs)   test_lock(fs)
+#define SPIFFS_UNLOCK(fs) test_unlock(fs)
+
+
+
 // dbg output
 #define SPIFFS_DBG(...) //printf(__VA_ARGS__)
 #define SPIFFS_GC_DBG(...) //printf(__VA_ARGS__)
