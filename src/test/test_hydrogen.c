@@ -1862,9 +1862,15 @@ TEST_END
 
 SUITE_TESTS(hydrogen_tests)
   ADD_TEST(info)
+#if SPIFFS_USE_MAGIC
   ADD_TEST(magic)
+#if SPIFFS_USE_MAGIC_LENGTH
   ADD_TEST(magic_length)
+#if SPIFFS_SINGLETON==0
   ADD_TEST(magic_length_probe)
+#endif
+#endif
+#endif
   ADD_TEST(missing_file)
   ADD_TEST(bad_fd)
   ADD_TEST(closed_fd)
@@ -1873,7 +1879,9 @@ SUITE_TESTS(hydrogen_tests)
   ADD_TEST(file_by_open)
   ADD_TEST(file_by_creat)
   ADD_TEST(file_by_open_excl)
+#if SPIFFS_FILEHDL_OFFSET
   ADD_TEST(open_fh_offs)
+#endif
   ADD_TEST(list_dir)
   ADD_TEST(open_by_dirent)
   ADD_TEST(open_by_page)
