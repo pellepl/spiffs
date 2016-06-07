@@ -59,6 +59,9 @@ void real_assert(int c, const char *n, const char *file, int l);
 #define SPIFFS_LOCK(fs)
 #define SPIFFS_UNLOCK(fs)
 #else
+struct spiffs_t;
+extern void test_lock(struct spiffs_t *fs);
+extern void test_unlock(struct spiffs_t *fs);
 #define SPIFFS_LOCK(fs)   test_lock(fs)
 #define SPIFFS_UNLOCK(fs) test_unlock(fs)
 #endif
