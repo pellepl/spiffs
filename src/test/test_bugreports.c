@@ -540,6 +540,40 @@ TEST(spiffs_dup_file_74) {
   return TEST_RES_OK;
 } TEST_END
 
+#if 0
+TEST(spiffs_hidden_file_90) {
+  fs_mount_dump("imgs/90.hidden_file.spiffs", 0, 0, 1*1024*1024, 4096, 4096, 128);
+
+  SPIFFS_vis(FS);
+
+  dump_page(FS, 1);
+  dump_page(FS, 0x8fe);
+  dump_page(FS, 0x8ff);
+
+  {
+    spiffs_DIR dir;
+    SPIFFS_opendir(FS, "/", &dir);
+    struct spiffs_dirent dirent;
+    while (SPIFFS_readdir(&dir, &dirent)) {
+      printf("%-32s sz:%-7i obj_id:%08x pix:%08x\n", dirent.name, dirent.size, dirent.obj_id, dirent.pix);
+    }
+  }
+
+  printf("remove cli.bin res %i\n", SPIFFS_remove(FS, "cli.bin"));
+
+  {
+    spiffs_DIR dir;
+    SPIFFS_opendir(FS, "/", &dir);
+    struct spiffs_dirent dirent;
+    while (SPIFFS_readdir(&dir, &dirent)) {
+      printf("%-32s sz:%-7i obj_id:%08x pix:%08x\n", dirent.name, dirent.size, dirent.obj_id, dirent.pix);
+    }
+  }
+  return TEST_RES_OK;
+
+} TEST_END
+#endif
+
 SUITE_TESTS(bug_tests)
   ADD_TEST(nodemcu_full_fs_1)
   ADD_TEST(nodemcu_full_fs_2)
@@ -551,4 +585,7 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(truncate_48)
   ADD_TEST(eof_tell_72)
   ADD_TEST(spiffs_dup_file_74)
+#if 0
+  ADD_TEST(spiffs_hidden_file_90)
+#endif
 SUITE_END(bug_tests)

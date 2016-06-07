@@ -142,7 +142,7 @@ s32_t spiffs_obj_lu_find_entry_visitor(
   int entries_per_page = (SPIFFS_CFG_LOG_PAGE_SZ(fs) / sizeof(spiffs_obj_id));
 
   // wrap initial
-  if (cur_entry >= (int)SPIFFS_OBJ_LOOKUP_MAX_ENTRIES(fs) - 1) {
+  if (cur_entry > (int)SPIFFS_OBJ_LOOKUP_MAX_ENTRIES(fs) - 1) {
     cur_entry = 0;
     cur_block++;
     cur_block_addr = cur_block * SPIFFS_CFG_LOG_BLOCK_SZ(fs);
@@ -467,7 +467,7 @@ s32_t spiffs_obj_lu_find_free(
       SPIFFS_OBJ_ID_FREE, block_ix, lu_entry);
   if (res == SPIFFS_OK) {
     fs->free_cursor_block_ix = *block_ix;
-    fs->free_cursor_obj_lu_entry = *lu_entry;
+    fs->free_cursor_obj_lu_entry = (*lu_entry) + 1;
     if (*lu_entry == 0) {
       fs->free_blocks--;
     }

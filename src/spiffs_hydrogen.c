@@ -913,7 +913,7 @@ static s32_t spiffs_read_dir_v(
   if (res != SPIFFS_OK) return res;
   if ((obj_id & SPIFFS_OBJ_ID_IX_FLAG) &&
       objix_hdr.p_hdr.span_ix == 0 &&
-      (objix_hdr.p_hdr.flags& (SPIFFS_PH_FLAG_DELET | SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_IXDELE)) ==
+      (objix_hdr.p_hdr.flags & (SPIFFS_PH_FLAG_DELET | SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_IXDELE)) ==
           (SPIFFS_PH_FLAG_DELET | SPIFFS_PH_FLAG_IXDELE)) {
     struct spiffs_dirent *e = (struct spiffs_dirent*)user_var_p;
     e->obj_id = obj_id;
@@ -923,7 +923,6 @@ static s32_t spiffs_read_dir_v(
     e->pix = pix;
     return SPIFFS_OK;
   }
-
   return SPIFFS_VIS_COUNTINUE;
 }
 
