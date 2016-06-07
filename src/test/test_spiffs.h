@@ -63,6 +63,11 @@ void fs_reset_specific(u32_t addr_offset, u32_t phys_addr, u32_t phys_size,
 s32_t fs_mount_specific(u32_t phys_addr, u32_t phys_size,
     u32_t phys_sector_size,
     u32_t log_block_size, u32_t log_page_size);
+void fs_mount_dump(char *fname,
+    u32_t addr_offset, u32_t phys_addr, u32_t phys_size,
+        u32_t phys_sector_size,
+        u32_t log_block_size, u32_t log_page_size);
+
 void fs_set_addr_offset(u32_t offset);
 int read_and_verify(char *name);
 int read_and_verify_fd(spiffs_file fd, char *name);

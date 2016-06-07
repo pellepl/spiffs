@@ -513,8 +513,34 @@ void fs_reset() {
 
 void fs_load_dump(char *fname) {
   int pfd = open(fname, O_RDONLY, S_IRUSR | S_IWUSR);
+  ASSERT(pfd > 0, "could not load dump");
   read(pfd, _area, _area_sz);
   close(pfd);
+}
+
+void fs_mount_dump(char *fname,
+    u32_t addr_offset, u32_t phys_addr, u32_t phys_size,
+        u32_t phys_sector_size,
+        u32_t log_block_size, u32_t log_page_size) {
+  fs_create(phys_size + phys_addr - addr_offset,
+            phys_sector_size,
+            log_page_size,
+            DEFAULT_NUM_FD,
+            DEFAULT_NUM_CACHE_PAGES);
+  fs_set_addr_offset(addr_offset);
+  memset(&AREA(addr_offset), 0xcc, _area_sz);
+  memset(&AREA(phys_addr), 0xff, phys_size);
+  memset(&__fs, 0, sizeof(__fs));
+
+  fs_load_dump(fname);
+
+  s32_t res = fs_mount_specific(phys_addr, phys_size, phys_sector_size, log_block_size, log_page_size);
+
+  ASSERT(res == SPIFFS_OK, "failed mounting dump, check settings");
+
+  clear_flash_ops_log();
+  log_flash_ops = 1;
+  fs_check_fixes = 0;
 }
 
 void set_flash_ops_log(int enable) {
