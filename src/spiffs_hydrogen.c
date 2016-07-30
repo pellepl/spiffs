@@ -212,7 +212,7 @@ spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs
 
 #if SPIFFS_READ_ONLY
   // not valid flags in read only mode
-  flags &= ~SPIFFS_WRONLY | SPIFFS_CREAT | SPIFFS_TRUNC;
+  flags &= ~(SPIFFS_WRONLY | SPIFFS_CREAT | SPIFFS_TRUNC);
 #endif // SPIFFS_READ_ONLY
 
   s32_t res = spiffs_fd_find_new(fs, &fd);
