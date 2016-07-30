@@ -511,6 +511,13 @@ void fs_reset() {
   fs_reset_specific(0, SPIFFS_PHYS_ADDR, SPIFFS_FLASH_SIZE, SECTOR_SIZE, LOG_BLOCK, LOG_PAGE);
 }
 
+void fs_store_dump(char *fname) {
+  int pfd = open(fname, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+  ASSERT(pfd > 0, "could not open dump file");
+  write(pfd, _area, _area_sz);
+  close(pfd);
+}
+
 void fs_load_dump(char *fname) {
   int pfd = open(fname, O_RDONLY, S_IRUSR | S_IWUSR);
   ASSERT(pfd > 0, "could not load dump");
