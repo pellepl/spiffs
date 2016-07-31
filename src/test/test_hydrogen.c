@@ -769,8 +769,8 @@ TEST(write_cache)
 {
   int res;
   spiffs_file fd;
-  u8_t buf[1024];
-  u8_t fbuf[1024];
+  u8_t buf[1024*8];
+  u8_t fbuf[1024*8];
   res = test_create_file("f");
   TEST_CHECK(res >= 0);
   fd = SPIFFS_open(FS, "f", SPIFFS_RDWR, 0);
