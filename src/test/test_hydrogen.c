@@ -765,6 +765,40 @@ TEST(remove_single_by_fd)
 TEST_END
 
 
+TEST(write_cache)
+{
+  int res;
+  spiffs_file fd;
+  u8_t buf[1024];
+  u8_t fbuf[1024];
+  res = test_create_file("f");
+  TEST_CHECK(res >= 0);
+  fd = SPIFFS_open(FS, "f", SPIFFS_RDWR, 0);
+  TEST_CHECK(fd >= 0);
+  memrand(buf, sizeof(buf));
+  res = SPIFFS_write(FS, fd, buf, SPIFFS_CFG_LOG_PAGE_SZ(FS)/2);
+  TEST_CHECK(res >= 0);
+  res = SPIFFS_write(FS, fd, buf, SPIFFS_CFG_LOG_PAGE_SZ(FS)*2);
+  TEST_CHECK(res >= 0);
+  res = SPIFFS_close(FS, fd);
+  TEST_CHECK(res >= 0);
+
+  fd = SPIFFS_open(FS, "f", SPIFFS_RDWR, 0);
+  TEST_CHECK(fd >= 0);
+  res = SPIFFS_read(FS, fd, fbuf, SPIFFS_CFG_LOG_PAGE_SZ(FS)/2 + SPIFFS_CFG_LOG_PAGE_SZ(FS)*2);
+  TEST_CHECK(res >= 0);
+  TEST_CHECK(0 == memcmp(&buf[0], &fbuf[0], SPIFFS_CFG_LOG_PAGE_SZ(FS)/2));
+  TEST_CHECK(0 == memcmp(&buf[0], &fbuf[SPIFFS_CFG_LOG_PAGE_SZ(FS)/2], SPIFFS_CFG_LOG_PAGE_SZ(FS)*2));
+  res = SPIFFS_close(FS, fd);
+  TEST_CHECK(res >= 0);
+
+  TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_OK);
+
+  return TEST_RES_OK;
+}
+TEST_END
+
+
 TEST(write_big_file_chunks_page)
 {
   int size = ((50*(FS)->cfg.phys_size)/100);
@@ -1891,6 +1925,7 @@ SUITE_TESTS(hydrogen_tests)
   ADD_TEST(rename)
   ADD_TEST(remove_single_by_path)
   ADD_TEST(remove_single_by_fd)
+  ADD_TEST(write_cache)
   ADD_TEST(write_big_file_chunks_page)
   ADD_TEST(write_big_files_chunks_page)
   ADD_TEST(write_big_file_chunks_index)

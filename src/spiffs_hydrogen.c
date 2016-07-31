@@ -546,8 +546,7 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
             fd->cache_page->offset, fd->cache_page->size);
         spiffs_cache_fd_release(fs, fd->cache_page);
         SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
-        res = spiffs_hydro_write(fs, fd, buf, offset, len);
-        SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+        // data written below
       }
     }
   }
