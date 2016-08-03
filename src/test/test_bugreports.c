@@ -540,6 +540,63 @@ TEST(spiffs_dup_file_74) {
   return TEST_RES_OK;
 } TEST_END
 
+TEST(temporal_fd_cache) {
+  fs_reset_specific(0, 0, 1024*1024, 4096, 2*4096, 256);
+  spiffs_file fd;
+  int res;
+  (FS)->fd_count = 4;
+
+  char *fcss = "blaha.css";
+
+  char *fhtml[] = {
+      "index.html", "cykel.html", "bloja.html", "drivmedel.html", "smorgasbord.html",
+      "ombudsman.html", "fubbick.html", "paragrod.html"
+  };
+
+  const int hit_probabilities[] = {
+      25, 20, 16, 12, 10, 8, 5, 4
+  };
+
+  const int runs = 10000;
+
+  // create our webserver files
+  TEST_CHECK_EQ(test_create_and_write_file(fcss, 2000, 256), SPIFFS_OK);
+  TEST_CHECK_EQ(test_create_and_write_file(fhtml[0], 4000, 256), SPIFFS_OK);
+  TEST_CHECK_EQ(test_create_and_write_file(fhtml[1], 3000, 256), SPIFFS_OK);
+  TEST_CHECK_EQ(test_create_and_write_file(fhtml[2], 2000, 256), SPIFFS_OK);
+  TEST_CHECK_EQ(test_create_and_write_file(fhtml[3], 1000, 256), SPIFFS_OK);
+  TEST_CHECK_EQ(test_create_and_write_file(fhtml[4], 1500, 256), SPIFFS_OK);
+  TEST_CHECK_EQ(test_create_and_write_file(fhtml[5], 3000, 256), SPIFFS_OK);
+  TEST_CHECK_EQ(test_create_and_write_file(fhtml[6], 2000, 256), SPIFFS_OK);
+  TEST_CHECK_EQ(test_create_and_write_file(fhtml[7], 3500, 256), SPIFFS_OK);
+
+  clear_flash_ops_log();
+
+  int run = 0;
+  do {
+    u8_t buf[256];
+
+    // open & read an html
+    int dice = rand() % 100;
+    int probability = 0;
+    int html_ix = 0;
+    do {
+      probability += hit_probabilities[html_ix];
+      if (dice <= probability) {
+        break;
+      }
+      html_ix++;
+    } while(probability < 100);
+
+    TEST_CHECK_EQ(read_and_verify(fhtml[html_ix]), SPIFFS_OK);
+
+    // open & read css
+    TEST_CHECK_EQ(read_and_verify(fcss), SPIFFS_OK);
+  } while (run ++ < runs);
+
+  return TEST_RES_OK;
+} TEST_END
+
 #if 0
 TEST(spiffs_hidden_file_90) {
   fs_mount_dump("imgs/90.hidden_file.spiffs", 0, 0, 1*1024*1024, 4096, 4096, 128);
@@ -573,6 +630,34 @@ TEST(spiffs_hidden_file_90) {
 
 } TEST_END
 #endif
+#if 0
+TEST(null_deref_check_93) {
+  fs_mount_dump("imgs/93.dump.bin", 0, 0, 2*1024*1024, 4096, 4096, 256);
+
+  //int res = SPIFFS_open(FS, "d43.fw", SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_WRONLY, 0);
+  //TEST_CHECK_GE(res, SPIFFS_OK);
+
+  SPIFFS_vis(FS);
+
+  printf("\n\n-------------------------------------------------\n\n");
+
+  SPIFFS_check(FS);
+  //fs_store_dump("imgs/93.dump.checked.bin");
+
+  SPIFFS_vis(FS);
+
+  printf("\n\n-------------------------------------------------\n\n");
+
+  SPIFFS_check(FS);
+
+  SPIFFS_vis(FS);
+  printf("\n\n-------------------------------------------------\n\n");
+
+
+
+  return TEST_RES_OK;
+} TEST_END
+#endif
 
 SUITE_TESTS(bug_tests)
   ADD_TEST(nodemcu_full_fs_1)
@@ -585,7 +670,11 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(truncate_48)
   ADD_TEST(eof_tell_72)
   ADD_TEST(spiffs_dup_file_74)
+  ADD_TEST(temporal_fd_cache)
 #if 0
   ADD_TEST(spiffs_hidden_file_90)
+#endif
+#if 0
+  ADD_TEST(null_deref_check_93)
 #endif
 SUITE_END(bug_tests)
