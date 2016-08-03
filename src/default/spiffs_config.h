@@ -206,6 +206,37 @@
 #define SPIFFS_READ_ONLY                      0
 #endif
 
+// Enable this to add a temporal file cache using the fd buffer.
+// The effects of the cache is that SPIFFS_open will find the file faster in
+// certain cases. It will make it a lot easier for spiffs to find files
+// opened frequently, reducing number of readings from the spi flash for
+// finding those files.
+// This will grow each fd by 6 bytes. If your files are opened in patterns
+// with a degree of temporal locality, the system is optimized.
+// Examples can be letting spiffs serve web content, where one file is the css.
+// The css is accessed for each html file that is opened, meaning it is
+// accessed almost every second time a file is opened. Another example could be
+// a log file that is often opened, written, and closed.
+// The size of the cache is number of given file descriptors, as it piggybacks
+// on the fd update mechanism. The cache lives in the closed file descriptors.
+// When closed, the fd know the whereabouts of the file. Instead of forgetting
+// this, the temporal cache will keep handling updates to that file even if the
+// fd is closed. If the file is opened again, the location of the file is found
+// directly. If all available descriptors become opened, all cache memory is
+// lost.
+#ifndef SPIFFS_TEMPORAL_FD_CACHE
+#define SPIFFS_TEMPORAL_FD_CACHE              1
+#endif
+
+// Temporal file cache hit score. Each time a file is opened, all cached files
+// will lose one point. If the opened file is found in cache, that entry will
+// gain SPIFFS_TEMPORAL_CACHE_HIT_SCORE points. One can experiment with this
+// value for the specific access patterns of the application. However, it must
+// be between 1 (no gain for hitting a cached entry often) and 255.
+#ifndef SPIFFS_TEMPORAL_CACHE_HIT_SCORE
+#define SPIFFS_TEMPORAL_CACHE_HIT_SCORE       4
+#endif
+
 // Set SPIFFS_TEST_VISUALISATION to non-zero to enable SPIFFS_vis function
 // in the api. This function will visualize all filesystem using given printf
 // function.

@@ -882,7 +882,11 @@ void spiffs_cb_object_event(
   spiffs_fd *fds = (spiffs_fd *)fs->fd_space;
   for (i = 0; i < fs->fd_count; i++) {
     spiffs_fd *cur_fd = &fds[i];
+#if SPIFFS_TEMPORAL_FD_CACHE
+    if (cur_fd->score == 0 || (cur_fd->obj_id & ~SPIFFS_OBJ_ID_IX_FLAG) != obj_id) continue;
+#else
     if (cur_fd->file_nbr == 0 || (cur_fd->obj_id & ~SPIFFS_OBJ_ID_IX_FLAG) != obj_id) continue;
+#endif
     if (spix == 0) {
       if (ev == SPIFFS_EV_IX_NEW || ev == SPIFFS_EV_IX_UPD) {
         SPIFFS_DBG("       callback: setting fd %i:%04x objix_hdr_pix to %04x, size:%i\n", cur_fd->file_nbr, cur_fd->obj_id, new_pix, new_size);
@@ -1974,7 +1978,84 @@ s32_t spiffs_obj_lu_find_free_obj_id(spiffs *fs, spiffs_obj_id *obj_id, const u8
 }
 #endif // !SPIFFS_READ_ONLY
 
-s32_t spiffs_fd_find_new(spiffs *fs, spiffs_fd **fd) {
+#if SPIFFS_TEMPORAL_FD_CACHE
+// djb2 hash
+static u32_t spiffs_hash(spiffs *fs, const u8_t *name) {
+  (void)fs;
+  u32_t hash = 5381;
+  u8_t c;
+  int i = 0;
+  while ((c = name[i++]) && i < SPIFFS_OBJ_NAME_LEN) {
+    hash = (hash * 33) ^ c;
+  }
+  return hash;
+}
+#endif
+
+s32_t spiffs_fd_find_new(spiffs *fs, spiffs_fd **fd, const char *name) {
+#if SPIFFS_TEMPORAL_FD_CACHE
+  u32_t i;
+  u16_t min_score = 0xffff;
+  u32_t cand_ix = (u32_t)-1;
+  u32_t name_hash = name ? spiffs_hash(fs, (const u8_t *)name) : 0;
+  spiffs_fd *fds = (spiffs_fd *)fs->fd_space;
+
+  if (name) {
+    // first, decrease score of all closed descriptors
+    for (i = 0; i < fs->fd_count; i++) {
+      spiffs_fd *cur_fd = &fds[i];
+      if (cur_fd->file_nbr == 0) {
+        if (cur_fd->score > 1) { // score == 0 indicates never used fd
+          cur_fd->score--;
+        }
+      }
+    }
+  }
+
+  // find the free fd with least score
+  for (i = 0; i < fs->fd_count; i++) {
+    spiffs_fd *cur_fd = &fds[i];
+    if (cur_fd->file_nbr == 0) {
+      if (name && cur_fd->name_hash == name_hash) {
+        cand_ix = i;
+        break;
+      }
+      if (cur_fd->score < min_score) {
+        min_score = cur_fd->score;
+        cand_ix = i;
+      }
+    }
+  }
+
+  if (cand_ix != (u32_t)-1) {
+    spiffs_fd *cur_fd = &fds[cand_ix];
+    if (name) {
+      if (cur_fd->name_hash == name_hash && cur_fd->score > 0) {
+        // opened an fd with same name hash, assume same file
+        // set search point to saved obj index page and hope we have a correct match directly
+        // when start searching - if not, we will just keep searching until it is found
+        fs->cursor_block_ix = SPIFFS_BLOCK_FOR_PAGE(fs, cur_fd->objix_hdr_pix);
+        fs->cursor_obj_lu_entry = SPIFFS_OBJ_LOOKUP_ENTRY_FOR_PAGE(fs, cur_fd->objix_hdr_pix);
+        // update score
+        if (cur_fd->score < 0xffff-SPIFFS_TEMPORAL_CACHE_HIT_SCORE) {
+          cur_fd->score += SPIFFS_TEMPORAL_CACHE_HIT_SCORE;
+        } else {
+          cur_fd->score = 0xffff;
+        }
+      } else {
+        // no hash hit, restore this fd to initial state
+        cur_fd->score = SPIFFS_TEMPORAL_CACHE_HIT_SCORE;
+        cur_fd->name_hash = name_hash;
+      }
+    }
+    cur_fd->file_nbr = cand_ix+1;
+    *fd = cur_fd;
+    return SPIFFS_OK;
+  } else {
+    return SPIFFS_ERR_OUT_OF_FILE_DESCS;
+  }
+#else
+  (void)name;
   u32_t i;
   spiffs_fd *fds = (spiffs_fd *)fs->fd_space;
   for (i = 0; i < fs->fd_count; i++) {
@@ -1986,6 +2067,7 @@ s32_t spiffs_fd_find_new(spiffs *fs, spiffs_fd **fd) {
     }
   }
   return SPIFFS_ERR_OUT_OF_FILE_DESCS;
+#endif
 }
 
 s32_t spiffs_fd_return(spiffs *fs, spiffs_file f) {
@@ -2012,3 +2094,21 @@ s32_t spiffs_fd_get(spiffs *fs, spiffs_file f, spiffs_fd **fd) {
   }
   return SPIFFS_OK;
 }
+
+#if SPIFFS_TEMPORAL_FD_CACHE
+void spiffs_fd_temporal_cache_rehash(
+    spiffs *fs,
+    const char *old_path,
+    const char *new_path) {
+  u32_t i;
+  u32_t old_hash = spiffs_hash(fs, (const u8_t *)old_path);
+  u32_t new_hash = spiffs_hash(fs, (const u8_t *)new_path);
+  spiffs_fd *fds = (spiffs_fd *)fs->fd_space;
+  for (i = 0; i < fs->fd_count; i++) {
+    spiffs_fd *cur_fd = &fds[i];
+    if (cur_fd->score > 0 && cur_fd->name_hash == old_hash) {
+      cur_fd->name_hash = new_hash;
+    }
+  }
+}
+#endif

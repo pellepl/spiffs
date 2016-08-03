@@ -425,6 +425,12 @@ typedef struct {
 #if SPIFFS_CACHE_WR
   spiffs_cache_page *cache_page;
 #endif
+#if SPIFFS_TEMPORAL_FD_CACHE
+  // djb2 hash of filename
+  u32_t name_hash;
+  // hit score (score == 0 indicates never used fd)
+  u16_t score;
+#endif
 } spiffs_fd;
 
 
@@ -704,7 +710,8 @@ s32_t spiffs_gc_quick(
 
 s32_t spiffs_fd_find_new(
     spiffs *fs,
-    spiffs_fd **fd);
+    spiffs_fd **fd,
+    const char *name);
 
 s32_t spiffs_fd_return(
     spiffs *fs,
@@ -714,6 +721,13 @@ s32_t spiffs_fd_get(
     spiffs *fs,
     spiffs_file f,
     spiffs_fd **fd);
+
+#if SPIFFS_TEMPORAL_FD_CACHE
+void spiffs_fd_temporal_cache_rehash(
+    spiffs *fs,
+    const char *old_path,
+    const char *new_path);
+#endif
 
 #if SPIFFS_CACHE
 void spiffs_cache_init(

@@ -215,7 +215,7 @@ spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs
   flags &= ~(SPIFFS_WRONLY | SPIFFS_CREAT | SPIFFS_TRUNC);
 #endif // SPIFFS_READ_ONLY
 
-  s32_t res = spiffs_fd_find_new(fs, &fd);
+  s32_t res = spiffs_fd_find_new(fs, &fd, path);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
   res = spiffs_object_find_object_index_header_by_name(fs, (const u8_t*)path, &pix);
@@ -285,7 +285,7 @@ spiffs_file SPIFFS_open_by_dirent(spiffs *fs, struct spiffs_dirent *e, spiffs_fl
 
   spiffs_fd *fd;
 
-  s32_t res = spiffs_fd_find_new(fs, &fd);
+  s32_t res = spiffs_fd_find_new(fs, &fd, 0);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
   res = spiffs_object_open_by_page(fs, e->pix, fd, flags, mode);
@@ -317,7 +317,7 @@ spiffs_file SPIFFS_open_by_page(spiffs *fs, spiffs_page_ix page_ix, spiffs_flags
 
   spiffs_fd *fd;
 
-  s32_t res = spiffs_fd_find_new(fs, &fd);
+  s32_t res = spiffs_fd_find_new(fs, &fd, 0);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
   if (SPIFFS_IS_LOOKUP_PAGE(fs, page_ix)) {
@@ -624,7 +624,7 @@ s32_t SPIFFS_remove(spiffs *fs, const char *path) {
   spiffs_page_ix pix;
   s32_t res;
 
-  res = spiffs_fd_find_new(fs, &fd);
+  res = spiffs_fd_find_new(fs, &fd, 0);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
   res = spiffs_object_find_object_index_header_by_name(fs, (const u8_t*)path, &pix);
@@ -850,7 +850,7 @@ s32_t SPIFFS_rename(spiffs *fs, const char *old_path, const char *new_path) {
   }
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
-  res = spiffs_fd_find_new(fs, &fd);
+  res = spiffs_fd_find_new(fs, &fd, 0);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
   res = spiffs_object_open_by_page(fs, pix_old, fd, 0, 0);
@@ -861,6 +861,11 @@ s32_t SPIFFS_rename(spiffs *fs, const char *old_path, const char *new_path) {
 
   res = spiffs_object_update_index_hdr(fs, fd, fd->obj_id, fd->objix_hdr_pix, 0, (const u8_t*)new_path,
       0, &pix_dummy);
+#if SPIFFS_TEMPORAL_FD_CACHE
+  if (res == SPIFFS_OK) {
+    spiffs_fd_temporal_cache_rehash(fs, old_path, new_path);
+  }
+#endif
 
   spiffs_fd_return(fs, fd->file_nbr);
 
