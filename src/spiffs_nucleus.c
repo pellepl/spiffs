@@ -1754,8 +1754,12 @@ s32_t spiffs_object_read(
         objix_pix = fd->objix_hdr_pix;
       } else {
         SPIFFS_DBG("read: find objix %04x:%04x\n", fd->obj_id, cur_objix_spix);
-        res = spiffs_obj_lu_find_id_and_span(fs, fd->obj_id | SPIFFS_OBJ_ID_IX_FLAG, cur_objix_spix, 0, &objix_pix);
-        SPIFFS_CHECK_RES(res);
+        if (fd->cursor_objix_spix == cur_objix_spix) {
+          objix_pix = fd->cursor_objix_pix;
+        } else {
+          res = spiffs_obj_lu_find_id_and_span(fs, fd->obj_id | SPIFFS_OBJ_ID_IX_FLAG, cur_objix_spix, 0, &objix_pix);
+          SPIFFS_CHECK_RES(res);
+        }
       }
       SPIFFS_DBG("read: load objix page %04x:%04x for data spix:%04x\n", objix_pix, cur_objix_spix, data_spix);
       res = _spiffs_rd(fs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ,
