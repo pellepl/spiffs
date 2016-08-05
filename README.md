@@ -29,15 +29,16 @@ What spiffs does:
  - Specifically designed for low ram usage
  - Uses statically sized ram buffers, independent of number of files
  - Posix-like api: open, close, read, write, seek, stat, etc
- - It can be run on any NOR flash, not only SPI flash - theoretically also on embedded flash of an microprocessor
+ - It can run on any NOR flash, not only SPI flash - theoretically also on embedded flash of a microprocessor
  - Multiple spiffs configurations can be run on same target - and even on same SPI flash device
  - Implements static wear leveling 
  - Built in file system consistency checks
+ - Highly configurable
  
 What spiffs does not:
  - Presently, spiffs does not support directories. It produces a flat structure. Creating a file with path *tmp/myfile.txt* will create a file called *tmp/myfile.txt* instead of a *myfile.txt* under directory *tmp*. 
  - It is not a realtime stack. One write operation might take much longer than another.
- - Poor scalability. Spiffs is intended for small memory devices - the normal sizes for SPI flashes. Going beyond ~128MB is probably a bad idea. This is a side effect of the design goal to use as little ram as possible.
+ - Poor scalability. Spiffs is intended for small memory devices - the normal sizes for SPI flashes. Going beyond ~128Mbyte is probably a bad idea. This is a side effect of the design goal to use as little ram as possible.
  - Presently, it does not detect or handle bad blocks.
  - One configuration, one binary. There's no generic spiffs binary that handles all types of configurations.
 
