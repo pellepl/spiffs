@@ -491,7 +491,8 @@ s32_t spiffs_gc_clean(spiffs *fs, spiffs_block_ix bix) {
               res = spiffs_page_move(fs, 0, 0, obj_id, &p_hdr, cur_pix, &new_pix);
               SPIFFS_GC_DBG("gc_clean: MOVE_OBJIX move objix %04x:%04x page %04x to %04x\n", obj_id, p_hdr.span_ix, cur_pix, new_pix);
               SPIFFS_CHECK_RES(res);
-              spiffs_cb_object_event(fs, 0, SPIFFS_EV_IX_UPD, obj_id, p_hdr.span_ix, new_pix, 0);
+              spiffs_cb_object_event(fs, (spiffs_page_object_ix *)&p_hdr,
+                  SPIFFS_EV_IX_MOV, obj_id, p_hdr.span_ix, new_pix, 0);
               // move wipes obj_lu, reload it
               res = _spiffs_rd(fs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_READ,
                   0, bix * SPIFFS_CFG_LOG_BLOCK_SZ(fs) + SPIFFS_PAGE_TO_PADDR(fs, obj_lookup_page),
@@ -504,7 +505,8 @@ s32_t spiffs_gc_clean(spiffs *fs, spiffs_block_ix bix) {
               SPIFFS_GC_DBG("gc_clean: MOVE_OBJIX wipe objix %04x:%04x page %04x\n", obj_id, p_hdr.span_ix, cur_pix);
               res = spiffs_page_delete(fs, cur_pix);
               if (res == SPIFFS_OK) {
-                spiffs_cb_object_event(fs, 0, SPIFFS_EV_IX_DEL, obj_id, p_hdr.span_ix, cur_pix, 0);
+                spiffs_cb_object_event(fs, (spiffs_page_object_ix *)0,
+                    SPIFFS_EV_IX_DEL, obj_id, p_hdr.span_ix, cur_pix, 0);
               }
             }
             SPIFFS_CHECK_RES(res);
@@ -581,7 +583,8 @@ s32_t spiffs_gc_clean(spiffs *fs, spiffs_block_ix bix) {
         res = spiffs_page_move(fs, 0, fs->work, gc.cur_obj_id | SPIFFS_OBJ_ID_IX_FLAG, 0, gc.cur_objix_pix, &new_objix_pix);
         SPIFFS_GC_DBG("gc_clean: MOVE_DATA store modified objix page, %04x:%04x\n", new_objix_pix, objix->p_hdr.span_ix);
         SPIFFS_CHECK_RES(res);
-        spiffs_cb_object_event(fs, 0, SPIFFS_EV_IX_UPD, gc.cur_obj_id, objix->p_hdr.span_ix, new_objix_pix, 0);
+        spiffs_cb_object_event(fs, (spiffs_page_object_ix *)fs->work,
+            SPIFFS_EV_IX_UPD, gc.cur_obj_id, objix->p_hdr.span_ix, new_objix_pix, 0);
       }
     }
     break;

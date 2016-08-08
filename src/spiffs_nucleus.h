@@ -116,13 +116,23 @@
 #define SPIFFS_ERR_CHECK_FLAGS_BAD      (SPIFFS_ERR_INTERNAL - 3)
 #define _SPIFFS_ERR_CHECK_LAST          (SPIFFS_ERR_INTERNAL - 4)
 
+// visitor result, continue searching
 #define SPIFFS_VIS_COUNTINUE            (SPIFFS_ERR_INTERNAL - 20)
+// visitor result, continue searching after reloading lu buffer
 #define SPIFFS_VIS_COUNTINUE_RELOAD     (SPIFFS_ERR_INTERNAL - 21)
+// visitor result, stop searching
 #define SPIFFS_VIS_END                  (SPIFFS_ERR_INTERNAL - 22)
 
-#define SPIFFS_EV_IX_UPD                0
-#define SPIFFS_EV_IX_NEW                1
-#define SPIFFS_EV_IX_DEL                2
+// updating an object index contents
+#define SPIFFS_EV_IX_UPD                (0)
+// creating a new object index
+#define SPIFFS_EV_IX_NEW                (1)
+// deleting an object index
+#define SPIFFS_EV_IX_DEL                (2)
+// moving an object index without updating contents
+#define SPIFFS_EV_IX_MOV                (3)
+// updating an object index header data only, not the table itself
+#define SPIFFS_EV_IX_UPD_HDR            (4)
 
 #define SPIFFS_OBJ_ID_IX_FLAG           ((spiffs_obj_id)(1<<(8*sizeof(spiffs_obj_id)-1)))
 
@@ -228,7 +238,9 @@
 // object index span index number for given data span index or entry
 #define SPIFFS_OBJ_IX_ENTRY_SPAN_IX(fs, spix) \
   ((spix) < SPIFFS_OBJ_HDR_IX_LEN(fs) ? 0 : (1+((spix)-SPIFFS_OBJ_HDR_IX_LEN(fs))/SPIFFS_OBJ_IX_LEN(fs)))
-
+// get data span index for object index span index
+#define SPIFFS_DATA_SPAN_IX_FOR_OBJ_IX_SPAN_IX(fs, spix) \
+  ( (spix) == 0 ? 0 : (SPIFFS_OBJ_HDR_IX_LEN(fs) + (((spix)-1) * SPIFFS_OBJ_IX_LEN(fs))) )
 
 #define SPIFFS_OP_T_OBJ_LU    (0<<0)
 #define SPIFFS_OP_T_OBJ_LU2   (1<<0)
@@ -312,7 +324,7 @@
     if ((ph).span_ix != (spix)) return SPIFFS_ERR_DATA_SPAN_MISMATCH;
 
 
-// check id
+// check id, only visit matching objec ids
 #define SPIFFS_VIS_CHECK_ID     (1<<0)
 // report argument object id to visitor - else object lookup id is reported
 #define SPIFFS_VIS_CHECK_PH     (1<<1)
@@ -430,6 +442,10 @@ typedef struct {
   u32_t name_hash;
   // hit score (score == 0 indicates never used fd)
   u16_t score;
+#endif
+#if SPIFFS_IX_MAP
+  // spiffs index map, if 0 it means unmapped
+  spiffs_ix_map *ix_map;
 #endif
 } spiffs_fd;
 
@@ -632,9 +648,19 @@ s32_t spiffs_object_update_index_hdr(
     u32_t size,
     spiffs_page_ix *new_pix);
 
-void spiffs_cb_object_event(
+#if SPIFFS_IX_MAP
+
+s32_t spiffs_populate_ix_map(
     spiffs *fs,
     spiffs_fd *fd,
+    u32_t vec_entry_start,
+    u32_t vec_entry_end);
+
+#endif
+
+void spiffs_cb_object_event(
+    spiffs *fs,
+    spiffs_page_object_ix *objix,
     int ev,
     spiffs_obj_id obj_id,
     spiffs_span_ix spix,

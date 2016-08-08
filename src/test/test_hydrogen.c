@@ -1894,6 +1894,353 @@ TEST(long_run)
 }
 TEST_END
 
+#if SPIFFS_IX_MAP
+TEST(ix_map_basic)
+{
+  // create a scattered file
+  s32_t res;
+  spiffs_file fd1, fd2;
+  fd1 = SPIFFS_open(FS, "1", SPIFFS_O_CREAT | SPIFFS_O_WRONLY, 0);
+  TEST_CHECK_GT(fd1, 0);
+  fd2 = SPIFFS_open(FS, "2", SPIFFS_O_CREAT | SPIFFS_O_WRONLY, 0);
+  TEST_CHECK_GT(fd2, 0);
+
+  u8_t buf[SPIFFS_DATA_PAGE_SIZE(FS)];
+  int i;
+  for (i = 0; i < SPIFFS_CFG_PHYS_SZ(FS) / 4 / SPIFFS_DATA_PAGE_SIZE(FS); i++) {
+    memrand(buf, sizeof(buf));
+    res = SPIFFS_write(FS, fd1, buf, sizeof(buf));
+    TEST_CHECK_GE(res, SPIFFS_OK);
+    memrand(buf, sizeof(buf));
+    res = SPIFFS_write(FS, fd2, buf, sizeof(buf));
+    TEST_CHECK_GE(res, SPIFFS_OK);
+  }
+  res = SPIFFS_close(FS, fd1);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+  res = SPIFFS_close(FS, fd2);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+
+  res = SPIFFS_remove(FS, "2");
+  TEST_CHECK_GE(res, SPIFFS_OK);
+
+  spiffs_stat s;
+  res = SPIFFS_stat(FS, "1", &s);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+  u32_t size = s.size;
+
+  printf("file created, size: %i..\n", size);
+
+  fd1 = SPIFFS_open(FS, "1", SPIFFS_O_RDONLY, 0);
+  TEST_CHECK_GT(fd1, 0);
+  printf(".. corresponding pix entries: %i\n", SPIFFS_bytes_to_ix_map_entries(FS, size));
+
+  u8_t rd_buf[SPIFFS_CFG_LOG_PAGE_SZ(FS)];
+
+  fd1 = SPIFFS_open(FS, "1", SPIFFS_O_RDONLY, 0);
+  TEST_CHECK_GT(fd1, 0);
+
+  clear_flash_ops_log();
+
+  printf("reading file without memory mapped index\n");
+  while ((res = SPIFFS_read(FS, fd1, rd_buf, sizeof(rd_buf))) == sizeof(rd_buf));
+  TEST_CHECK_GT(res, SPIFFS_OK);
+
+  res = SPIFFS_OK;
+
+  u32_t reads_without_ixmap = get_flash_ops_log_read_bytes();
+  dump_flash_access_stats();
+
+  u32_t crc_non_map_ix = get_spiffs_file_crc_by_fd(fd1);
+
+  TEST_CHECK_EQ(SPIFFS_close(FS, fd1), SPIFFS_OK);
+
+
+  printf("reading file with memory mapped index\n");
+  spiffs_ix_map map;
+  spiffs_page_ix ixbuf[SPIFFS_bytes_to_ix_map_entries(FS, size)];
+
+  fd1 = SPIFFS_open(FS, "1", SPIFFS_O_RDONLY, 0);
+  TEST_CHECK_GT(fd1, 0);
+
+  // map index to memory
+  res = SPIFFS_ix_map(FS, fd1, &map, 0, size, ixbuf);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+
+  clear_flash_ops_log();
+
+  while ((res = SPIFFS_read(FS, fd1, rd_buf, sizeof(rd_buf))) == sizeof(rd_buf));
+  TEST_CHECK_GT(res, SPIFFS_OK);
+  u32_t reads_with_ixmap_pass1 = get_flash_ops_log_read_bytes();
+
+  dump_flash_access_stats();
+
+  u32_t crc_map_ix_pass1 = get_spiffs_file_crc_by_fd(fd1);
+
+  TEST_CHECK_LT(reads_with_ixmap_pass1, reads_without_ixmap);
+
+  TEST_CHECK_EQ(crc_non_map_ix, crc_map_ix_pass1);
+
+  spiffs_page_ix ref_ixbuf[SPIFFS_bytes_to_ix_map_entries(FS, size)];
+  memcpy(ref_ixbuf, ixbuf, sizeof(ixbuf));
+
+  // force a gc by creating small files until full, reordering the index
+  printf("forcing gc, error ERR_FULL %i expected\n", SPIFFS_ERR_FULL);
+  res = SPIFFS_OK;
+  u32_t ix = 10;
+  while (res == SPIFFS_OK) {
+    char name[32];
+    sprintf(name, "%i", ix);
+    res = test_create_and_write_file(name, SPIFFS_CFG_LOG_BLOCK_SZ(FS), SPIFFS_CFG_LOG_BLOCK_SZ(FS));
+    ix++;
+  }
+
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_FULL);
+
+  // make sure the map array was altered
+  TEST_CHECK_NEQ(0, memcmp(ref_ixbuf, ixbuf, sizeof(ixbuf)));
+
+  TEST_CHECK_GE(SPIFFS_lseek(FS, fd1, 0, SPIFFS_SEEK_SET), SPIFFS_OK);
+
+  clear_flash_ops_log();
+  while ((res = SPIFFS_read(FS, fd1, rd_buf, sizeof(rd_buf))) == sizeof(rd_buf));
+  TEST_CHECK_GT(res, SPIFFS_OK);
+  u32_t reads_with_ixmap_pass2 = get_flash_ops_log_read_bytes();
+
+  TEST_CHECK_EQ(reads_with_ixmap_pass1, reads_with_ixmap_pass2);
+
+  u32_t crc_map_ix_pass2 = get_spiffs_file_crc_by_fd(fd1);
+
+  TEST_CHECK_EQ(crc_map_ix_pass1, crc_map_ix_pass2);
+
+  TEST_CHECK_EQ(SPIFFS_close(FS, fd1), SPIFFS_OK);
+
+  return TEST_RES_OK;
+}
+TEST_END
+
+TEST(ix_map_remap)
+{
+  // create a file, 10 data pages long
+  s32_t res;
+  spiffs_file fd1, fd2;
+  fd1 = SPIFFS_open(FS, "1", SPIFFS_O_CREAT | SPIFFS_O_WRONLY, 0);
+  TEST_CHECK_GT(fd1, 0);
+
+  const int size_pages = 10;
+
+  u8_t buf[SPIFFS_DATA_PAGE_SIZE(FS)];
+  int i;
+  for (i = 0; i < size_pages; i++) {
+    memrand(buf, sizeof(buf));
+    res = SPIFFS_write(FS, fd1, buf, sizeof(buf));
+    TEST_CHECK_GE(res, SPIFFS_OK);
+  }
+  res = SPIFFS_close(FS, fd1);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+
+  spiffs_stat s;
+  res = SPIFFS_stat(FS, "1", &s);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+  u32_t size = s.size;
+
+  printf("file created, size: %i..\n", size);
+
+  fd1 = SPIFFS_open(FS, "1", SPIFFS_O_RDONLY, 0);
+  TEST_CHECK_GT(fd1, 0);
+  printf(".. corresponding pix entries: %i\n", SPIFFS_bytes_to_ix_map_entries(FS, size));
+  TEST_CHECK_EQ(SPIFFS_bytes_to_ix_map_entries(FS, size), size_pages);
+
+  // map index to memory
+  // move around, check validity
+  const int entries = SPIFFS_bytes_to_ix_map_entries(FS, size/2);
+  spiffs_ix_map map;
+  spiffs_page_ix ixbuf[entries];
+  spiffs_page_ix ixbuf_ref[entries];
+  res = SPIFFS_ix_map(FS, fd1, &map, 0, size/2, ixbuf);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+
+  memcpy(ixbuf_ref, ixbuf, sizeof(ixbuf));
+
+  TEST_CHECK_EQ(SPIFFS_ix_remap(FS, fd1, 0), SPIFFS_OK);
+  TEST_CHECK_EQ(0, memcmp(ixbuf_ref, ixbuf, sizeof(ixbuf)));
+
+  TEST_CHECK_EQ(SPIFFS_ix_remap(FS, fd1, SPIFFS_DATA_PAGE_SIZE(FS)), SPIFFS_OK);
+  TEST_CHECK_EQ(0, memcmp(&ixbuf_ref[1], ixbuf, sizeof(spiffs_page_ix) * (entries-1)));
+
+
+  TEST_CHECK_EQ(SPIFFS_ix_remap(FS, fd1, 0), SPIFFS_OK);
+  TEST_CHECK_EQ(0, memcmp(ixbuf_ref, ixbuf, sizeof(ixbuf)));
+
+  TEST_CHECK_EQ(SPIFFS_ix_remap(FS, fd1, size/2), SPIFFS_OK);
+  for (i = 0; i < entries; i++) {
+    int j;
+    for (j = 0; j < entries; j++) {
+      TEST_CHECK_NEQ(ixbuf_ref[i], ixbuf[j]);
+    }
+  }
+
+  return TEST_RES_OK;
+}
+TEST_END
+
+TEST(ix_map_partial)
+{
+  // create a file, 10 data pages long
+  s32_t res;
+  spiffs_file fd, fd2;
+  fd = SPIFFS_open(FS, "1", SPIFFS_O_CREAT | SPIFFS_O_WRONLY, 0);
+  TEST_CHECK_GT(fd, 0);
+
+  const int size_pages = 10;
+
+  u8_t buf[SPIFFS_DATA_PAGE_SIZE(FS)];
+  int i;
+  for (i = 0; i < size_pages; i++) {
+    memrand(buf, sizeof(buf));
+    res = SPIFFS_write(FS, fd, buf, sizeof(buf));
+    TEST_CHECK_GE(res, SPIFFS_OK);
+  }
+  res = SPIFFS_close(FS, fd);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+
+  spiffs_stat s;
+  res = SPIFFS_stat(FS, "1", &s);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+  u32_t size = s.size;
+
+  printf("file created, size: %i..\n", size);
+
+  const u32_t crc_unmapped = get_spiffs_file_crc("1");
+
+  fd = SPIFFS_open(FS, "1", SPIFFS_O_RDONLY, 0);
+  TEST_CHECK_GT(fd, 0);
+
+  // map index to memory
+  const int entries = SPIFFS_bytes_to_ix_map_entries(FS, size/2);
+  spiffs_ix_map map;
+  spiffs_page_ix ixbuf[entries];
+  spiffs_page_ix ixbuf_ref[entries];
+
+  printf("map 0-50%%\n");
+  res = SPIFFS_ix_map(FS, fd, &map, 0, size/2, ixbuf);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+
+  const u32_t crc_mapped_beginning = get_spiffs_file_crc_by_fd(fd);
+  TEST_CHECK_EQ(crc_mapped_beginning, crc_unmapped);
+
+  printf("map 25-75%%\n");
+  res = SPIFFS_ix_remap(FS, fd, size/4);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+
+  const u32_t crc_mapped_middle = get_spiffs_file_crc_by_fd(fd);
+  TEST_CHECK_EQ(crc_mapped_middle, crc_unmapped);
+
+  printf("map 50-100%%\n");
+  res = SPIFFS_ix_remap(FS, fd, size/2);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+
+  const u32_t crc_mapped_end = get_spiffs_file_crc_by_fd(fd);
+  TEST_CHECK_EQ(crc_mapped_end, crc_unmapped);
+
+  return TEST_RES_OK;
+}
+TEST_END
+
+TEST(ix_map_beyond)
+{
+  // create a file, 10 data pages long
+  s32_t res;
+  spiffs_file fd;
+  fd = SPIFFS_open(FS, "1", SPIFFS_O_CREAT | SPIFFS_O_WRONLY, 0);
+  TEST_CHECK_GT(fd, 0);
+
+  const int size_pages = 10;
+
+  u8_t buf[SPIFFS_DATA_PAGE_SIZE(FS)];
+  int i;
+  for (i = 0; i < size_pages; i++) {
+    memrand(buf, sizeof(buf));
+    res = SPIFFS_write(FS, fd, buf, sizeof(buf));
+    TEST_CHECK_GE(res, SPIFFS_OK);
+  }
+  res = SPIFFS_close(FS, fd);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+
+  spiffs_stat s;
+  res = SPIFFS_stat(FS, "1", &s);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+  u32_t size = s.size;
+
+  printf("file created, size: %i..\n", size);
+
+  // map index to memory
+  fd = SPIFFS_open(FS, "1", SPIFFS_O_RDWR | SPIFFS_O_APPEND, 0);
+  TEST_CHECK_GT(fd, 0);
+
+  const int entries = SPIFFS_bytes_to_ix_map_entries(FS, size);
+  spiffs_ix_map map;
+  spiffs_page_ix ixbuf[entries];
+
+  printf("map 100-200%%\n");
+  res = SPIFFS_ix_map(FS, fd, &map, size, size*2, ixbuf);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+
+  // make sure map is empty
+  for (i = 0; i < entries; i++) {
+    TEST_CHECK_EQ(ixbuf[i], 0);
+  }
+
+  printf("elongate by 100%%\n");
+  for (i = 0; i < size_pages; i++) {
+    memrand(buf, sizeof(buf));
+    res = SPIFFS_write(FS, fd, buf, sizeof(buf));
+    TEST_CHECK_GE(res, SPIFFS_OK);
+  }
+  TEST_CHECK_GE(SPIFFS_fflush(FS, fd), SPIFFS_OK);
+
+  res = SPIFFS_stat(FS, "1", &s);
+  TEST_CHECK_GE(res, SPIFFS_OK);
+  size = s.size;
+  printf("file elongated, size: %i..\n", size);
+
+  // make sure map is non-empty
+  for (i = 0; i < entries; i++) {
+    TEST_CHECK_NEQ(ixbuf[i], 0);
+  }
+
+  printf("remap till end\n");
+  TEST_CHECK_EQ(SPIFFS_ix_remap(FS, fd, size), SPIFFS_OK);
+
+  // make sure map is empty but for one element
+  int nonzero = 0;
+  for (i = 0; i < entries; i++) {
+    if (ixbuf[i]) nonzero++;
+  }
+  TEST_CHECK_LE(1, nonzero);
+
+  printf("elongate again, by other fd\n");
+
+  spiffs_file fd2 = SPIFFS_open(FS, "1", SPIFFS_O_WRONLY | SPIFFS_O_APPEND, 0);
+  TEST_CHECK_GT(fd2, 0);
+
+  for (i = 0; i < size_pages; i++) {
+    memrand(buf, sizeof(buf));
+    res = SPIFFS_write(FS, fd2, buf, sizeof(buf));
+    TEST_CHECK_GE(res, SPIFFS_OK);
+  }
+  TEST_CHECK_GE(SPIFFS_close(FS, fd2), SPIFFS_OK);
+
+  // make sure map is non-empty
+  for (i = 0; i < entries; i++) {
+    TEST_CHECK_NEQ(ixbuf[i], 0);
+  }
+
+  return TEST_RES_OK;
+}
+TEST_END
+
+#endif // SPIFFS_IX_MAP
+
 SUITE_TESTS(hydrogen_tests)
   ADD_TEST(info)
 #if SPIFFS_USE_MAGIC
@@ -1956,6 +2303,12 @@ SUITE_TESTS(hydrogen_tests)
   ADD_TEST(long_run_config_many_medium)
   ADD_TEST(long_run_config_many_small)
   ADD_TEST(long_run)
+#if SPIFFS_IX_MAP
+  ADD_TEST(ix_map_basic)
+  ADD_TEST(ix_map_remap)
+  ADD_TEST(ix_map_partial)
+  ADD_TEST(ix_map_beyond)
+#endif
 
 SUITE_END(hydrogen_tests)
 

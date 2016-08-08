@@ -55,7 +55,6 @@ typedef struct  {
   char name[32];
 } tfile;
 
-
 void fs_reset();
 void fs_reset_specific(u32_t addr_offset, u32_t phys_addr, u32_t phys_size,
     u32_t phys_sector_size,
@@ -94,6 +93,8 @@ void fs_set_validate_flashing(int i);
 void memrand(u8_t *b, int len);
 int test_create_file(char *name);
 int test_create_and_write_file(char *name, int size, int chunk_size);
+u32_t get_spiffs_file_crc_by_fd(spiffs_file fd);
+u32_t get_spiffs_file_crc(char *name);
 void _setup();
 void _setup_test_only();
 void _teardown();

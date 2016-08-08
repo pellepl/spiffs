@@ -33,7 +33,7 @@ NO_TEST ?= 0
 CFLAGS = $(FLAGS)
 ifeq (1, $(strip $(NO_TEST)))
 CFILES_TEST = main.c
-CFLAGS += -DNO_TEST
+CFLAGS += -DNO_TEST -Werror
 else
 CFILES_TEST = main.c \
 	test_spiffs.c \
@@ -123,7 +123,6 @@ clean:
 	@rm -f ${builddir}/*.d
 	@rm -f ${builddir}/*.elf
 	
-BUILD_ALL_FLAGS = NO_TEST=1 -Werror
 ONOFF = 1 0
 OFFON = 0 1
 build-all:
@@ -133,27 +132,31 @@ build-all:
 				for cache in $(OFFON); do \
 					for magic in $(OFFON); do \
 						for temporal_cache in $(OFFON); do \
-							echo; \
-							echo ============================================================; \
-							echo SPIFFS_READ_ONLY=$$rdonly; \
-							echo SPIFFS_SINGLETON=$$singleton; \
-							echo SPIFFS_HAL_CALLBACK_EXTRA=$$hal_cb_xtra; \
-							echo SPIFFS_CACHE, SPIFFS_CACHE_WR=$$cache; \
-							echo SPIFFS_USE_MAGIC, SPIFFS_USE_MAGIC_LENGTH=$$magic; \
-							echo SPIFFS_TEMPORAL_FD_CACHE=$$temporal_cache; \
-							$(MAKE) clean && $(MAKE) FLAGS="\
-								-DSPIFFS_HAL_CALLBACK_EXTRA=$$hal_cb_xtra \
-								-DSPIFFS_SINGLETON=$$singleton \
-								-DSPIFFS_CACHE=$$cache \
-								-DSPIFFS_CACHE_WR=$$cache \
-								-DSPIFFS_READ_ONLY=$$rdonly \
-								-DSPIFFS_USE_MAGIC=$$magic \
-								-DSPIFFS_USE_MAGIC_LENGTH=$$magic \
-								-DSPIFFS_TEMPORAL_FD_CACHE=$$temporal_cache \
-								" $(BUILD_ALL_FLAGS); \
+  						for ix_map in $(OFFON); do \
+  							echo; \
+  							echo ============================================================; \
+  							echo SPIFFS_READ_ONLY=$$rdonly; \
+  							echo SPIFFS_SINGLETON=$$singleton; \
+  							echo SPIFFS_HAL_CALLBACK_EXTRA=$$hal_cb_xtra; \
+  							echo SPIFFS_CACHE, SPIFFS_CACHE_WR=$$cache; \
+  							echo SPIFFS_USE_MAGIC, SPIFFS_USE_MAGIC_LENGTH=$$magic; \
+  							echo SPIFFS_TEMPORAL_FD_CACHE=$$temporal_cache; \
+  							echo SPIFFS_IX_MAP=$$ix_map; \
+  							$(MAKE) clean && $(MAKE) FLAGS="\
+  								-DSPIFFS_HAL_CALLBACK_EXTRA=$$hal_cb_xtra \
+  								-DSPIFFS_SINGLETON=$$singleton \
+  								-DSPIFFS_CACHE=$$cache \
+  								-DSPIFFS_CACHE_WR=$$cache \
+  								-DSPIFFS_READ_ONLY=$$rdonly \
+  								-DSPIFFS_USE_MAGIC=$$magic \
+  								-DSPIFFS_USE_MAGIC_LENGTH=$$magic \
+  								-DSPIFFS_TEMPORAL_FD_CACHE=$$temporal_cache \
+  								-DSPIFFS_IX_MAP=$$ix_map \
+  								" NO_TEST=1; \
+  						done || exit 1; \
 						done \
 					done \
 				done \
 			done \
 		done \
-	done
+	done 
