@@ -2216,7 +2216,7 @@ TEST(ix_map_beyond)
   for (i = 0; i < entries; i++) {
     if (ixbuf[i]) nonzero++;
   }
-  TEST_CHECK_LE(1, nonzero);
+  TEST_CHECK_LE(nonzero, 1);
 
   printf("elongate again, by other fd\n");
 
