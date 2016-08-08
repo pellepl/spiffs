@@ -1672,17 +1672,17 @@ s32_t spiffs_object_find_object_index_header_by_name(
 s32_t spiffs_object_truncate(
     spiffs_fd *fd,
     u32_t new_size,
-    u8_t remove) {
+    u8_t remove_full) {
   s32_t res = SPIFFS_OK;
   spiffs *fs = fd->fs;
 
-  if ((fd->size == SPIFFS_UNDEFINED_LEN || fd->size == 0) && !remove) {
+  if ((fd->size == SPIFFS_UNDEFINED_LEN || fd->size == 0) && !remove_full) {
     // no op
     return res;
   }
 
   // need 2 pages if not removing: object index page + possibly chopped data page
-  if (remove == 0) {
+  if (remove_full == 0) {
     res = spiffs_gc_check(fs, SPIFFS_DATA_PAGE_SIZE(fs) * 2);
     SPIFFS_CHECK_RES(res);
   }
@@ -1698,7 +1698,7 @@ s32_t spiffs_object_truncate(
   spiffs_page_ix new_objix_hdr_pix;
 
   // before truncating, check if object is to be fully removed and mark this
-  if (remove && new_size == 0) {
+  if (remove_full && new_size == 0) {
     u8_t flags = ~( SPIFFS_PH_FLAG_USED | SPIFFS_PH_FLAG_INDEX | SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_IXDELE);
     res = _spiffs_wr(fs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_UPDT,
         fd->file_nbr, SPIFFS_PAGE_TO_PADDR(fs, fd->objix_hdr_pix) + offsetof(spiffs_page_header, flags),
@@ -1731,7 +1731,7 @@ s32_t spiffs_object_truncate(
           // report ERR_FULL a la windows. We cannot have that.
           // Hence, take the risk - if aborted, a file check would free the lost pages and mend things
           // as the file is marked as fully deleted in the beginning.
-          if (remove == 0) {
+          if (remove_full == 0) {
             SPIFFS_DBG("truncate: update objix hdr page %04x:%04x to size %i\n", fd->objix_hdr_pix, prev_objix_spix, cur_size);
             res = spiffs_object_update_index_hdr(fs, fd, fd->obj_id,
                 fd->objix_hdr_pix, 0, 0, cur_size, &new_objix_hdr_pix);
@@ -1772,7 +1772,7 @@ s32_t spiffs_object_truncate(
 
     SPIFFS_DBG("truncate: got data pix %04x\n", data_pix);
 
-    if (new_size == 0 || remove || cur_size - new_size >= SPIFFS_DATA_PAGE_SIZE(fs)) {
+    if (new_size == 0 || remove_full || cur_size - new_size >= SPIFFS_DATA_PAGE_SIZE(fs)) {
       // delete full data page
       res = spiffs_page_data_check(fs, fd, data_pix, data_spix);
       if (res != SPIFFS_ERR_DELETED && res != SPIFFS_OK && res != SPIFFS_ERR_INDEX_REF_FREE) {
@@ -1854,7 +1854,7 @@ s32_t spiffs_object_truncate(
   if (cur_objix_spix == 0) {
     // update object index header page
     if (cur_size == 0) {
-      if (remove) {
+      if (remove_full) {
         // remove object altogether
         SPIFFS_DBG("truncate: remove object index header page %04x\n", objix_pix);
 
