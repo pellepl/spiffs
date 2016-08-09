@@ -2047,37 +2047,78 @@ TEST(ix_map_remap)
 
   fd1 = SPIFFS_open(FS, "1", SPIFFS_O_RDONLY, 0);
   TEST_CHECK_GT(fd1, 0);
-  printf(".. corresponding pix entries: %i\n", SPIFFS_bytes_to_ix_map_entries(FS, size));
-  TEST_CHECK_EQ(SPIFFS_bytes_to_ix_map_entries(FS, size), size_pages);
+  printf(".. corresponding pix entries: %i\n", SPIFFS_bytes_to_ix_map_entries(FS, size) + 1);
+  TEST_CHECK_EQ(SPIFFS_bytes_to_ix_map_entries(FS, size), size_pages + 1);
 
   // map index to memory
   // move around, check validity
   const int entries = SPIFFS_bytes_to_ix_map_entries(FS, size/2);
   spiffs_ix_map map;
-  spiffs_page_ix ixbuf[entries];
-  spiffs_page_ix ixbuf_ref[entries];
+  // add one extra for stack safeguarding
+  spiffs_page_ix ixbuf[entries+1];
+  spiffs_page_ix ixbuf_ref[entries+1];
+  const spiffs_page_ix canary = (spiffs_page_ix)0x87654321;
+  memset(ixbuf, 0xee, sizeof(ixbuf));
+  ixbuf[entries] = canary;
+
   res = SPIFFS_ix_map(FS, fd1, &map, 0, size/2, ixbuf);
   TEST_CHECK_GE(res, SPIFFS_OK);
 
-  memcpy(ixbuf_ref, ixbuf, sizeof(ixbuf));
+  for (i = 0; i < entries; i++) {
+    printf("%04x ", ixbuf[i]);
+  }
+  printf("\n");
+
+  memcpy(ixbuf_ref, ixbuf, sizeof(spiffs_page_ix) * entries);
 
   TEST_CHECK_EQ(SPIFFS_ix_remap(FS, fd1, 0), SPIFFS_OK);
-  TEST_CHECK_EQ(0, memcmp(ixbuf_ref, ixbuf, sizeof(ixbuf)));
+  TEST_CHECK_EQ(canary, ixbuf[entries]);
+  for (i = 0; i < entries; i++) {
+    printf("%04x ", ixbuf[i]);
+  }
+  printf("\n");
+  TEST_CHECK_EQ(0, memcmp(ixbuf_ref, ixbuf, sizeof(spiffs_page_ix) * entries));
 
   TEST_CHECK_EQ(SPIFFS_ix_remap(FS, fd1, SPIFFS_DATA_PAGE_SIZE(FS)), SPIFFS_OK);
+  for (i = 0; i < entries; i++) {
+    printf("%04x ", ixbuf[i]);
+  }
+  printf("\n");
+  TEST_CHECK_EQ(canary, ixbuf[entries]);
   TEST_CHECK_EQ(0, memcmp(&ixbuf_ref[1], ixbuf, sizeof(spiffs_page_ix) * (entries-1)));
 
 
   TEST_CHECK_EQ(SPIFFS_ix_remap(FS, fd1, 0), SPIFFS_OK);
-  TEST_CHECK_EQ(0, memcmp(ixbuf_ref, ixbuf, sizeof(ixbuf)));
+  for (i = 0; i < entries; i++) {
+    printf("%04x ", ixbuf[i]);
+  }
+  printf("\n");
+  TEST_CHECK_EQ(canary, ixbuf[entries]);
+  TEST_CHECK_EQ(0, memcmp(ixbuf_ref, ixbuf, sizeof(spiffs_page_ix) * entries));
 
   TEST_CHECK_EQ(SPIFFS_ix_remap(FS, fd1, size/2), SPIFFS_OK);
+  TEST_CHECK_EQ(canary, ixbuf[entries]);
+
+  for (i = 0; i < entries; i++) {
+    printf("%04x ", ixbuf_ref[i]);
+  }
+  printf("\n");
+
+  for (i = 0; i < entries; i++) {
+    printf("%04x ", ixbuf[i]);
+  }
+  printf("\n");
+
+  int matches = 0;
   for (i = 0; i < entries; i++) {
     int j;
     for (j = 0; j < entries; j++) {
-      TEST_CHECK_NEQ(ixbuf_ref[i], ixbuf[j]);
+      if (ixbuf_ref[i] == ixbuf[i]) {
+        matches++;
+      }
     }
   }
+  TEST_CHECK_LE(matches, 1);
 
   return TEST_RES_OK;
 }
@@ -2180,15 +2221,18 @@ TEST(ix_map_beyond)
   const int entries = SPIFFS_bytes_to_ix_map_entries(FS, size);
   spiffs_ix_map map;
   spiffs_page_ix ixbuf[entries];
+  printf("map has %i entries\n", entries);
 
   printf("map 100-200%%\n");
-  res = SPIFFS_ix_map(FS, fd, &map, size, size*2, ixbuf);
+  res = SPIFFS_ix_map(FS, fd, &map, size, size, ixbuf);
   TEST_CHECK_GE(res, SPIFFS_OK);
 
-  // make sure map is empty
+  printf("make sure map is empty\n");
   for (i = 0; i < entries; i++) {
+    printf("%04x ", ixbuf[i]);
     TEST_CHECK_EQ(ixbuf[i], 0);
   }
+  printf("\n");
 
   printf("elongate by 100%%\n");
   for (i = 0; i < size_pages; i++) {
@@ -2203,19 +2247,25 @@ TEST(ix_map_beyond)
   size = s.size;
   printf("file elongated, size: %i..\n", size);
 
-  // make sure map is non-empty
+  printf("make sure map is full but for one element\n");
+  int zeroed = 0;
   for (i = 0; i < entries; i++) {
-    TEST_CHECK_NEQ(ixbuf[i], 0);
+    printf("%04x ", ixbuf[i]);
+    if (ixbuf[i] == 0) zeroed++;
   }
+  printf("\n");
+  TEST_CHECK_LE(zeroed, 1);
 
   printf("remap till end\n");
   TEST_CHECK_EQ(SPIFFS_ix_remap(FS, fd, size), SPIFFS_OK);
 
-  // make sure map is empty but for one element
+  printf("make sure map is empty but for one element\n");
   int nonzero = 0;
   for (i = 0; i < entries; i++) {
+    printf("%04x ", ixbuf[i]);
     if (ixbuf[i]) nonzero++;
   }
+  printf("\n");
   TEST_CHECK_LE(nonzero, 1);
 
   printf("elongate again, by other fd\n");
@@ -2230,10 +2280,14 @@ TEST(ix_map_beyond)
   }
   TEST_CHECK_GE(SPIFFS_close(FS, fd2), SPIFFS_OK);
 
-  // make sure map is non-empty
+  printf("make sure map is full but for one element\n");
+  zeroed = 0;
   for (i = 0; i < entries; i++) {
-    TEST_CHECK_NEQ(ixbuf[i], 0);
+    printf("%04x ", ixbuf[i]);
+    if (ixbuf[i] == 0) zeroed++;
   }
+  printf("\n");
+  TEST_CHECK_LE(zeroed, 1);
 
   return TEST_RES_OK;
 }

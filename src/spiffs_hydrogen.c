@@ -1127,6 +1127,7 @@ s32_t SPIFFS_ix_map(spiffs *fs,  spiffs_file fh, spiffs_ix_map *map,
 
   map->map_buf = map_buf;
   map->offset = offset;
+  // nb: spix range includes last
   map->start_spix = offset / SPIFFS_DATA_PAGE_SIZE(fs);
   map->end_spix = (offset + len) / SPIFFS_DATA_PAGE_SIZE(fs);
   memset(map_buf, 0, sizeof(spiffs_page_ix) * (map->end_spix - map->start_spix + 1));
@@ -1187,29 +1188,34 @@ s32_t SPIFFS_ix_remap(spiffs *fs, spiffs_file fh, u32_t offset) {
   if (spix_diff != 0) {
     // move vector
     int i;
-    const s32_t vec_len = map->end_spix - map->start_spix + 1;
+    const s32_t vec_len = map->end_spix - map->start_spix + 1; // spix range includes last
     map->start_spix += spix_diff;
     map->end_spix += spix_diff;
     if (spix_diff >= vec_len) {
       // moving beyond range
       memset(&map->map_buf, 0, vec_len * sizeof(spiffs_page_ix));
-      res = spiffs_populate_ix_map(fs, fd, 0, vec_len);
+      // populate_ix_map is inclusive
+      res = spiffs_populate_ix_map(fs, fd, 0, vec_len-1);
       SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
     } else if (spix_diff > 0) {
       // diff positive
-      for (i = 0; i < vec_len - spix_diff - 1; i++) {
+      for (i = 0; i < vec_len - spix_diff; i++) {
         map->map_buf[i] = map->map_buf[i + spix_diff];
       }
-      memset(&map->map_buf[vec_len - spix_diff - 1], 0, spix_diff * sizeof(spiffs_page_ix));
-      res = spiffs_populate_ix_map(fs, fd, vec_len - spix_diff, vec_len);
+      // memset is non-inclusive
+      memset(&map->map_buf[vec_len - spix_diff], 0, spix_diff * sizeof(spiffs_page_ix));
+      // populate_ix_map is inclusive
+      res = spiffs_populate_ix_map(fs, fd, vec_len - spix_diff, vec_len-1);
       SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
     } else {
       // diff negative
       for (i = vec_len - 1; i >= -spix_diff; i--) {
         map->map_buf[i] = map->map_buf[i + spix_diff];
       }
+      // memset is non-inclusive
       memset(&map->map_buf[0], 0, -spix_diff * sizeof(spiffs_page_ix));
-      res = spiffs_populate_ix_map(fs, fd, 0, spix_diff);
+      // populate_ix_map is inclusive
+      res = spiffs_populate_ix_map(fs, fd, 0, -spix_diff - 1);
       SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
     }
 
@@ -1221,7 +1227,8 @@ s32_t SPIFFS_ix_remap(spiffs *fs, spiffs_file fh, u32_t offset) {
 
 s32_t SPIFFS_bytes_to_ix_map_entries(spiffs *fs, u32_t bytes) {
   SPIFFS_API_CHECK_CFG(fs);
-  return (bytes + (SPIFFS_DATA_PAGE_SIZE(fs) -1) ) / SPIFFS_DATA_PAGE_SIZE(fs);
+  // always add one extra page, the offset might change to the middle of a page
+  return (bytes + SPIFFS_DATA_PAGE_SIZE(fs) ) / SPIFFS_DATA_PAGE_SIZE(fs);
 }
 
 s32_t SPIFFS_ix_map_entries_to_bytes(spiffs *fs, u32_t map_page_ix_entries) {

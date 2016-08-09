@@ -708,6 +708,7 @@ static s32_t spiffs_populate_ix_map_v(
   return res;
 }
 
+// populates index map, from vector entry start to vector entry end, inclusive
 s32_t spiffs_populate_ix_map(spiffs *fs, spiffs_fd *fd, u32_t vec_entry_start, u32_t vec_entry_end) {
   s32_t res;
   spiffs_ix_map *map = fd->ix_map;
