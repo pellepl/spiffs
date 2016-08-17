@@ -597,6 +597,98 @@ TEST(temporal_fd_cache) {
   return TEST_RES_OK;
 } TEST_END
 
+TEST(small_free_space) {
+  fs_reset_specific(0, 0, 400*1024, 4096, 2*4096, 256);
+  spiffs_file fd;
+  int res;
+  (FS)->fd_count = 4;
+
+  int tfd = SPIFFS_open(FS, "testfile", SPIFFS_RDWR | SPIFFS_CREAT | SPIFFS_TRUNC, 0);
+  TEST_CHECK(tfd > 0);
+  char *tbuf = "some data";
+  res = SPIFFS_write(FS, tfd, tbuf, strlen(tbuf));
+
+  TEST_CHECK(res == strlen(tbuf));
+
+  res = SPIFFS_fflush(FS, tfd);
+  TEST_CHECK(res >= SPIFFS_OK);
+
+  SPIFFS_close(FS, tfd);
+
+  const int runs = 1000;
+
+  int fileCurrNumber = 0;
+  int fileDelNumber = 1;
+
+  int run = 0;
+  do {
+    u8_t buf[1000];
+
+    sprintf(buf, "%d", fileCurrNumber);
+    int i;
+    for (i = 0; i < 100; i++) {
+      strcat(buf, " azzaaax");
+    }
+
+    int maxFileNr = 500;
+    char *filename = "awyn";
+    char *fileext = ".dat";
+
+    u32_t total;
+    u32_t used;
+
+    SPIFFS_info(FS, &total, &used);
+
+    if (total - used < 20000) {
+      maxFileNr = 1;
+    }
+
+    fileCurrNumber++;
+    int fileCntr = fileCurrNumber + 1 - fileDelNumber;
+
+    char fileCurrName[64];
+    sprintf(fileCurrName, "%s%d%s", filename, fileCurrNumber, fileext);
+
+    fd = SPIFFS_open(FS, fileCurrName, SPIFFS_RDWR | SPIFFS_CREAT | SPIFFS_TRUNC, 0);
+    TEST_CHECK(fd > 0);
+
+    //printf("About to write to %s\n", fileCurrName);
+    res = SPIFFS_write(FS, fd, buf, strlen(buf));
+
+    TEST_CHECK(res == strlen(buf));
+
+    res = SPIFFS_fflush(FS, fd);
+    TEST_CHECK_EQ(res, SPIFFS_OK);
+
+    SPIFFS_close(FS, fd);
+
+    if (fileCntr > maxFileNr) {
+      char fileDelName[64];
+      sprintf(fileDelName, "%s%d%s", filename, fileDelNumber, fileext);
+      //printf("Deleting %s (free space %d)\n", fileDelName, total - used);
+  
+      res = SPIFFS_remove(FS, fileDelName);
+
+      TEST_CHECK(res == SPIFFS_OK);
+      fileDelNumber++;
+    }
+  } while (run ++ < runs);
+
+  tfd = SPIFFS_open(FS, "testfile", SPIFFS_RDONLY, 0);
+  TEST_CHECK(tfd > 0);
+  char rbuf[32];
+  res = SPIFFS_read(FS, tfd, rbuf, sizeof(rbuf));
+
+  TEST_CHECK(res == strlen(tbuf));
+
+  SPIFFS_close(FS, tfd);
+
+  TEST_CHECK(memcmp(rbuf, tbuf, strlen(tbuf)) == 0);
+
+  return TEST_RES_OK;
+} TEST_END
+
+
 #if 0
 TEST(spiffs_hidden_file_90) {
   fs_mount_dump("imgs/90.hidden_file.spiffs", 0, 0, 1*1024*1024, 4096, 4096, 128);
@@ -671,6 +763,7 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(eof_tell_72)
   ADD_TEST(spiffs_dup_file_74)
   ADD_TEST(temporal_fd_cache)
+  ADD_TEST(small_free_space)
 #if 0
   ADD_TEST(spiffs_hidden_file_90)
 #endif
