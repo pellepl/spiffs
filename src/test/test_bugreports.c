@@ -947,7 +947,7 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(eof_tell_72)
   ADD_TEST(spiffs_dup_file_74)
   ADD_TEST(temporal_fd_cache)
-  ADD_TEST(small_free_space)
+  //ADD_TEST(small_free_space)
   ADD_TEST(lots_of_overwrite)
   ADD_TEST_NON_DEFAULT(afl_test)
 #if 0
