@@ -647,7 +647,17 @@ TEST(afl_test) {
 	  SPIFFS_close(FS, fd[fdn]);
 	}
 	fd[fdn] = SPIFFS_open(FS, filename[(arg>>3) & 7], modes[arg & 7], 0);
-	printf("Open returned %d\n", fd[fdn]);
+	break;
+
+      case 'S':
+	if (fd[fdn] >= 0) {
+	  int offset = (14 << (arg & 7)) + arg;
+	  if (arg & 16) {
+	    offset = -offset;
+	  }
+	  int whence = (arg & 63) % 3;
+	  SPIFFS_lseek(FS, fd[fdn], offset, whence);
+	}
 	break;
 
       case 'R':
@@ -659,7 +669,6 @@ TEST(afl_test) {
       case 'W':
 	if (fd[fdn] >= 0) {
 	  int rc = SPIFFS_write(FS, fd[fdn], buff, (15 << (arg & 7)) + (arg & 127));
-	  printf("Write returned %d\n", rc);
 	}
 	break;
 
