@@ -597,6 +597,111 @@ TEST(temporal_fd_cache) {
   return TEST_RES_OK;
 } TEST_END
 
+TEST(afl_test) {
+  fs_reset_specific(0, 0, 32*1024, 4096, 2*4096, 256);
+  int res;
+  (FS)->fd_count = 4;
+
+  FILE * f = stdin;
+  if (!f) {
+    return TEST_RES_OK;
+  }
+
+  int c;
+
+  spiffs_file fd[4];
+  memset(fd, -1, sizeof(fd));
+  char *filename[8];
+
+  int i;
+
+  for (i = 0; i < 8; i++) {
+    char buff[64];
+    sprintf(buff, "%dfile%d.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxasdasdasdadxxxxxxxxxxxxxxxxxxx", i, i);
+    buff[9 + 2 * i] = 0;
+    filename[i] = strdup(buff);
+  }
+
+  int modes[8] = {SPIFFS_RDONLY, SPIFFS_RDWR, SPIFFS_RDWR|SPIFFS_TRUNC, SPIFFS_RDWR|SPIFFS_CREAT, SPIFFS_RDWR|SPIFFS_CREAT|SPIFFS_TRUNC,
+                  SPIFFS_WRONLY|SPIFFS_CREAT|SPIFFS_TRUNC, SPIFFS_RDWR|SPIFFS_CREAT|SPIFFS_TRUNC|SPIFFS_DIRECT, SPIFFS_WRONLY};
+
+  char buff[2048];
+  for (i = 0; i < sizeof(buff); i++) {
+    buff[i] = i * 19;
+  }
+
+  while ((c = fgetc(f)) >= 0) {
+    int add;
+    char rbuff[2048];
+    if (c <= ' ') {
+      continue;
+    }
+    int arg = fgetc(f);
+    if (arg < 0) {
+      break;
+    }
+    int fdn = (arg >> 6) & 3;
+    switch(c) {
+      case 'O':
+	if (fd[fdn] >= 0) {
+	  SPIFFS_close(FS, fd[fdn]);
+	}
+	fd[fdn] = SPIFFS_open(FS, filename[(arg>>3) & 7], modes[arg & 7], 0);
+	printf("Open returned %d\n", fd[fdn]);
+	break;
+
+      case 'R':
+	if (fd[fdn] >= 0) {
+	  SPIFFS_read(FS, fd[fdn], rbuff, (15 << (arg & 7)) + (arg & 127));
+	}
+	break;
+
+      case 'W':
+	if (fd[fdn] >= 0) {
+	  int rc = SPIFFS_write(FS, fd[fdn], buff, (15 << (arg & 7)) + (arg & 127));
+	  printf("Write returned %d\n", rc);
+	}
+	break;
+
+      case 'C':
+	if (fd[fdn] >= 0) {
+	  SPIFFS_close(FS, fd[fdn]);
+	}
+	fd[fdn] = -1;
+	break;
+
+      case 'b':
+        add = fgetc(f);
+	for (i = 0; i < sizeof(buff); i++) {
+	  buff[i] = add + i * arg;
+	}
+	break;
+
+      case 'f':
+	if (fd[fdn] >= 0) {
+	  SPIFFS_fflush(FS, fd[fdn]);
+	}
+	break;
+
+      case 'd':
+        SPIFFS_remove(FS, filename[arg & 7]);
+	break;
+
+      case 'r':
+        SPIFFS_rename(FS, filename[arg & 7], filename[(arg >> 3) & 7]);
+	break;
+    }
+  }
+
+  for (i = 0; i < 4; i++) {
+    if (fd[i] >= 0) {
+      SPIFFS_close(FS, fd[i]);
+    }
+  }
+
+  return TEST_RES_OK;
+} TEST_END
+
 TEST(small_free_space) {
   fs_reset_specific(0, 0, 400*1024, 4096, 2*4096, 256);
   spiffs_file fd;
@@ -688,6 +793,85 @@ TEST(small_free_space) {
   return TEST_RES_OK;
 } TEST_END
 
+TEST(lots_of_overwrite) {
+  fs_reset_specific(0, 0, 3000*1024, 4096, 2*4096, 256);
+  spiffs_file fd;
+  int res;
+  (FS)->fd_count = 4;
+
+  int i;
+
+  for (i = 0; i < 5; i++) {
+
+    char filename[64];
+    sprintf(filename, "%d-tstfile", i);
+    int tfd = SPIFFS_open(FS, filename, SPIFFS_RDWR | SPIFFS_CREAT | SPIFFS_TRUNC, 0);
+    TEST_CHECK(tfd > 0);
+    char tbuf[1024];
+    memset(tbuf, 'a', 700);
+    tbuf[700] = 0;
+    res = SPIFFS_write(FS, tfd, tbuf, strlen(tbuf));
+
+    TEST_CHECK(res == strlen(tbuf));
+
+    res = SPIFFS_fflush(FS, tfd);
+    TEST_CHECK(res >= SPIFFS_OK);
+
+    SPIFFS_close(FS, tfd);
+  }
+
+  const int runs = 100000;
+
+  int run = 0;
+  for (run = 0; run < runs; run++) {
+    u8_t buf[2000];
+
+    sprintf(buf, "%d", run);
+    int i;
+    for (i = 0; i < 100 + (run % 100); i++) {
+      strcat(buf, " azzaaax");
+    }
+
+    int tfd = SPIFFS_open(FS, "file.dat", SPIFFS_RDWR | SPIFFS_CREAT | SPIFFS_TRUNC, 0);
+    TEST_CHECK(tfd > 0);
+    res = SPIFFS_write(FS, tfd, buf, strlen(buf));
+
+    TEST_CHECK(res == strlen(buf));
+
+    res = SPIFFS_fflush(FS, tfd);
+    TEST_CHECK(res >= SPIFFS_OK);
+
+    SPIFFS_close(FS, tfd);
+
+    tfd = SPIFFS_open(FS, "file.dat", SPIFFS_RDONLY, 0);
+    TEST_CHECK(tfd > 0);
+    char rbuf[2000];
+    res = SPIFFS_read(FS, tfd, rbuf, sizeof(rbuf));
+
+    TEST_CHECK(res == strlen(buf));
+
+    SPIFFS_close(FS, tfd);
+
+    TEST_CHECK(memcmp(rbuf, buf, strlen(buf)) == 0);
+
+    char filename[64];
+    sprintf(filename, "%d-tstfile", run % 5);
+    tfd = SPIFFS_open(FS, filename, SPIFFS_RDONLY, 0);
+    TEST_CHECK(tfd > 0);
+    char tbuf[1024];
+    memset(tbuf, 'a', 700);
+    tbuf[700] = 0;
+    res = SPIFFS_read(FS, tfd, rbuf, sizeof(rbuf));
+
+    TEST_CHECK(res == strlen(tbuf));
+
+    SPIFFS_close(FS, tfd);
+    TEST_CHECK(memcmp(rbuf, tbuf, strlen(tbuf)) == 0);
+  }
+
+  return TEST_RES_OK;
+} TEST_END
+
 
 #if 0
 TEST(spiffs_hidden_file_90) {
@@ -764,6 +948,8 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(spiffs_dup_file_74)
   ADD_TEST(temporal_fd_cache)
   ADD_TEST(small_free_space)
+  ADD_TEST(lots_of_overwrite)
+  ADD_TEST_NON_DEFAULT(afl_test)
 #if 0
   ADD_TEST(spiffs_hidden_file_90)
 #endif

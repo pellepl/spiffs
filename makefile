@@ -16,7 +16,8 @@ builddir = build
 #
 #############
 
-CC = gcc $(COMPILEROPTIONS)
+CC ?= gcc
+CC += $(COMPILEROPTIONS)
 LD = ld
 GDB = gdb
 OBJCOPY = objcopy
