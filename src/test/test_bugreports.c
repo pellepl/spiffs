@@ -597,15 +597,22 @@ TEST(temporal_fd_cache) {
   return TEST_RES_OK;
 } TEST_END
 
-TEST(afl_test) {
-  fs_reset_specific(0, 0, 32*1024, 4096, 2*4096, 256);
+static int run_fuzz_test(FILE *f) {
+  // There are a bunch of arbitrary constants in this test case. Changing them will
+  // almost certainly change the effets of an input file. It *may* be worth
+  // making some of these constants to come from the input file. 
+  int setup = fgetc(f);
+
+  int page_size = 128 << (setup & 3);
+  setup >>= 2;
+  int erase_size = 4096 << (setup & 3);
+  setup >>= 2;
+  int block_size = erase_size << (setup & 1);
+  setup >>= 1;
+  int blocks = 4 + (setup & 7);
+  fs_reset_specific(0, 0, blocks * block_size, erase_size, block_size, page_size);
   int res;
   (FS)->fd_count = 4;
-
-  FILE * f = stdin;
-  if (!f) {
-    return TEST_RES_OK;
-  }
 
   int c;
 
@@ -622,6 +629,7 @@ TEST(afl_test) {
     filename[i] = strdup(buff);
   }
 
+  // The list of 8 modes that are chosen. SPIFFS_EXCL is not present -- it probably ought to be.
   int modes[8] = {SPIFFS_RDONLY, SPIFFS_RDWR, SPIFFS_RDWR|SPIFFS_TRUNC, SPIFFS_RDWR|SPIFFS_CREAT, SPIFFS_RDWR|SPIFFS_CREAT|SPIFFS_TRUNC,
                   SPIFFS_WRONLY|SPIFFS_CREAT|SPIFFS_TRUNC, SPIFFS_RDWR|SPIFFS_CREAT|SPIFFS_TRUNC|SPIFFS_DIRECT, SPIFFS_WRONLY};
 
@@ -709,6 +717,20 @@ TEST(afl_test) {
   }
 
   return TEST_RES_OK;
+}
+
+#define FMEMARGS(x)	x, sizeof(x) - 1
+
+TEST(fuzzer_found_1) {
+  return run_fuzz_test(fmemopen(FMEMARGS("\021OlWkd5O4W4W0O5OlWkO5OlW0O5O4W0"), "r"));
+} TEST_END
+
+TEST(fuzzer_found_2) {
+  return run_fuzz_test(fmemopen(FMEMARGS("bO4W6W0d\036O4W6"), "r"));
+} TEST_END
+
+TEST(afl_test) {
+  return run_fuzz_test(stdin);
 } TEST_END
 
 TEST(small_free_space) {
@@ -958,6 +980,8 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(temporal_fd_cache)
   //ADD_TEST(small_free_space)
   ADD_TEST(lots_of_overwrite)
+  ADD_TEST(fuzzer_found_1)
+  ADD_TEST(fuzzer_found_2)
   ADD_TEST_NON_DEFAULT(afl_test)
 #if 0
   ADD_TEST(spiffs_hidden_file_90)
