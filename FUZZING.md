@@ -27,3 +27,21 @@ afl-fuzz -i afltests -o findings ./build/linux_spiffs_test -f afl_test
 This run will take hours (or days) and will (hopefully) not find any crashes.
 If a crash (or hang) is found, then the input file that caused the crash is 
 saved. This allows the specific test case to be debugged.
+
+## Reducing the size of the file
+
+AFL comes with `afl-tmin` which can reduce the size of the test input file to
+make it easier to debug.
+
+```
+afl-tmin -i findings/crashes/<somefile> -o smalltest -- build/linux_spiffs_test -f afl_test
+```
+
+This will write a short version of the testcase file to `smalltest`. This can then be
+fed into the test program for debugging:
+
+```
+build/linux_spiffs_test -f afl_test < smalltest
+```
+
+This should still crash, but allows it to be run under a debugger. 
