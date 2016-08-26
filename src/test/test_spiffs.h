@@ -55,6 +55,8 @@ typedef struct  {
   char name[32];
 } tfile;
 
+u32_t set_abort_on_error(u32_t val);
+
 void fs_reset();
 void fs_reset_specific(u32_t addr_offset, u32_t phys_addr, u32_t phys_size,
     u32_t phys_sector_size,

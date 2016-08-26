@@ -638,6 +638,7 @@ static int run_fuzz_test(FILE *f) {
     buff[i] = i * 19;
   }
 
+
   while ((c = fgetc(f)) >= 0) {
     int add;
     char rbuff[2048];
@@ -700,12 +701,42 @@ static int run_fuzz_test(FILE *f) {
 	}
 	break;
 
+      case 'D':
+	if (fd[fdn] >= 0) {
+	  SPIFFS_fremove(FS, fd[fdn]);
+	}
+	break;
+
       case 'd':
         SPIFFS_remove(FS, filename[arg & 7]);
 	break;
 
       case 'r':
         SPIFFS_rename(FS, filename[arg & 7], filename[(arg >> 3) & 7]);
+	break;
+
+      case 'U':
+	ungetc(arg, f);
+	for (i = 0; i < 4; i++) {
+	  fd[i] = -1;
+	}
+	{
+	  char *tmpfile = strdup("/tmp/fsdump.XXXXXX");
+	  close(mkstemp(tmpfile));
+	  fs_store_dump(tmpfile);
+	  fs_mount_dump(tmpfile, 0, 0, blocks * block_size, erase_size, block_size, page_size);
+	  unlink(tmpfile);
+	  free(tmpfile);
+	}
+	break;
+
+      case 'c':
+        SPIFFS_check(FS);
+	ungetc(arg, f);
+	break;
+
+      default:
+	ungetc(arg, f);
 	break;
     }
   }
@@ -730,7 +761,10 @@ TEST(fuzzer_found_2) {
 } TEST_END
 
 TEST(afl_test) {
-  return run_fuzz_test(stdin);
+  u32_t old_val = set_abort_on_error(1);
+  int rc = run_fuzz_test(stdin);
+  set_abort_on_error(old_val);
+  return rc;
 } TEST_END
 
 TEST(small_free_space) {

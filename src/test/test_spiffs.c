@@ -27,11 +27,13 @@
 
 #define AREA(x) _area[(x) - addr_offset]
 
-#define ERREXIT(i) abort()
+#define ERREXIT() if (abort_on_error) abort()
 
 static u32_t _area_sz;
 static unsigned char *_area = NULL;
 static u32_t addr_offset = 0;
+
+static u32_t abort_on_error = 0;
 
 static int *_erases;
 static char _path[256];
@@ -112,6 +114,14 @@ static int mkpath(const char *path, mode_t mode) {
 }
 
 // end take
+//
+
+u32_t set_abort_on_error(u32_t val) {
+  u32_t old_val = abort_on_error;
+  abort_on_error = val;
+
+  return old_val;
+}
 
 char *make_test_fname(const char *name) {
   sprintf(_path, "%s/%s", TEST_PATH, name);
@@ -155,11 +165,13 @@ static s32_t _read(spiffs *fs, u32_t addr, u32_t size, u8_t *dst) {
   }
   if (addr < __fs.cfg.phys_addr) {
     printf("FATAL read addr too low %08x < %08x\n", addr, __fs.cfg.phys_addr);
-    ERREXIT(0);
+    ERREXIT();
+    exit(0);
   }
   if (addr + size > __fs.cfg.phys_addr + __fs.cfg.phys_size) {
     printf("FATAL read addr too high %08x + %08x > %08x\n", addr, size, __fs.cfg.phys_addr + __fs.cfg.phys_size);
-    ERREXIT(0);
+    ERREXIT();
+    exit(0);
   }
   memcpy(dst, &AREA(addr), size);
   return 0;
@@ -181,11 +193,13 @@ static s32_t _write(spiffs *fs, u32_t addr, u32_t size, u8_t *src) {
 
   if (addr < __fs.cfg.phys_addr) {
     printf("FATAL write addr too low %08x < %08x\n", addr, __fs.cfg.phys_addr);
-    ERREXIT(0);
+    ERREXIT();
+    exit(0);
   }
   if (addr + size > __fs.cfg.phys_addr + __fs.cfg.phys_size) {
     printf("FATAL write addr too high %08x + %08x > %08x\n", addr, size, __fs.cfg.phys_addr + __fs.cfg.phys_size);
-    ERREXIT(0);
+    ERREXIT();
+    exit(0);
   }
 
   for (i = 0; i < size; i++) {
@@ -194,7 +208,7 @@ static s32_t _write(spiffs *fs, u32_t addr, u32_t size, u8_t *src) {
         printf("trying to write %02x to %02x at addr %08x\n", src[i], AREA(addr + i), addr+i);
         spiffs_page_ix pix = (addr + i) / LOG_PAGE;
         dump_page(&__fs, pix);
-	ERREXIT(0);
+	ERREXIT();
         return -1;
       }
     }
@@ -205,12 +219,12 @@ static s32_t _write(spiffs *fs, u32_t addr, u32_t size, u8_t *src) {
 static s32_t _erase(spiffs *fs, u32_t addr, u32_t size) {
   if (addr & (__fs.cfg.phys_erase_block-1)) {
     printf("trying to erase at addr %08x, out of boundary\n", addr);
-    ERREXIT(0);
+    ERREXIT();
     return -1;
   }
   if (size & (__fs.cfg.phys_erase_block-1)) {
     printf("trying to erase at with size %08x, out of boundary\n", size);
-    ERREXIT(0);
+    ERREXIT();
     return -1;
   }
   _erases[(addr-__fs.cfg.phys_addr)/__fs.cfg.phys_erase_block]++;
@@ -404,7 +418,8 @@ void fs_set_addr_offset(u32_t offset) {
 void test_lock(spiffs *fs) {
   if (_fs_locks != 0) {
     printf("FATAL: reentrant locks. Abort.\n");
-    ERREXIT(-1);
+    ERREXIT();
+    exit(-1);
   }
   _fs_locks++;
 }
@@ -412,7 +427,8 @@ void test_lock(spiffs *fs) {
 void test_unlock(spiffs *fs) {
   if (_fs_locks != 1) {
     printf("FATAL: unlocking unlocked. Abort.\n");
-    ERREXIT(-1);
+    ERREXIT();
+    exit(-1);
   }
   _fs_locks--;
 }
@@ -891,7 +907,7 @@ void _teardown() {
     SPIFFS_check(FS);
     printf("  fs consistency check output end\n");
     if (check_cb_count) {
-      //abort();
+      ERREXIT();
     }
   }
   clear_test_path();
@@ -899,7 +915,8 @@ void _teardown() {
   printf("  locks : %i\n", _fs_locks);
   if (_fs_locks != 0) {
     printf("FATAL: lock asymmetry. Abort.\n");
-    ERREXIT(-1);
+    ERREXIT();
+    exit(-1);
   }
 }
 
