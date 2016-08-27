@@ -27,13 +27,14 @@
 
 #define AREA(x) _area[(x) - addr_offset]
 
-#define ERREXIT() if (abort_on_error) abort()
+#define ERREXIT() if (abort_on_error) abort(); else error_count++
 
 static u32_t _area_sz;
 static unsigned char *_area = NULL;
 static u32_t addr_offset = 0;
 
 static u32_t abort_on_error = 0;
+static int error_count = 0;
 
 static int *_erases;
 static char _path[256];
@@ -115,6 +116,10 @@ static int mkpath(const char *path, mode_t mode) {
 
 // end take
 //
+//
+int get_error_count() {
+  return error_count;
+}
 
 u32_t set_abort_on_error(u32_t val) {
   u32_t old_val = abort_on_error;
