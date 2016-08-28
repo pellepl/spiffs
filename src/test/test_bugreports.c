@@ -597,7 +597,7 @@ TEST(temporal_fd_cache) {
   return TEST_RES_OK;
 } TEST_END
 
-static int run_fuzz_test(FILE *f) {
+static int run_fuzz_test(FILE *f, int maxfds) {
   // There are a bunch of arbitrary constants in this test case. Changing them will
   // almost certainly change the effets of an input file. It *may* be worth
   // making some of these constants to come from the input file. 
@@ -649,7 +649,7 @@ static int run_fuzz_test(FILE *f) {
     if (arg < 0) {
       break;
     }
-    int fdn = (arg >> 6) & 3;
+    int fdn = ((arg >> 6) & 3) % maxfds;
     switch(c) {
       case 'O':
 	if (fd[fdn] >= 0) {
@@ -753,20 +753,31 @@ static int run_fuzz_test(FILE *f) {
 #define FMEMARGS(x)	x, sizeof(x) - 1
 
 TEST(fuzzer_found_1) {
-  return run_fuzz_test(fmemopen(FMEMARGS("\021OlWkd5O4W4W0O5OlWkO5OlW0O5O4W0"), "r"));
+  return run_fuzz_test(fmemopen(FMEMARGS("\021OlWkd5O4W4W0O5OlWkO5OlW0O5O4W0"), "r"), 4);
 } TEST_END
 
 TEST(fuzzer_found_2) {
-  return run_fuzz_test(fmemopen(FMEMARGS("bO4W6W0d\036O4W6"), "r"));
+  return run_fuzz_test(fmemopen(FMEMARGS("bO4W6W0d\036O4W6"), "r"), 4);
 } TEST_END
 
 TEST(fuzzer_found_3) {
-  return run_fuzz_test(fmemopen(FMEMARGS("\264O4OqWeWWWWW@O4WWW\027"), "r"));
+  return run_fuzz_test(fmemopen(FMEMARGS("\264O4OqWeWWWWW@O4WWW\027"), "r"), 4);
+} TEST_END
+
+TEST(fuzzer_found_single_1) {
+  return run_fuzz_test(fmemopen(FMEMARGS("\000O\004Odr4d\356Okr0WWUO;WWWWd\035W4"), "r"), 1);
 } TEST_END
 
 TEST(afl_test) {
   u32_t old_val = set_abort_on_error(1);
-  int rc = run_fuzz_test(stdin);
+  int rc = run_fuzz_test(stdin, 4);
+  set_abort_on_error(old_val);
+  return rc;
+} TEST_END
+
+TEST(afl_single) {
+  u32_t old_val = set_abort_on_error(1);
+  int rc = run_fuzz_test(stdin, 1);
   set_abort_on_error(old_val);
   return rc;
 } TEST_END
@@ -1021,7 +1032,9 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(fuzzer_found_1)
   ADD_TEST(fuzzer_found_2)
   ADD_TEST(fuzzer_found_3)
+  ADD_TEST(fuzzer_found_single_1)
   ADD_TEST_NON_DEFAULT(afl_test)
+  ADD_TEST_NON_DEFAULT(afl_single)
 #if 0
   ADD_TEST(spiffs_hidden_file_90)
 #endif
