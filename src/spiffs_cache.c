@@ -183,7 +183,7 @@ s32_t spiffs_phys_wr(
     spiffs_file fh,
     u32_t addr,
     u32_t len,
-    u8_t *src) {
+    const u8_t *src) {
   (void)fh;
   spiffs_page_ix pix = SPIFFS_PADDR_TO_PAGE(fs, addr);
   spiffs_cache *cache = spiffs_get_cache(fs);
