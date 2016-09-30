@@ -255,7 +255,7 @@ s32_t spiffs_gc_find_candidate(
   s32_t *cand_scores = (s32_t *)(fs->work + max_candidates * sizeof(spiffs_block_ix));
 
    // align cand_scores on s32_t boundary
-  cand_scores = (s32_t*)(((ptrdiff_t)cand_scores + sizeof(ptrdiff_t) - 1) & ~(sizeof(ptrdiff_t) - 1));
+  cand_scores = (s32_t*)(((intptr_t)cand_scores + sizeof(intptr_t) - 1) & ~(sizeof(intptr_t) - 1));
 
   *block_candidates = cand_blocks;
 
