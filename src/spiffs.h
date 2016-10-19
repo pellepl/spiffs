@@ -81,7 +81,7 @@ struct spiffs_t;
 /* spi read call function type */
 typedef s32_t (*spiffs_read)(struct spiffs_t *fs, u32_t addr, u32_t size, u8_t *dst);
 /* spi write call function type */
-typedef s32_t (*spiffs_write)(struct spiffs_t *fs, u32_t addr, u32_t size, u8_t *src);
+typedef s32_t (*spiffs_write)(struct spiffs_t *fs, u32_t addr, u32_t size, const u8_t *src);
 /* spi erase call function type */
 typedef s32_t (*spiffs_erase)(struct spiffs_t *fs, u32_t addr, u32_t size);
 
@@ -90,7 +90,7 @@ typedef s32_t (*spiffs_erase)(struct spiffs_t *fs, u32_t addr, u32_t size);
 /* spi read call function type */
 typedef s32_t (*spiffs_read)(u32_t addr, u32_t size, u8_t *dst);
 /* spi write call function type */
-typedef s32_t (*spiffs_write)(u32_t addr, u32_t size, u8_t *src);
+typedef s32_t (*spiffs_write)(u32_t addr, u32_t size, const u8_t *src);
 /* spi erase call function type */
 typedef s32_t (*spiffs_erase)(u32_t addr, u32_t size);
 #endif // SPIFFS_HAL_CALLBACK_EXTRA
@@ -459,7 +459,7 @@ s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len);
  * @param len           how much to write
  * @returns number of bytes written, or -1 if error
  */
-s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len);
+s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, const void *buf, s32_t len);
 
 /**
  * Moves the read/write file offset. Resulting offset is returned or negative if error.

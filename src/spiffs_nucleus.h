@@ -532,7 +532,7 @@ s32_t spiffs_phys_wr(
 #endif
     u32_t addr,
     u32_t len,
-    u8_t *src);
+    const u8_t *src);
 
 s32_t spiffs_phys_cpy(
     spiffs *fs,
@@ -610,7 +610,7 @@ s32_t spiffs_page_allocate_data(
     spiffs *fs,
     spiffs_obj_id obj_id,
     spiffs_page_header *ph,
-    u8_t *data,
+    const u8_t *data,
     u32_t len,
     u32_t page_offs,
     u8_t finalize,
@@ -684,13 +684,13 @@ s32_t spiffs_object_open_by_page(
 s32_t spiffs_object_append(
     spiffs_fd *fd,
     u32_t offset,
-    u8_t *data,
+    const u8_t *data,
     u32_t len);
 
 s32_t spiffs_object_modify(
     spiffs_fd *fd,
     u32_t offset,
-    u8_t *data,
+    const u8_t *data,
     u32_t len);
 
 s32_t spiffs_object_read(

@@ -163,7 +163,7 @@ static s32_t _read(spiffs *fs, u32_t addr, u32_t size, u8_t *dst) {
   return 0;
 }
 
-static s32_t _write(spiffs *fs, u32_t addr, u32_t size, u8_t *src) {
+static s32_t _write(spiffs *fs, u32_t addr, u32_t size, const u8_t *src) {
   int i;
   //printf("wr %08x %i\n", addr, size);
   if (log_flash_ops) {

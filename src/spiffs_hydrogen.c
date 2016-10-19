@@ -411,22 +411,22 @@ s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
 }
 
 #if !SPIFFS_READ_ONLY
-static s32_t spiffs_hydro_write(spiffs *fs, spiffs_fd *fd, void *buf, u32_t offset, s32_t len) {
+static s32_t spiffs_hydro_write(spiffs *fs, spiffs_fd *fd, const void *buf, u32_t offset, s32_t len) {
   (void)fs;
   s32_t res = SPIFFS_OK;
   s32_t remaining = len;
   if (fd->size != SPIFFS_UNDEFINED_LEN && offset < fd->size) {
     s32_t m_len = MIN((s32_t)(fd->size - offset), len);
-    res = spiffs_object_modify(fd, offset, (u8_t *)buf, m_len);
+    res = spiffs_object_modify(fd, offset, (const u8_t *)buf, m_len);
     SPIFFS_CHECK_RES(res);
     remaining -= m_len;
-    u8_t *buf_8 = (u8_t *)buf;
+    const u8_t *buf_8 = (const u8_t *)buf;
     buf_8 += m_len;
     buf = buf_8;
     offset += m_len;
   }
   if (remaining > 0) {
-    res = spiffs_object_append(fd, offset, (u8_t *)buf, remaining);
+    res = spiffs_object_append(fd, offset, (const u8_t *)buf, remaining);
     SPIFFS_CHECK_RES(res);
   }
   return len;
@@ -434,7 +434,7 @@ static s32_t spiffs_hydro_write(spiffs *fs, spiffs_fd *fd, void *buf, u32_t offs
 }
 #endif // !SPIFFS_READ_ONLY
 
-s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
+s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, const void *buf, s32_t len) {
 #if SPIFFS_READ_ONLY
   (void)fs; (void)fh; (void)buf; (void)len;
   return SPIFFS_ERR_RO_NOT_IMPL;
