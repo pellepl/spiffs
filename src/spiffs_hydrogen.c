@@ -577,16 +577,18 @@ s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence) {
   spiffs_fflush_cache(fs, fh);
 #endif
 
+  s32_t fileSize = fd->size == SPIFFS_UNDEFINED_LEN ? 0 : fd->size;
+
   switch (whence) {
   case SPIFFS_SEEK_CUR:
     offs = fd->fdoffset+offs;
     break;
   case SPIFFS_SEEK_END:
-    offs = (fd->size == SPIFFS_UNDEFINED_LEN ? 0 : fd->size) + offs;
+    offs = fileSize + offs;
     break;
   }
 
-  if ((offs > (s32_t)fd->size) && (SPIFFS_UNDEFINED_LEN != fd->size)) {
+  if ((offs > fileSize)) {
     res = SPIFFS_ERR_END_OF_OBJECT;
   }
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
