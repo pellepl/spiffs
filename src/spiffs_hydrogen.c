@@ -587,6 +587,7 @@ s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence) {
   }
 
   if ((offs > (s32_t)fd->size) && (SPIFFS_UNDEFINED_LEN != fd->size)) {
+    fd->fdoffset = fd->size;
     res = SPIFFS_ERR_END_OF_OBJECT;
   }
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
