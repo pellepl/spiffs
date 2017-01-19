@@ -107,6 +107,13 @@
 #define SPIFFS_OBJ_NAME_LEN             (32)
 #endif
 
+// Maximum length of the metadata associated with an object.
+// Setting to non-zero value enables metadata-related API but also
+// changes the on-disk format, so the change is not backward-compatible.
+#ifndef SPIFFS_OBJ_META_LEN
+#define SPIFFS_OBJ_META_LEN             (0)
+#endif
+
 // Size of buffer allocated on stack used when copying data.
 // Lower value generates more read/writes. No meaning having it bigger
 // than logical page size.

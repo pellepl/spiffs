@@ -194,7 +194,6 @@ TEST(nodemcu_309) {
     fd = SPIFFS_open(FS, fname, SPIFFS_RDWR | SPIFFS_CREAT | SPIFFS_TRUNC | SPIFFS_DIRECT, 0);
     TEST_CHECK(fd > 0);
     int i;
-    spiffs_stat s;
     res = SPIFFS_OK;
     u8_t err = 0;
     for (i = 1; i <= 1280; i++) {
@@ -247,7 +246,6 @@ TEST(robert) {
   sprintf(fname, "test.txt");
   fd = SPIFFS_open(FS, fname, SPIFFS_RDWR | SPIFFS_CREAT | SPIFFS_TRUNC, 0);
   TEST_CHECK(fd > 0);
-  int i;
   res = SPIFFS_OK;
   char buf[500];
   memset(buf, 0xaa, 500);
@@ -542,8 +540,6 @@ TEST(spiffs_dup_file_74) {
 
 TEST(temporal_fd_cache) {
   fs_reset_specific(0, 0, 1024*1024, 4096, 2*4096, 256);
-  spiffs_file fd;
-  int res;
   (FS)->fd_count = 4;
 
   char *fcss = "blaha.css";
@@ -574,8 +570,6 @@ TEST(temporal_fd_cache) {
 
   int run = 0;
   do {
-    u8_t buf[256];
-
     // open & read an html
     int dice = rand() % 100;
     int probability = 0;
