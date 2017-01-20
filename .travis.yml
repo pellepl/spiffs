@@ -5,4 +5,4 @@ compiler:
 
 before_script:
 
-script: make all && make clean && make test && make build-all
+script: make all && make clean && make test && make build-all && make clean test FLAGS=-DSPIFFS_OBJ_META_LEN=8
