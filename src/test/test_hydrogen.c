@@ -427,11 +427,17 @@ TEST(list_dir)
         break;
       }
     }
+    {
+      spiffs_stat s;
+      TEST_CHECK_EQ(SPIFFS_stat(FS, pe->name, &s), 0);
+      TEST_CHECK_EQ(pe->obj_id, s.obj_id);
+      TEST_CHECK_EQ(pe->size, s.size);
+      TEST_CHECK_EQ(pe->type, s.type);
+      TEST_CHECK_EQ(pe->pix, s.pix);
 #if SPIFFS_OBJ_META_LEN
-    for (i = 0; i < SPIFFS_OBJ_META_LEN; i++) {
-      TEST_CHECK_EQ(pe->meta[i], 0xff);
-    }
+      TEST_CHECK_EQ(memcmp(pe->meta, s.meta, SPIFFS_OBJ_META_LEN), 0);
 #endif
+    }
   }
   SPIFFS_closedir(&d);
 
