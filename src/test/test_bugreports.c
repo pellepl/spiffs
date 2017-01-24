@@ -591,7 +591,7 @@ TEST(temporal_fd_cache) {
   return TEST_RES_OK;
 } TEST_END
 
-static int run_fuzz_test(FILE *f, int maxfds) {
+static int run_fuzz_test(FILE *f, int maxfds, int debuglog) {
   // There are a bunch of arbitrary constants in this test case. Changing them will
   // almost certainly change the effets of an input file. It *may* be worth
   // making some of these constants to come from the input file. 
@@ -632,6 +632,7 @@ static int run_fuzz_test(FILE *f, int maxfds) {
     buff[i] = i * 19;
   }
 
+#define LOGOP if (debuglog) printf
 
   while ((c = fgetc(f)) >= 0) {
     int add;
@@ -647,9 +648,11 @@ static int run_fuzz_test(FILE *f, int maxfds) {
     switch(c) {
       case 'O':
 	if (fd[fdn] >= 0) {
+          LOGOP("  close(%d)\n", fd[fdn]);
 	  SPIFFS_close(FS, fd[fdn]);
 	}
 	fd[fdn] = SPIFFS_open(FS, filename[(arg>>3) & 7], modes[arg & 7], 0);
+        LOGOP("  open(\"%s\", 0x%x) -> %d\n", filename[(arg>>3) & 7], modes[arg & 7], fd[fdn]);
 	break;
 
       case 'S':
@@ -659,24 +662,28 @@ static int run_fuzz_test(FILE *f, int maxfds) {
 	    offset = -offset;
 	  }
 	  int whence = (arg & 63) % 3;
+          LOGOP("  lseek(%d, %d, %d)\n", fd[fdn], offset, whence);
 	  SPIFFS_lseek(FS, fd[fdn], offset, whence);
 	}
 	break;
 
       case 'R':
 	if (fd[fdn] >= 0) {
-	  SPIFFS_read(FS, fd[fdn], rbuff, (15 << (arg & 7)) + (arg & 127));
+	  int rlen = SPIFFS_read(FS, fd[fdn], rbuff, (15 << (arg & 7)) + (arg & 127));
+          LOGOP("  read(%d, , %d) -> %d\n", fd[fdn], (15 << (arg & 7)) + (arg & 127), rlen);
 	}
 	break;
 
       case 'W':
 	if (fd[fdn] >= 0) {
 	  int rc = SPIFFS_write(FS, fd[fdn], buff, (15 << (arg & 7)) + (arg & 127));
+          LOGOP("  write(%d, , %d) -> %d\n", fd[fdn], (15 << (arg & 7)) + (arg & 127), rc);
 	}
 	break;
 
       case 'C':
 	if (fd[fdn] >= 0) {
+          LOGOP("  close(%d)\n", fd[fdn]);
 	  SPIFFS_close(FS, fd[fdn]);
 	}
 	fd[fdn] = -1;
@@ -691,21 +698,25 @@ static int run_fuzz_test(FILE *f, int maxfds) {
 
       case 'f':
 	if (fd[fdn] >= 0) {
+          LOGOP("  fflush(%d)\n", fd[fdn]);
 	  SPIFFS_fflush(FS, fd[fdn]);
 	}
 	break;
 
       case 'D':
 	if (fd[fdn] >= 0) {
+          LOGOP("  fremove(%d)\n", fd[fdn]);
 	  SPIFFS_fremove(FS, fd[fdn]);
 	}
 	break;
 
       case 'd':
+        LOGOP("  remove(\"%s\")\n", filename[arg & 7]);
         SPIFFS_remove(FS, filename[arg & 7]);
 	break;
 
       case 'r':
+        LOGOP("  rename(\"%s\", \"%s\")\n", filename[arg & 7], filename[(arg >> 3) & 7]);
         SPIFFS_rename(FS, filename[arg & 7], filename[(arg >> 3) & 7]);
 	break;
 
@@ -721,10 +732,12 @@ static int run_fuzz_test(FILE *f, int maxfds) {
 	  fs_mount_dump(tmpfile, 0, 0, blocks * block_size, erase_size, block_size, page_size);
 	  unlink(tmpfile);
 	  free(tmpfile);
+          LOGOP("  unmount and remount\n");
 	}
 	break;
 
       case 'c':
+        LOGOP("  check()\n");
         SPIFFS_check(FS);
 	ungetc(arg, f);
 	break;
@@ -737,6 +750,7 @@ static int run_fuzz_test(FILE *f, int maxfds) {
 
   for (i = 0; i < 4; i++) {
     if (fd[i] >= 0) {
+      LOGOP("  close(%d)\n", fd[i]);
       SPIFFS_close(FS, fd[i]);
     }
   }
@@ -747,31 +761,31 @@ static int run_fuzz_test(FILE *f, int maxfds) {
 #define FMEMARGS(x)	x, sizeof(x) - 1
 
 TEST(fuzzer_found_1) {
-  return run_fuzz_test(fmemopen(FMEMARGS("\021OlWkd5O4W4W0O5OlWkO5OlW0O5O4W0"), "r"), 4);
+  return run_fuzz_test(fmemopen(FMEMARGS("\021OlWkd5O4W4W0O5OlWkO5OlW0O5O4W0"), "r"), 4, 1);
 } TEST_END
 
 TEST(fuzzer_found_2) {
-  return run_fuzz_test(fmemopen(FMEMARGS("bO4W6W0d\036O4W6"), "r"), 4);
+  return run_fuzz_test(fmemopen(FMEMARGS("bO4W6W0d\036O4W6"), "r"), 4, 1);
 } TEST_END
 
 TEST(fuzzer_found_3) {
-  return run_fuzz_test(fmemopen(FMEMARGS("\264O4OqWeWWWWW@O4WWW\027"), "r"), 4);
+  return run_fuzz_test(fmemopen(FMEMARGS("\264O4OqWeWWWWW@O4WWW\027"), "r"), 4, 1);
 } TEST_END
 
 TEST(fuzzer_found_single_1) {
-  return run_fuzz_test(fmemopen(FMEMARGS("\000O\004Odr4d\356Okr0WWUO;WWWWd\035W4"), "r"), 1);
+  return run_fuzz_test(fmemopen(FMEMARGS("\000O\004Odr4d\356Okr0WWUO;WWWWd\035W4"), "r"), 1, 1);
 } TEST_END
 
 TEST(afl_test) {
   u32_t old_val = set_abort_on_error(1);
-  int rc = run_fuzz_test(stdin, 4);
+  int rc = run_fuzz_test(stdin, 4, 0);
   set_abort_on_error(old_val);
   return rc;
 } TEST_END
 
 TEST(afl_single) {
   u32_t old_val = set_abort_on_error(1);
-  int rc = run_fuzz_test(stdin, 1);
+  int rc = run_fuzz_test(stdin, 1, 0);
   set_abort_on_error(old_val);
   return rc;
 } TEST_END
