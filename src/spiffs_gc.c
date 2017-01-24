@@ -255,7 +255,7 @@ s32_t spiffs_gc_find_candidate(
   s32_t *cand_scores = (s32_t *)(fs->work + max_candidates * sizeof(spiffs_block_ix));
 
    // align cand_scores on s32_t boundary
-  cand_scores = (s32_t*)(((ptrdiff_t)cand_scores + sizeof(ptrdiff_t) - 1) & ~(sizeof(ptrdiff_t) - 1));
+  cand_scores = (s32_t*)(((intptr_t)cand_scores + sizeof(intptr_t) - 1) & ~(sizeof(intptr_t) - 1));
 
   *block_candidates = cand_blocks;
 
@@ -575,7 +575,7 @@ s32_t spiffs_gc_clean(spiffs *fs, spiffs_block_ix bix) {
       cur_entry = gc.stored_scan_entry_index; // pop cursor
       if (gc.cur_objix_spix == 0) {
         // store object index header page
-        res = spiffs_object_update_index_hdr(fs, 0, gc.cur_obj_id | SPIFFS_OBJ_ID_IX_FLAG, gc.cur_objix_pix, fs->work, 0, 0, &new_objix_pix);
+        res = spiffs_object_update_index_hdr(fs, 0, gc.cur_obj_id | SPIFFS_OBJ_ID_IX_FLAG, gc.cur_objix_pix, fs->work, 0, 0, 0, &new_objix_pix);
         SPIFFS_GC_DBG("gc_clean: MOVE_DATA store modified objix_hdr page, %04x:%04x\n", new_objix_pix, 0);
         SPIFFS_CHECK_RES(res);
       } else {

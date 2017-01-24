@@ -366,8 +366,8 @@ void dump_flash_access_stats() {
 }
 
 
-static u32_t old_perc = 999;
 static int check_cb_count;
+// static u32_t old_perc = 999;
 static void spiffs_check_cb_f(spiffs *fs, spiffs_check_type type, spiffs_check_report report,
     u32_t arg1, u32_t arg2) {
 /*  if (report == SPIFFS_CHECK_PROGRESS && old_perc != arg1) {
@@ -621,7 +621,6 @@ void real_assert(int c, const char *n, const char *file, int l) {
 }
 
 int read_and_verify(char *name) {
-  s32_t res;
   int fd = SPIFFS_open(&__fs, name, SPIFFS_RDONLY, 0);
   if (fd < 0) {
     printf("  read_and_verify: could not open file %s\n", name);
@@ -721,6 +720,14 @@ int test_create_file(char *name) {
   CHECK_RES(res);
   CHECK(strcmp((char*)s.name, name) == 0);
   CHECK(s.size == 0);
+#if SPIFFS_OBJ_META_LEN
+  {
+    int i;
+    for (i = 0; i < SPIFFS_OBJ_META_LEN; i++) {
+      CHECK(s.meta[i] == 0xff);
+    }
+  }
+#endif
   SPIFFS_close(FS, fd);
   return 0;
 }
@@ -735,7 +742,7 @@ int test_create_and_write_file(char *name, int size, int chunk_size) {
   }
   CHECK(res >= 0);
   fd = SPIFFS_open(FS, name, SPIFFS_APPEND | SPIFFS_RDWR, 0);
-  if (res < 0) {
+  if (fd < 0) {
     printf(" failed open, %i\n",res);
   }
   CHECK(fd >= 0);
