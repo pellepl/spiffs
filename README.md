@@ -23,6 +23,11 @@ Spiffs is designed with following characteristics in mind:
  - Wear leveling
 
 
+## BUILDING
+
+TL;DR: `mkdir build; make`. Otherwise, configure the `builddir` variable towards the top of `makefile` as something opposed to the default `build`.
+
+
 ## FEATURES
 
 What spiffs does:
