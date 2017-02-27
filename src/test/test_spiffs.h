@@ -18,7 +18,7 @@ extern spiffs __fs;
 #define CHECK(r) if (!(r)) return -1;
 #define CHECK_RES(r) if (r < 0) return -1;
 #define FS_PURE_DATA_PAGES(fs) \
-    ((fs)->cfg.phys_size / (fs)->cfg.log_page_size - (fs)->block_count * SPIFFS_OBJ_LOOKUP_PAGES(fs))
+    (SPIFFS_CFG_PHYS_SZ(fs) / SPIFFS_CFG_LOG_PAGE_SZ(fs)- (fs)->block_count * SPIFFS_OBJ_LOOKUP_PAGES(fs))
 #define FS_PURE_DATA_SIZE(fs) \
     FS_PURE_DATA_PAGES(fs) * SPIFFS_DATA_PAGE_SIZE(fs)
 

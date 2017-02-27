@@ -30,7 +30,7 @@ TEST(info)
   int res = SPIFFS_info(FS, &total, &used);
   TEST_CHECK(res == SPIFFS_OK);
   TEST_CHECK(used == 0);
-  TEST_CHECK(total < __fs.cfg.phys_size);
+  TEST_CHECK(total < SPIFFS_CFG_PHYS_SZ(&__fs));
   return TEST_RES_OK;
 }
 TEST_END
@@ -869,7 +869,7 @@ TEST_END
 
 TEST(write_big_file_chunks_page)
 {
-  int size = ((50*(FS)->cfg.phys_size)/100);
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100);
   printf("  filesize %i\n", size);
   int res = test_create_and_write_file("bigfile", size, SPIFFS_DATA_PAGE_SIZE(FS));
   TEST_CHECK(res >= 0);
@@ -887,7 +887,7 @@ TEST(write_big_files_chunks_page)
   int f;
   int files = 10;
   int res;
-  int size = ((50*(FS)->cfg.phys_size)/100)/files;
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100)/files;
   printf("  filesize %i\n", size);
   for (f = 0; f < files; f++) {
     sprintf(name, "bigfile%i", f);
@@ -907,7 +907,7 @@ TEST_END
 
 TEST(write_big_file_chunks_index)
 {
-  int size = ((50*(FS)->cfg.phys_size)/100);
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100);
   printf("  filesize %i\n", size);
   int res = test_create_and_write_file("bigfile", size, SPIFFS_DATA_PAGE_SIZE(FS) * SPIFFS_OBJ_HDR_IX_LEN(FS));
   TEST_CHECK(res >= 0);
@@ -925,7 +925,7 @@ TEST(write_big_files_chunks_index)
   int f;
   int files = 10;
   int res;
-  int size = ((50*(FS)->cfg.phys_size)/100)/files;
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100)/files;
   printf("  filesize %i\n", size);
   for (f = 0; f < files; f++) {
     sprintf(name, "bigfile%i", f);
@@ -963,7 +963,7 @@ TEST(write_big_files_chunks_huge)
   int f;
   int files = 10;
   int res;
-  int size = ((50*(FS)->cfg.phys_size)/100)/files;
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100)/files;
   printf("  filesize %i\n", size);
   for (f = 0; f < files; f++) {
     sprintf(name, "bigfile%i", f);
@@ -1242,7 +1242,7 @@ TEST_END
 
 TEST(read_chunk_huge)
 {
-  int sz = (2*(FS)->cfg.phys_size)/3;
+  int sz = (2*SPIFFS_CFG_PHYS_SZ(FS))/3;
   TEST_CHECK(create_and_read_back(sz, sz) == 0);
   return TEST_RES_OK;
 }
@@ -1636,7 +1636,7 @@ TEST(write_small_files_chunks_1)
   char name[32];
   int f;
   int size = 512;
-  int files = ((20*(FS)->cfg.phys_size)/100)/size;
+  int files = ((20*SPIFFS_CFG_PHYS_SZ(FS))/100)/size;
   int res;
   for (f = 0; f < files; f++) {
     sprintf(name, "smallfile%i", f);
@@ -1655,7 +1655,7 @@ TEST_END
 
 TEST(write_big_file_chunks_1)
 {
-  int size = ((50*(FS)->cfg.phys_size)/100);
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100);
   printf("  filesize %i\n", size);
   int res = test_create_and_write_file("bigfile", size, 1);
   TEST_CHECK(res >= 0);
@@ -1672,7 +1672,7 @@ TEST(write_big_files_chunks_1)
   int f;
   int files = 10;
   int res;
-  int size = ((50*(FS)->cfg.phys_size)/100)/files;
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100)/files;
   printf("  filesize %i\n", size);
   for (f = 0; f < files; f++) {
     sprintf(name, "bigfile%i", f);

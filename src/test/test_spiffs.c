@@ -139,7 +139,11 @@ void clear_test_path() {
   }
 }
 
-static s32_t _read(spiffs *fs, u32_t addr, u32_t size, u8_t *dst) {
+static s32_t _read(
+#if SPIFFS_HAL_CALLBACK_EXTRA
+    spiffs *fs,
+#endif
+    u32_t addr, u32_t size, u8_t *dst) {
   //printf("rd @ addr %08x => %p\n", addr, &AREA(addr));
   if (log_flash_ops) {
     bytes_rd += size;
@@ -151,11 +155,11 @@ static s32_t _read(spiffs *fs, u32_t addr, u32_t size, u8_t *dst) {
       return SPIFFS_ERR_TEST;
     }
   }
-  if (addr < __fs.cfg.phys_addr) {
+  if (addr < SPIFFS_CFG_PHYS_ADDR(&__fs)) {
     printf("FATAL read addr too low %08x < %08x\n", addr, SPIFFS_PHYS_ADDR);
     exit(0);
   }
-  if (addr + size > __fs.cfg.phys_addr + __fs.cfg.phys_size) {
+  if (addr + size > SPIFFS_CFG_PHYS_ADDR(&__fs) + SPIFFS_CFG_PHYS_SZ(&__fs)) {
     printf("FATAL read addr too high %08x + %08x > %08x\n", addr, size, SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
     exit(0);
   }
@@ -163,7 +167,11 @@ static s32_t _read(spiffs *fs, u32_t addr, u32_t size, u8_t *dst) {
   return 0;
 }
 
-static s32_t _write(spiffs *fs, u32_t addr, u32_t size, u8_t *src) {
+static s32_t _write(
+#if SPIFFS_HAL_CALLBACK_EXTRA
+    spiffs *fs,
+#endif
+    u32_t addr, u32_t size, u8_t *src) {
   int i;
   //printf("wr %08x %i\n", addr, size);
   if (log_flash_ops) {
@@ -177,17 +185,17 @@ static s32_t _write(spiffs *fs, u32_t addr, u32_t size, u8_t *src) {
     }
   }
 
-  if (addr < __fs.cfg.phys_addr) {
+  if (addr < SPIFFS_CFG_PHYS_ADDR(&__fs)) {
     printf("FATAL write addr too low %08x < %08x\n", addr, SPIFFS_PHYS_ADDR);
     exit(0);
   }
-  if (addr + size > __fs.cfg.phys_addr + __fs.cfg.phys_size) {
+  if (addr + size > SPIFFS_CFG_PHYS_ADDR(&__fs) + SPIFFS_CFG_PHYS_SZ(&__fs)) {
     printf("FATAL write addr too high %08x + %08x > %08x\n", addr, size, SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
     exit(0);
   }
 
   for (i = 0; i < size; i++) {
-    if (((addr + i) & (__fs.cfg.log_page_size-1)) != offsetof(spiffs_page_header, flags)) {
+    if (((addr + i) & (SPIFFS_CFG_LOG_PAGE_SZ(&__fs)-1)) != offsetof(spiffs_page_header, flags)) {
       if (check_valid_flash && ((AREA(addr + i) ^ src[i]) & src[i])) {
         printf("trying to write %02x to %02x at addr %08x\n", src[i], AREA(addr + i), addr+i);
         spiffs_page_ix pix = (addr + i) / LOG_PAGE;
@@ -199,16 +207,20 @@ static s32_t _write(spiffs *fs, u32_t addr, u32_t size, u8_t *src) {
   }
   return 0;
 }
-static s32_t _erase(spiffs *fs, u32_t addr, u32_t size) {
-  if (addr & (__fs.cfg.phys_erase_block-1)) {
+static s32_t _erase(
+#if SPIFFS_HAL_CALLBACK_EXTRA
+    spiffs *fs,
+#endif
+    u32_t addr, u32_t size) {
+  if (addr & (SPIFFS_CFG_PHYS_ERASE_SZ(&__fs)-1)) {
     printf("trying to erase at addr %08x, out of boundary\n", addr);
     return -1;
   }
-  if (size & (__fs.cfg.phys_erase_block-1)) {
+  if (size & (SPIFFS_CFG_PHYS_ERASE_SZ(&__fs)-1)) {
     printf("trying to erase at with size %08x, out of boundary\n", size);
     return -1;
   }
-  _erases[(addr-__fs.cfg.phys_addr)/__fs.cfg.phys_erase_block]++;
+  _erases[(addr-SPIFFS_CFG_PHYS_ADDR(&__fs))/SPIFFS_CFG_PHYS_ERASE_SZ(&__fs)]++;
   memset(&AREA(addr), 0xff, size);
   return 0;
 }
@@ -291,7 +303,7 @@ void dump_page(spiffs *fs, spiffs_page_ix p) {
     }
   }
   printf("\n");
-  u32_t len = fs->cfg.log_page_size;
+  u32_t len = SPIFFS_CFG_LOG_PAGE_SZ(fs);
   hexdump(addr, len);
 }
 
@@ -343,7 +355,11 @@ void dump_flash_access_stats() {
 
 
 // static u32_t old_perc = 999;
-static void spiffs_check_cb_f(spiffs *fs, spiffs_check_type type, spiffs_check_report report,
+static void spiffs_check_cb_f(
+#if SPIFFS_HAL_CALLBACK_EXTRA
+    spiffs *fs,
+#endif
+    spiffs_check_type type, spiffs_check_report report,
     u32_t arg1, u32_t arg2) {
 /*  if (report == SPIFFS_CHECK_PROGRESS && old_perc != arg1) {
     old_perc = arg1;
@@ -417,11 +433,13 @@ s32_t fs_mount_specific(u32_t phys_addr, u32_t phys_size,
   c.hal_erase_f = _erase;
   c.hal_read_f = _read;
   c.hal_write_f = _write;
+#if SPIFFS_SINGLETON == 0
   c.log_block_size = log_block_size;
   c.log_page_size = log_page_size;
   c.phys_addr = phys_addr;
   c.phys_erase_block = phys_sector_size;
   c.phys_size = phys_size;
+#endif
 #if SPIFFS_FILEHDL_OFFSET
   c.fh_ix_offset = TEST_SPIFFS_FILEHDL_OFFSET;
 #endif
