@@ -1290,6 +1290,48 @@ TEST(read_beyond)
 }
 TEST_END
 
+TEST(read_beyond2)
+{
+  char *name = "file";
+  spiffs_file fd;
+  s32_t res;
+  const s32_t size = SPIFFS_DATA_PAGE_SIZE(FS);
+
+  u8_t buf[size*2];
+  memrand(buf, size);
+
+  res = test_create_file(name);
+  CHECK(res >= 0);
+  fd = SPIFFS_open(FS, name, SPIFFS_APPEND | SPIFFS_RDWR, 0);
+  CHECK(fd >= 0);
+  res = SPIFFS_write(FS, fd, buf, size);
+  CHECK(res >= 0);
+
+  spiffs_stat stat;
+  res = SPIFFS_fstat(FS, fd, &stat);
+  CHECK(res >= 0);
+  CHECK(stat.size == size);
+
+  SPIFFS_close(FS, fd);
+
+  int i,j;
+  for (j = 1; j <= size+1; j++) {
+    fd = SPIFFS_open(FS, name, SPIFFS_RDONLY, 0);
+    CHECK(fd >= 0);
+    SPIFFS_clearerr(FS);
+    for (i = 0; i < size * 2; i += j) {
+      u8_t dst;
+      res = SPIFFS_read(FS, fd, buf, j);
+      TEST_CHECK_EQ(SPIFFS_errno(FS), i < size ? SPIFFS_OK : SPIFFS_ERR_END_OF_OBJECT);
+      TEST_CHECK_EQ(res, MIN(j, MAX(0, size - (i + j) + j)));
+    }
+    SPIFFS_close(FS, fd);
+  }
+
+  return TEST_RES_OK;
+}
+TEST_END
+
 
 TEST(bad_index_1) {
   int size = SPIFFS_DATA_PAGE_SIZE(FS)*3;
@@ -2410,6 +2452,7 @@ SUITE_TESTS(hydrogen_tests)
   ADD_TEST(read_chunk_index)
   ADD_TEST(read_chunk_huge)
   ADD_TEST(read_beyond)
+  ADD_TEST(read_beyond2)
   ADD_TEST(bad_index_1)
   ADD_TEST(bad_index_2)
   ADD_TEST(lseek_simple_modification)

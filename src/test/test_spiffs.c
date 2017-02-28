@@ -841,10 +841,10 @@ u32_t get_spiffs_file_crc_by_fd(spiffs_file fd) {
 
   ASSERT(SPIFFS_lseek(FS, fd, 0, SPIFFS_SEEK_SET) >= 0, "could not seek to start of file");
 
-  while ((res = SPIFFS_read(FS, fd, buf, sizeof(buf))) >= SPIFFS_OK) {
+  while ((res = SPIFFS_read(FS, fd, buf, sizeof(buf))) > SPIFFS_OK) {
     crc = crc32(crc, buf, res);
   }
-  ASSERT(res == SPIFFS_ERR_END_OF_OBJECT || res == SPIFFS_OK, "failed reading file");
+  ASSERT(SPIFFS_errno(FS) == SPIFFS_ERR_END_OF_OBJECT || SPIFFS_errno(FS) == SPIFFS_OK, "failed reading file");
 
   return crc;
 }

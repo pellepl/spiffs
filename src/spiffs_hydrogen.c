@@ -356,7 +356,7 @@ spiffs_file SPIFFS_open_by_page(spiffs *fs, spiffs_page_ix page_ix, spiffs_flags
   return SPIFFS_FH_OFFS(fs, fd->file_nbr);
 }
 
-s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
+static s32_t spiffs_hydro_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
   SPIFFS_LOCK(fs);
@@ -409,6 +409,15 @@ s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
 
   return len;
 }
+
+s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
+  s32_t res = spiffs_hydro_read(fs, fh, buf, len);
+  if (res == SPIFFS_ERR_END_OF_OBJECT) {
+    res = 0;
+  }
+  return res;
+}
+
 
 #if !SPIFFS_READ_ONLY
 static s32_t spiffs_hydro_write(spiffs *fs, spiffs_fd *fd, void *buf, u32_t offset, s32_t len) {
