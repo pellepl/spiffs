@@ -30,7 +30,7 @@ TEST(info)
   int res = SPIFFS_info(FS, &total, &used);
   TEST_CHECK(res == SPIFFS_OK);
   TEST_CHECK(used == 0);
-  TEST_CHECK(total < __fs.cfg.phys_size);
+  TEST_CHECK(total < SPIFFS_CFG_PHYS_SZ(&__fs));
   return TEST_RES_OK;
 }
 TEST_END
@@ -869,7 +869,7 @@ TEST_END
 
 TEST(write_big_file_chunks_page)
 {
-  int size = ((50*(FS)->cfg.phys_size)/100);
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100);
   printf("  filesize %i\n", size);
   int res = test_create_and_write_file("bigfile", size, SPIFFS_DATA_PAGE_SIZE(FS));
   TEST_CHECK(res >= 0);
@@ -887,7 +887,7 @@ TEST(write_big_files_chunks_page)
   int f;
   int files = 10;
   int res;
-  int size = ((50*(FS)->cfg.phys_size)/100)/files;
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100)/files;
   printf("  filesize %i\n", size);
   for (f = 0; f < files; f++) {
     sprintf(name, "bigfile%i", f);
@@ -907,7 +907,7 @@ TEST_END
 
 TEST(write_big_file_chunks_index)
 {
-  int size = ((50*(FS)->cfg.phys_size)/100);
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100);
   printf("  filesize %i\n", size);
   int res = test_create_and_write_file("bigfile", size, SPIFFS_DATA_PAGE_SIZE(FS) * SPIFFS_OBJ_HDR_IX_LEN(FS));
   TEST_CHECK(res >= 0);
@@ -925,7 +925,7 @@ TEST(write_big_files_chunks_index)
   int f;
   int files = 10;
   int res;
-  int size = ((50*(FS)->cfg.phys_size)/100)/files;
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100)/files;
   printf("  filesize %i\n", size);
   for (f = 0; f < files; f++) {
     sprintf(name, "bigfile%i", f);
@@ -963,7 +963,7 @@ TEST(write_big_files_chunks_huge)
   int f;
   int files = 10;
   int res;
-  int size = ((50*(FS)->cfg.phys_size)/100)/files;
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100)/files;
   printf("  filesize %i\n", size);
   for (f = 0; f < files; f++) {
     sprintf(name, "bigfile%i", f);
@@ -1242,7 +1242,7 @@ TEST_END
 
 TEST(read_chunk_huge)
 {
-  int sz = (2*(FS)->cfg.phys_size)/3;
+  int sz = (2*SPIFFS_CFG_PHYS_SZ(FS))/3;
   TEST_CHECK(create_and_read_back(sz, sz) == 0);
   return TEST_RES_OK;
 }
@@ -1285,6 +1285,48 @@ TEST(read_beyond)
   free(buf);
 
   TEST_CHECK(res == size);
+
+  return TEST_RES_OK;
+}
+TEST_END
+
+TEST(read_beyond2)
+{
+  char *name = "file";
+  spiffs_file fd;
+  s32_t res;
+  const s32_t size = SPIFFS_DATA_PAGE_SIZE(FS);
+
+  u8_t buf[size*2];
+  memrand(buf, size);
+
+  res = test_create_file(name);
+  CHECK(res >= 0);
+  fd = SPIFFS_open(FS, name, SPIFFS_APPEND | SPIFFS_RDWR, 0);
+  CHECK(fd >= 0);
+  res = SPIFFS_write(FS, fd, buf, size);
+  CHECK(res >= 0);
+
+  spiffs_stat stat;
+  res = SPIFFS_fstat(FS, fd, &stat);
+  CHECK(res >= 0);
+  CHECK(stat.size == size);
+
+  SPIFFS_close(FS, fd);
+
+  int i,j;
+  for (j = 1; j <= size+1; j++) {
+    fd = SPIFFS_open(FS, name, SPIFFS_RDONLY, 0);
+    CHECK(fd >= 0);
+    SPIFFS_clearerr(FS);
+    for (i = 0; i < size * 2; i += j) {
+      u8_t dst;
+      res = SPIFFS_read(FS, fd, buf, j);
+      TEST_CHECK_EQ(SPIFFS_errno(FS), i < size ? SPIFFS_OK : SPIFFS_ERR_END_OF_OBJECT);
+      TEST_CHECK_EQ(res, MIN(j, MAX(0, size - (i + j) + j)));
+    }
+    SPIFFS_close(FS, fd);
+  }
 
   return TEST_RES_OK;
 }
@@ -1636,7 +1678,7 @@ TEST(write_small_files_chunks_1)
   char name[32];
   int f;
   int size = 512;
-  int files = ((20*(FS)->cfg.phys_size)/100)/size;
+  int files = ((20*SPIFFS_CFG_PHYS_SZ(FS))/100)/size;
   int res;
   for (f = 0; f < files; f++) {
     sprintf(name, "smallfile%i", f);
@@ -1655,7 +1697,7 @@ TEST_END
 
 TEST(write_big_file_chunks_1)
 {
-  int size = ((50*(FS)->cfg.phys_size)/100);
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100);
   printf("  filesize %i\n", size);
   int res = test_create_and_write_file("bigfile", size, 1);
   TEST_CHECK(res >= 0);
@@ -1672,7 +1714,7 @@ TEST(write_big_files_chunks_1)
   int f;
   int files = 10;
   int res;
-  int size = ((50*(FS)->cfg.phys_size)/100)/files;
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100)/files;
   printf("  filesize %i\n", size);
   for (f = 0; f < files; f++) {
     sprintf(name, "bigfile%i", f);
@@ -2410,6 +2452,7 @@ SUITE_TESTS(hydrogen_tests)
   ADD_TEST(read_chunk_index)
   ADD_TEST(read_chunk_huge)
   ADD_TEST(read_beyond)
+  ADD_TEST(read_beyond2)
   ADD_TEST(bad_index_1)
   ADD_TEST(bad_index_2)
   ADD_TEST(lseek_simple_modification)

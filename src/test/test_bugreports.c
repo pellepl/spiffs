@@ -343,7 +343,7 @@ TEST(zero_sized_file_44) {
 
   u8_t buf[8];
   res = SPIFFS_read(FS, fd, buf, 8);
-  TEST_CHECK_LT(res, 0);
+  TEST_CHECK_EQ(res, 0);
   TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_END_OF_OBJECT);
 
   res = SPIFFS_read(FS, fd, buf, 0);
@@ -371,7 +371,7 @@ TEST(zero_sized_file_44) {
   TEST_CHECK_EQ(b, 2);
 
   res = SPIFFS_read(FS, fd, buf, 8);
-  TEST_CHECK_LT(res, 0);
+  TEST_CHECK_EQ(res, 0);
   TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_END_OF_OBJECT);
 
   return TEST_RES_OK;
