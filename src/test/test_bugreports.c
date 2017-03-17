@@ -651,8 +651,9 @@ static int run_fuzz_test(FILE *f, int maxfds, int debuglog) {
           LOGOP("  close(%d)\n", fd[fdn]);
 	  SPIFFS_close(FS, fd[fdn]);
 	}
+        LOGOP("  open(\"%s\", 0x%x)", filename[(arg>>3) & 7], modes[arg & 7]);
 	fd[fdn] = SPIFFS_open(FS, filename[(arg>>3) & 7], modes[arg & 7], 0);
-        LOGOP("  open(\"%s\", 0x%x) -> %d\n", filename[(arg>>3) & 7], modes[arg & 7], fd[fdn]);
+        LOGOP(" -> %d\n", fd[fdn]);
 	break;
 
       case 'S':
@@ -669,15 +670,17 @@ static int run_fuzz_test(FILE *f, int maxfds, int debuglog) {
 
       case 'R':
 	if (fd[fdn] >= 0) {
+          LOGOP("  read(%d, , %d)", fd[fdn], (15 << (arg & 7)) + (arg & 127));
 	  int rlen = SPIFFS_read(FS, fd[fdn], rbuff, (15 << (arg & 7)) + (arg & 127));
-          LOGOP("  read(%d, , %d) -> %d\n", fd[fdn], (15 << (arg & 7)) + (arg & 127), rlen);
+          LOGOP(" -> %d\n", rlen);
 	}
 	break;
 
       case 'W':
 	if (fd[fdn] >= 0) {
+          LOGOP("  write(%d, , %d)", fd[fdn], (15 << (arg & 7)) + (arg & 127));
 	  int rc = SPIFFS_write(FS, fd[fdn], buff, (15 << (arg & 7)) + (arg & 127));
-          LOGOP("  write(%d, , %d) -> %d\n", fd[fdn], (15 << (arg & 7)) + (arg & 127), rc);
+          LOGOP(" -> %d\n", rc);
 	}
 	break;
 
@@ -727,12 +730,12 @@ static int run_fuzz_test(FILE *f, int maxfds, int debuglog) {
 	}
 	{
 	  char *tmpfile = strdup("/tmp/fsdump.XXXXXX");
+          LOGOP("  unmount and remount\n");
 	  close(mkstemp(tmpfile));
 	  fs_store_dump(tmpfile);
 	  fs_mount_dump(tmpfile, 0, 0, blocks * block_size, erase_size, block_size, page_size);
 	  unlink(tmpfile);
 	  free(tmpfile);
-          LOGOP("  unmount and remount\n");
 	}
 	break;
 
