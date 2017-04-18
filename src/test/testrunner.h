@@ -130,7 +130,10 @@ typedef struct test_res_s {
   }
 
 #define ADD_TEST(tf) \
-  _add_test(__test_##tf, str(tf), setup, teardown);
+  _add_test(__test_##tf, str(tf), setup, teardown, 0);
+
+#define ADD_TEST_NON_DEFAULT(tf) \
+  _add_test(__test_##tf, str(tf), setup, teardown, 1);
 
 #define ADD_SUITE(sui) \
   extern void _add_suite_tests_##sui(void); \
@@ -150,6 +153,6 @@ void test_init(void (*on_stop)(test *t));
 // returns 0 if all tests ok, -1 if any test failed, -2 on badness
 int run_tests(int argc, char **args);
 void _add_suite(const char *suite_name);
-void _add_test(test_f f, char *name, void (*setup)(test *t), void (*teardown)(test *t));
+void _add_test(test_f f, char *name, void (*setup)(test *t), void (*teardown)(test *t), int non_default);
 
 #endif /* TESTRUNNER_H_ */

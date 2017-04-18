@@ -16,7 +16,7 @@ builddir = build
 #
 #############
 
-CC = gcc $(COMPILEROPTIONS)
+CC ?= gcc
 LD = ld
 GDB = gdb
 OBJCOPY = objcopy
@@ -48,7 +48,7 @@ include files.mk
 INCLUDE_DIRECTIVES = -I./${sourcedir} -I./${sourcedir}/default -I./${sourcedir}/test 
 COMPILEROPTIONS = $(INCLUDE_DIRECTIVES)
 
-COMPILEROPTIONS_APP = \
+COMPILEROPTIONS_APP = $(INCLUDE_DIRECTIVES) \
 -Wall -Wno-format-y2k -W -Wstrict-prototypes -Wmissing-prototypes \
 -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch \
 -Wshadow -Wcast-align -Wchar-subscripts -Winline -Wnested-externs\
@@ -89,7 +89,7 @@ $(OBJFILES) : ${builddir}/%.o:%.c
 
 $(OBJFILES_TEST) : ${builddir}/%.o:%.c
 		@echo "... compile $@"
-		@${CC} $(CFLAGS) -g -c -o $@ $<
+		@${CC} ${COMPILEROPTIONS} $(CFLAGS) -g -c -o $@ $<
 
 # make dependencies
 #		@echo "... depend $@"; 

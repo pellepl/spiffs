@@ -137,7 +137,7 @@ typedef void (*spiffs_file_callback)(struct spiffs_t *fs, spiffs_fileop_type op,
 
 #ifndef SPIFFS_DBG
 #define SPIFFS_DBG(...) \
-    print(__VA_ARGS__)
+    printf(__VA_ARGS__)
 #endif
 #ifndef SPIFFS_GC_DBG
 #define SPIFFS_GC_DBG(...) printf(__VA_ARGS__)

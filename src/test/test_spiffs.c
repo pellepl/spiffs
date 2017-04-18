@@ -27,9 +27,14 @@
 
 #define AREA(x) _area[(x) - addr_offset]
 
+#define ERREXIT() if (abort_on_error) abort(); else error_count++
+
 static u32_t _area_sz;
 static unsigned char *_area = NULL;
 static u32_t addr_offset = 0;
+
+static u32_t abort_on_error = 0;
+static int error_count = 0;
 
 static int *_erases;
 static char _path[256];
@@ -110,6 +115,18 @@ static int mkpath(const char *path, mode_t mode) {
 }
 
 // end take
+//
+//
+int get_error_count() {
+  return error_count;
+}
+
+u32_t set_abort_on_error(u32_t val) {
+  u32_t old_val = abort_on_error;
+  abort_on_error = val;
+
+  return old_val;
+}
 
 char *make_test_fname(const char *name) {
   sprintf(_path, "%s/%s", TEST_PATH, name);
@@ -157,10 +174,12 @@ static s32_t _read(
   }
   if (addr < SPIFFS_CFG_PHYS_ADDR(&__fs)) {
     printf("FATAL read addr too low %08x < %08x\n", addr, SPIFFS_PHYS_ADDR);
+    ERREXIT();
     exit(0);
   }
   if (addr + size > SPIFFS_CFG_PHYS_ADDR(&__fs) + SPIFFS_CFG_PHYS_SZ(&__fs)) {
     printf("FATAL read addr too high %08x + %08x > %08x\n", addr, size, SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
+    ERREXIT();
     exit(0);
   }
   memcpy(dst, &AREA(addr), size);
@@ -187,10 +206,12 @@ static s32_t _write(
 
   if (addr < SPIFFS_CFG_PHYS_ADDR(&__fs)) {
     printf("FATAL write addr too low %08x < %08x\n", addr, SPIFFS_PHYS_ADDR);
+    ERREXIT();
     exit(0);
   }
   if (addr + size > SPIFFS_CFG_PHYS_ADDR(&__fs) + SPIFFS_CFG_PHYS_SZ(&__fs)) {
     printf("FATAL write addr too high %08x + %08x > %08x\n", addr, size, SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
+    ERREXIT();
     exit(0);
   }
 
@@ -200,6 +221,7 @@ static s32_t _write(
         printf("trying to write %02x to %02x at addr %08x\n", src[i], AREA(addr + i), addr+i);
         spiffs_page_ix pix = (addr + i) / LOG_PAGE;
         dump_page(&__fs, pix);
+	ERREXIT();
         return -1;
       }
     }
@@ -214,10 +236,12 @@ static s32_t _erase(
     u32_t addr, u32_t size) {
   if (addr & (SPIFFS_CFG_PHYS_ERASE_SZ(&__fs)-1)) {
     printf("trying to erase at addr %08x, out of boundary\n", addr);
+    ERREXIT();
     return -1;
   }
   if (size & (SPIFFS_CFG_PHYS_ERASE_SZ(&__fs)-1)) {
     printf("trying to erase at with size %08x, out of boundary\n", size);
+    ERREXIT();
     return -1;
   }
   _erases[(addr-SPIFFS_CFG_PHYS_ADDR(&__fs))/SPIFFS_CFG_PHYS_ERASE_SZ(&__fs)]++;
@@ -354,6 +378,7 @@ void dump_flash_access_stats() {
 }
 
 
+static int check_cb_count;
 // static u32_t old_perc = 999;
 static void spiffs_check_cb_f(
 #if SPIFFS_HAL_CALLBACK_EXTRA
@@ -375,6 +400,7 @@ static void spiffs_check_cb_f(
     printf("%i%%\n", arg1 * 100 / 256);
   }*/
   if (report != SPIFFS_CHECK_PROGRESS) {
+    check_cb_count++;
     if (report != SPIFFS_CHECK_ERROR) fs_check_fixes++;
     printf("   check: ");
     switch (type) {
@@ -413,6 +439,7 @@ void fs_set_addr_offset(u32_t offset) {
 void test_lock(spiffs *fs) {
   if (_fs_locks != 0) {
     printf("FATAL: reentrant locks. Abort.\n");
+    ERREXIT();
     exit(-1);
   }
   _fs_locks++;
@@ -421,6 +448,7 @@ void test_lock(spiffs *fs) {
 void test_unlock(spiffs *fs) {
   if (_fs_locks != 1) {
     printf("FATAL: unlocking unlocked. Abort.\n");
+    ERREXIT();
     exit(-1);
   }
   _fs_locks--;
@@ -905,14 +933,19 @@ void _teardown() {
 #endif
     dump_erase_counts(FS);
     printf("  fs consistency check output begin\n");
+    check_cb_count = 0;
     SPIFFS_check(FS);
     printf("  fs consistency check output end\n");
+    if (check_cb_count) {
+      ERREXIT();
+    }
   }
   clear_test_path();
   fs_free();
   printf("  locks : %i\n", _fs_locks);
   if (_fs_locks != 0) {
     printf("FATAL: lock asymmetry. Abort.\n");
+    ERREXIT();
     exit(-1);
   }
 }

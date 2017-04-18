@@ -591,6 +591,379 @@ TEST(temporal_fd_cache) {
   return TEST_RES_OK;
 } TEST_END
 
+static int run_fuzz_test(FILE *f, int maxfds, int debuglog) {
+  // There are a bunch of arbitrary constants in this test case. Changing them will
+  // almost certainly change the effets of an input file. It *may* be worth
+  // making some of these constants to come from the input file. 
+  int setup = fgetc(f);
+
+  int page_size = 128 << (setup & 3);
+  setup >>= 2;
+  int erase_size = 4096 << (setup & 3);
+  setup >>= 2;
+  int block_size = erase_size << (setup & 1);
+  setup >>= 1;
+  int blocks = 4 + (setup & 7);
+  fs_reset_specific(0, 0, blocks * block_size, erase_size, block_size, page_size);
+  int res;
+  (FS)->fd_count = 4;
+
+  int c;
+
+  spiffs_file fd[4];
+  memset(fd, -1, sizeof(fd));
+  char *filename[8];
+
+  int i;
+
+  for (i = 0; i < 8; i++) {
+    char buff[64];
+    sprintf(buff, "%dfile%d.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxasdasdasdadxxxxxxxxxxxxxxxxxxx", i, i);
+    buff[9 + 2 * i] = 0;
+    filename[i] = strdup(buff);
+  }
+
+  // The list of 8 modes that are chosen. SPIFFS_EXCL is not present -- it probably ought to be.
+  int modes[8] = {SPIFFS_RDONLY, SPIFFS_RDWR, SPIFFS_RDWR|SPIFFS_TRUNC, SPIFFS_RDWR|SPIFFS_CREAT, SPIFFS_RDWR|SPIFFS_CREAT|SPIFFS_TRUNC,
+                  SPIFFS_WRONLY|SPIFFS_CREAT|SPIFFS_TRUNC, SPIFFS_RDWR|SPIFFS_CREAT|SPIFFS_TRUNC|SPIFFS_DIRECT, SPIFFS_WRONLY};
+
+  char buff[2048];
+  for (i = 0; i < sizeof(buff); i++) {
+    buff[i] = i * 19;
+  }
+
+#define LOGOP if (debuglog) printf
+
+  while ((c = fgetc(f)) >= 0) {
+    int add;
+    char rbuff[2048];
+    if (c <= ' ') {
+      continue;
+    }
+    int arg = fgetc(f);
+    if (arg < 0) {
+      break;
+    }
+    int fdn = ((arg >> 6) & 3) % maxfds;
+    switch(c) {
+      case 'O':
+	if (fd[fdn] >= 0) {
+          LOGOP("  close(%d)\n", fd[fdn]);
+	  SPIFFS_close(FS, fd[fdn]);
+	}
+        LOGOP("  open(\"%s\", 0x%x)", filename[(arg>>3) & 7], modes[arg & 7]);
+	fd[fdn] = SPIFFS_open(FS, filename[(arg>>3) & 7], modes[arg & 7], 0);
+        LOGOP(" -> %d\n", fd[fdn]);
+	break;
+
+      case 'S':
+	if (fd[fdn] >= 0) {
+	  int offset = (14 << (arg & 7)) + arg;
+	  if (arg & 16) {
+	    offset = -offset;
+	  }
+	  int whence = (arg & 63) % 3;
+          LOGOP("  lseek(%d, %d, %d)\n", fd[fdn], offset, whence);
+	  SPIFFS_lseek(FS, fd[fdn], offset, whence);
+	}
+	break;
+
+      case 'R':
+	if (fd[fdn] >= 0) {
+          LOGOP("  read(%d, , %d)", fd[fdn], (15 << (arg & 7)) + (arg & 127));
+	  int rlen = SPIFFS_read(FS, fd[fdn], rbuff, (15 << (arg & 7)) + (arg & 127));
+          LOGOP(" -> %d\n", rlen);
+	}
+	break;
+
+      case 'W':
+	if (fd[fdn] >= 0) {
+          LOGOP("  write(%d, , %d)", fd[fdn], (15 << (arg & 7)) + (arg & 127));
+	  int rc = SPIFFS_write(FS, fd[fdn], buff, (15 << (arg & 7)) + (arg & 127));
+          LOGOP(" -> %d\n", rc);
+	}
+	break;
+
+      case 'C':
+	if (fd[fdn] >= 0) {
+          LOGOP("  close(%d)\n", fd[fdn]);
+	  SPIFFS_close(FS, fd[fdn]);
+	}
+	fd[fdn] = -1;
+	break;
+
+      case 'b':
+        add = fgetc(f);
+	for (i = 0; i < sizeof(buff); i++) {
+	  buff[i] = add + i * arg;
+	}
+	break;
+
+      case 'f':
+	if (fd[fdn] >= 0) {
+          LOGOP("  fflush(%d)\n", fd[fdn]);
+	  SPIFFS_fflush(FS, fd[fdn]);
+	}
+	break;
+
+      case 'D':
+	if (fd[fdn] >= 0) {
+          LOGOP("  fremove(%d)\n", fd[fdn]);
+	  SPIFFS_fremove(FS, fd[fdn]);
+	}
+	break;
+
+      case 'd':
+        LOGOP("  remove(\"%s\")\n", filename[arg & 7]);
+        SPIFFS_remove(FS, filename[arg & 7]);
+	break;
+
+      case 'r':
+        LOGOP("  rename(\"%s\", \"%s\")\n", filename[arg & 7], filename[(arg >> 3) & 7]);
+        SPIFFS_rename(FS, filename[arg & 7], filename[(arg >> 3) & 7]);
+	break;
+
+      case 'U':
+	ungetc(arg, f);
+	for (i = 0; i < 4; i++) {
+	  fd[i] = -1;
+	}
+	{
+	  char *tmpfile = strdup("/tmp/fsdump.XXXXXX");
+          LOGOP("  unmount and remount\n");
+	  close(mkstemp(tmpfile));
+	  fs_store_dump(tmpfile);
+	  fs_mount_dump(tmpfile, 0, 0, blocks * block_size, erase_size, block_size, page_size);
+	  unlink(tmpfile);
+	  free(tmpfile);
+	}
+	break;
+
+      case 'c':
+        LOGOP("  check()\n");
+        SPIFFS_check(FS);
+	ungetc(arg, f);
+	break;
+
+      default:
+	ungetc(arg, f);
+	break;
+    }
+  }
+
+  for (i = 0; i < 4; i++) {
+    if (fd[i] >= 0) {
+      LOGOP("  close(%d)\n", fd[i]);
+      SPIFFS_close(FS, fd[i]);
+    }
+  }
+
+  return TEST_RES_OK;
+}
+
+#define FMEMARGS(x)	x, sizeof(x) - 1
+
+TEST(fuzzer_found_1) {
+  return run_fuzz_test(fmemopen(FMEMARGS("\021OlWkd5O4W4W0O5OlWkO5OlW0O5O4W0"), "r"), 4, 1);
+} TEST_END
+
+TEST(fuzzer_found_2) {
+  return run_fuzz_test(fmemopen(FMEMARGS("bO4W6W0d\036O4W6"), "r"), 4, 1);
+} TEST_END
+
+TEST(fuzzer_found_3) {
+  return run_fuzz_test(fmemopen(FMEMARGS("\264O4OqWeWWWWW@O4WWW\027"), "r"), 4, 1);
+} TEST_END
+
+TEST(fuzzer_found_single_1) {
+  return run_fuzz_test(fmemopen(FMEMARGS("\000O\004Odr4d\356Okr0WWUO;WWWWd\035W4"), "r"), 1, 1);
+} TEST_END
+
+TEST(afl_test) {
+  u32_t old_val = set_abort_on_error(1);
+  int rc = run_fuzz_test(stdin, 4, 0);
+  set_abort_on_error(old_val);
+  return rc;
+} TEST_END
+
+TEST(afl_single) {
+  u32_t old_val = set_abort_on_error(1);
+  int rc = run_fuzz_test(stdin, 1, 0);
+  set_abort_on_error(old_val);
+  return rc;
+} TEST_END
+
+TEST(small_free_space) {
+  fs_reset_specific(0, 0, 400*1024, 4096, 2*4096, 256);
+  spiffs_file fd;
+  int res;
+  (FS)->fd_count = 4;
+
+  int tfd = SPIFFS_open(FS, "testfile", SPIFFS_RDWR | SPIFFS_CREAT | SPIFFS_TRUNC, 0);
+  TEST_CHECK(tfd > 0);
+  char *tbuf = "some data";
+  res = SPIFFS_write(FS, tfd, tbuf, strlen(tbuf));
+
+  TEST_CHECK(res == strlen(tbuf));
+
+  res = SPIFFS_fflush(FS, tfd);
+  TEST_CHECK(res >= SPIFFS_OK);
+
+  SPIFFS_close(FS, tfd);
+
+  const int runs = 1000;
+
+  int fileCurrNumber = 0;
+  int fileDelNumber = 1;
+
+  int run = 0;
+  do {
+    u8_t buf[1000];
+
+    sprintf(buf, "%d", fileCurrNumber);
+    int i;
+    for (i = 0; i < 100; i++) {
+      strcat(buf, " azzaaax");
+    }
+
+    int maxFileNr = 500;
+    char *filename = "awyn";
+    char *fileext = ".dat";
+
+    u32_t total;
+    u32_t used;
+
+    SPIFFS_info(FS, &total, &used);
+
+    if (total - used < 20000) {
+      maxFileNr = 1;
+    }
+
+    fileCurrNumber++;
+    int fileCntr = fileCurrNumber + 1 - fileDelNumber;
+
+    char fileCurrName[64];
+    sprintf(fileCurrName, "%s%d%s", filename, fileCurrNumber, fileext);
+
+    fd = SPIFFS_open(FS, fileCurrName, SPIFFS_RDWR | SPIFFS_CREAT | SPIFFS_TRUNC, 0);
+    TEST_CHECK(fd > 0);
+
+    //printf("About to write to %s\n", fileCurrName);
+    res = SPIFFS_write(FS, fd, buf, strlen(buf));
+
+    TEST_CHECK(res == strlen(buf));
+
+    res = SPIFFS_fflush(FS, fd);
+    TEST_CHECK_EQ(res, SPIFFS_OK);
+
+    SPIFFS_close(FS, fd);
+
+    if (fileCntr > maxFileNr) {
+      char fileDelName[64];
+      sprintf(fileDelName, "%s%d%s", filename, fileDelNumber, fileext);
+      //printf("Deleting %s (free space %d)\n", fileDelName, total - used);
+  
+      res = SPIFFS_remove(FS, fileDelName);
+
+      TEST_CHECK(res == SPIFFS_OK);
+      fileDelNumber++;
+    }
+  } while (run ++ < runs);
+
+  tfd = SPIFFS_open(FS, "testfile", SPIFFS_RDONLY, 0);
+  TEST_CHECK(tfd > 0);
+  char rbuf[32];
+  res = SPIFFS_read(FS, tfd, rbuf, sizeof(rbuf));
+
+  TEST_CHECK(res == strlen(tbuf));
+
+  SPIFFS_close(FS, tfd);
+
+  TEST_CHECK(memcmp(rbuf, tbuf, strlen(tbuf)) == 0);
+
+  return TEST_RES_OK;
+} TEST_END
+
+TEST(lots_of_overwrite) {
+  fs_reset_specific(0, 0, 3000*1024, 4096, 2*4096, 256);
+  spiffs_file fd;
+  int res;
+  (FS)->fd_count = 4;
+
+  int i;
+
+  for (i = 0; i < 5; i++) {
+
+    char filename[64];
+    sprintf(filename, "%d-tstfile", i);
+    int tfd = SPIFFS_open(FS, filename, SPIFFS_RDWR | SPIFFS_CREAT | SPIFFS_TRUNC, 0);
+    TEST_CHECK(tfd > 0);
+    char tbuf[1024];
+    memset(tbuf, 'a', 700);
+    tbuf[700] = 0;
+    res = SPIFFS_write(FS, tfd, tbuf, strlen(tbuf));
+
+    TEST_CHECK(res == strlen(tbuf));
+
+    res = SPIFFS_fflush(FS, tfd);
+    TEST_CHECK(res >= SPIFFS_OK);
+
+    SPIFFS_close(FS, tfd);
+  }
+
+  const int runs = 100000;
+
+  int run = 0;
+  for (run = 0; run < runs; run++) {
+    u8_t buf[2000];
+
+    sprintf(buf, "%d", run);
+    int i;
+    for (i = 0; i < 100 + (run % 100); i++) {
+      strcat(buf, " azzaaax");
+    }
+
+    int tfd = SPIFFS_open(FS, "file.dat", SPIFFS_RDWR | SPIFFS_CREAT | SPIFFS_TRUNC, 0);
+    TEST_CHECK(tfd > 0);
+    res = SPIFFS_write(FS, tfd, buf, strlen(buf));
+
+    TEST_CHECK(res == strlen(buf));
+
+    res = SPIFFS_fflush(FS, tfd);
+    TEST_CHECK(res >= SPIFFS_OK);
+
+    SPIFFS_close(FS, tfd);
+
+    tfd = SPIFFS_open(FS, "file.dat", SPIFFS_RDONLY, 0);
+    TEST_CHECK(tfd > 0);
+    char rbuf[2000];
+    res = SPIFFS_read(FS, tfd, rbuf, sizeof(rbuf));
+
+    TEST_CHECK(res == strlen(buf));
+
+    SPIFFS_close(FS, tfd);
+
+    TEST_CHECK(memcmp(rbuf, buf, strlen(buf)) == 0);
+
+    char filename[64];
+    sprintf(filename, "%d-tstfile", run % 5);
+    tfd = SPIFFS_open(FS, filename, SPIFFS_RDONLY, 0);
+    TEST_CHECK(tfd > 0);
+    char tbuf[1024];
+    memset(tbuf, 'a', 700);
+    tbuf[700] = 0;
+    res = SPIFFS_read(FS, tfd, rbuf, sizeof(rbuf));
+
+    TEST_CHECK(res == strlen(tbuf));
+
+    SPIFFS_close(FS, tfd);
+    TEST_CHECK(memcmp(rbuf, tbuf, strlen(tbuf)) == 0);
+  }
+
+  return TEST_RES_OK;
+} TEST_END
+
+
 #if 0
 TEST(spiffs_hidden_file_90) {
   fs_mount_dump("imgs/90.hidden_file.spiffs", 0, 0, 1*1024*1024, 4096, 4096, 128);
@@ -665,6 +1038,14 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(eof_tell_72)
   ADD_TEST(spiffs_dup_file_74)
   ADD_TEST(temporal_fd_cache)
+  //ADD_TEST(small_free_space)
+  ADD_TEST(lots_of_overwrite)
+  ADD_TEST(fuzzer_found_1)
+  ADD_TEST(fuzzer_found_2)
+  ADD_TEST(fuzzer_found_3)
+  ADD_TEST(fuzzer_found_single_1)
+  ADD_TEST_NON_DEFAULT(afl_test)
+  ADD_TEST_NON_DEFAULT(afl_single)
 #if 0
   ADD_TEST(spiffs_hidden_file_90)
 #endif
