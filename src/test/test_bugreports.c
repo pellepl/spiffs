@@ -779,6 +779,13 @@ TEST(fuzzer_found_single_1) {
   return run_fuzz_test(fmemopen(FMEMARGS("\000O\004Odr4d\356Okr0WWUO;WWWWd\035W4"), "r"), 1, 1);
 } TEST_END
 
+TEST(log_afl_test) {
+  u32_t old_val = set_abort_on_error(1);
+  int rc = run_fuzz_test(stdin, 4, 1);
+  set_abort_on_error(old_val);
+  return rc;
+} TEST_END
+
 TEST(afl_test) {
   u32_t old_val = set_abort_on_error(1);
   int rc = run_fuzz_test(stdin, 4, 0);
@@ -1044,6 +1051,7 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(fuzzer_found_2)
   ADD_TEST(fuzzer_found_3)
   ADD_TEST(fuzzer_found_single_1)
+  ADD_TEST_NON_DEFAULT(log_afl_test)
   ADD_TEST_NON_DEFAULT(afl_test)
   ADD_TEST_NON_DEFAULT(afl_single)
 #if 0
