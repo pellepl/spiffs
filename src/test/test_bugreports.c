@@ -17,6 +17,14 @@
 #include <dirent.h>
 #include <unistd.h>
 
+/* The follow defines control details of how the fuzzer can exercise the API. If you
+ * undef any of these, then the fuzzer is less brutal. FOr example, if you undef
+ * HAVE_REMOVE_OPEN, then the fuzzer will not attempt to remove (or rename) an open file
+ */
+#define HAVE_REMOVE_OPEN
+#define HAVE_MULTIPLE_OPEN
+#define NO_FORCE_CHECK
+
 SUITE(bug_tests)
 static void setup() {
   _setup_test_only();
