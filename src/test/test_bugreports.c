@@ -839,6 +839,17 @@ TEST(fuzzer_found_3) {
   return run_fuzz_test(fmemopen(FMEMARGS("\264O4OqWeWWWWW@O4WWW\027"), "r"), 4, 1);
 } TEST_END
 
+TEST(fuzzer_found_4) {
+  unsigned char smalltest[] = {
+      0x62, 0x4f, 0x24, 0x57, 0x3f, 0x57, 0x3f, 0x57, 0x3f, 0x57, 0x3f, 0x57,
+      0x3f, 0x4f, 0x34, 0x57, 0x3f, 0x55, 0x4f, 0x61, 0x57, 0x61, 0x4f, 0x61,
+      0x57, 0x65, 0x43, 0x61, 0x4f, 0x24, 0x57, 0x30
+  };
+  unsigned int smalltest_len = 32;
+
+  return run_fuzz_test(fmemopen(smalltest, smalltest_len, "r"), 4, 1);
+} TEST_END
+
 TEST(fuzzer_found_single_1) {
   return run_fuzz_test(fmemopen(FMEMARGS("\000O\004Odr4d\356Okr0WWUO;WWWWd\035W4"), "r"), 1, 1);
 } TEST_END
@@ -1111,10 +1122,11 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(temporal_fd_cache)
   //ADD_TEST(small_free_space)
   ADD_TEST(lots_of_overwrite)
-  ADD_TEST(fuzzer_found_1)
-  ADD_TEST(fuzzer_found_2)
-  ADD_TEST(fuzzer_found_3)
-  ADD_TEST(fuzzer_found_single_1)
+  ADD_TEST_NON_DEFAULT(fuzzer_found_1)
+  ADD_TEST_NON_DEFAULT(fuzzer_found_2)
+  ADD_TEST_NON_DEFAULT(fuzzer_found_3)
+  ADD_TEST_NON_DEFAULT(fuzzer_found_4)
+  ADD_TEST_NON_DEFAULT(fuzzer_found_single_1)
   ADD_TEST_NON_DEFAULT(log_afl_test)
   ADD_TEST_NON_DEFAULT(afl_test)
   ADD_TEST_NON_DEFAULT(afl_single)
