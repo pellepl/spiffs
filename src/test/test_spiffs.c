@@ -175,12 +175,12 @@ static s32_t _read(
   if (addr < SPIFFS_CFG_PHYS_ADDR(&__fs)) {
     printf("FATAL read addr too low %08x < %08x\n", addr, SPIFFS_PHYS_ADDR);
     ERREXIT();
-    exit(0);
+    return -1;
   }
   if (addr + size > SPIFFS_CFG_PHYS_ADDR(&__fs) + SPIFFS_CFG_PHYS_SZ(&__fs)) {
     printf("FATAL read addr too high %08x + %08x > %08x\n", addr, size, SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
     ERREXIT();
-    exit(0);
+    return -1;
   }
   memcpy(dst, &AREA(addr), size);
   return 0;
@@ -207,12 +207,12 @@ static s32_t _write(
   if (addr < SPIFFS_CFG_PHYS_ADDR(&__fs)) {
     printf("FATAL write addr too low %08x < %08x\n", addr, SPIFFS_PHYS_ADDR);
     ERREXIT();
-    exit(0);
+    return -1;
   }
   if (addr + size > SPIFFS_CFG_PHYS_ADDR(&__fs) + SPIFFS_CFG_PHYS_SZ(&__fs)) {
     printf("FATAL write addr too high %08x + %08x > %08x\n", addr, size, SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
     ERREXIT();
-    exit(0);
+    return -1;
   }
 
   for (i = 0; i < size; i++) {
