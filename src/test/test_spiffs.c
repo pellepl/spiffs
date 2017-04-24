@@ -175,12 +175,12 @@ static s32_t _read(
   if (addr < SPIFFS_CFG_PHYS_ADDR(&__fs)) {
     printf("FATAL read addr too low %08x < %08x\n", addr, SPIFFS_PHYS_ADDR);
     ERREXIT();
-    exit(0);
+    return -1;
   }
   if (addr + size > SPIFFS_CFG_PHYS_ADDR(&__fs) + SPIFFS_CFG_PHYS_SZ(&__fs)) {
     printf("FATAL read addr too high %08x + %08x > %08x\n", addr, size, SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
     ERREXIT();
-    exit(0);
+    return -1;
   }
   memcpy(dst, &AREA(addr), size);
   return 0;
@@ -207,19 +207,19 @@ static s32_t _write(
   if (addr < SPIFFS_CFG_PHYS_ADDR(&__fs)) {
     printf("FATAL write addr too low %08x < %08x\n", addr, SPIFFS_PHYS_ADDR);
     ERREXIT();
-    exit(0);
+    return -1;
   }
   if (addr + size > SPIFFS_CFG_PHYS_ADDR(&__fs) + SPIFFS_CFG_PHYS_SZ(&__fs)) {
     printf("FATAL write addr too high %08x + %08x > %08x\n", addr, size, SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
     ERREXIT();
-    exit(0);
+    return -1;
   }
 
   for (i = 0; i < size; i++) {
     if (((addr + i) & (SPIFFS_CFG_LOG_PAGE_SZ(&__fs)-1)) != offsetof(spiffs_page_header, flags)) {
       if (check_valid_flash && ((AREA(addr + i) ^ src[i]) & src[i])) {
-        printf("trying to write %02x to %02x at addr %08x\n", src[i], AREA(addr + i), addr+i);
-        spiffs_page_ix pix = (addr + i) / LOG_PAGE;
+        printf("trying to write %02x to %02x at addr %08x (as part of writing %d bytes to addr %08x)\n", src[i], AREA(addr + i), addr+i, size, addr);
+        spiffs_page_ix pix = (addr + i) / SPIFFS_CFG_LOG_PAGE_SZ(&__fs);
         dump_page(&__fs, pix);
 	ERREXIT();
         return -1;
@@ -492,10 +492,12 @@ static void fs_create(u32_t spiflash_size,
   ASSERT(_fds != NULL, "testbench fd buffer could not be malloced");
   memset(_fds, 0, _fds_sz);
 
+#if SPIFFS_CACHE
   _cache_sz = sizeof(spiffs_cache) + cache_pages * (sizeof(spiffs_cache_page) + log_page_size);
   _cache = malloc(_cache_sz);
   ASSERT(_cache != NULL, "testbench cache could not be malloced");
   memset(_cache, 0, _cache_sz);
+#endif
 
   const u32_t work_sz = log_page_size * 2;
   _work = malloc(work_sz);

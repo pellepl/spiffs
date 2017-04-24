@@ -17,6 +17,14 @@
 #include <dirent.h>
 #include <unistd.h>
 
+/* The follow defines control details of how the fuzzer can exercise the API. If you
+ * undef any of these, then the fuzzer is less brutal. FOr example, if you undef
+ * HAVE_REMOVE_OPEN, then the fuzzer will not attempt to remove (or rename) an open file
+ */
+#define HAVE_REMOVE_OPEN
+#define HAVE_MULTIPLE_OPEN
+#define NO_FORCE_CHECK
+
 SUITE(bug_tests)
 static void setup() {
   _setup_test_only();
@@ -612,6 +620,8 @@ static int run_fuzz_test(FILE *f, int maxfds, int debuglog) {
 
   spiffs_file fd[4];
   memset(fd, -1, sizeof(fd));
+  int openindex[4];
+  memset(openindex, -1, sizeof(openindex));
   char *filename[8];
 
   int i;
@@ -645,14 +655,33 @@ static int run_fuzz_test(FILE *f, int maxfds, int debuglog) {
       break;
     }
     int fdn = ((arg >> 6) & 3) % maxfds;
+    int rc;
     switch(c) {
       case 'O':
 	if (fd[fdn] >= 0) {
           LOGOP("  close(%d)\n", fd[fdn]);
 	  SPIFFS_close(FS, fd[fdn]);
+          openindex[fdn] = -1;
+          fd[fdn] = -1;
 	}
+#ifndef HAVE_MULTIPLE_OPEN
+      {
+        int index = (arg >> 3) & 7;
+        for (i = 0; i < sizeof(openindex) / sizeof(openindex[0]); i++) {
+          if (openindex[i] == index) {
+            break;
+          }
+        }
+        if (i < sizeof(openindex) / sizeof(openindex[0])) {
+          break;
+        }
+      }
+#endif
         LOGOP("  open(\"%s\", 0x%x)", filename[(arg>>3) & 7], modes[arg & 7]);
 	fd[fdn] = SPIFFS_open(FS, filename[(arg>>3) & 7], modes[arg & 7], 0);
+        if (fd[fdn] >= 0) {
+          openindex[fdn] = (arg >> 3) & 7;
+        }
         LOGOP(" -> %d\n", fd[fdn]);
 	break;
 
@@ -679,7 +708,7 @@ static int run_fuzz_test(FILE *f, int maxfds, int debuglog) {
       case 'W':
 	if (fd[fdn] >= 0) {
           LOGOP("  write(%d, , %d)", fd[fdn], (15 << (arg & 7)) + (arg & 127));
-	  int rc = SPIFFS_write(FS, fd[fdn], buff, (15 << (arg & 7)) + (arg & 127));
+	  rc = SPIFFS_write(FS, fd[fdn], buff, (15 << (arg & 7)) + (arg & 127));
           LOGOP(" -> %d\n", rc);
 	}
 	break;
@@ -690,6 +719,7 @@ static int run_fuzz_test(FILE *f, int maxfds, int debuglog) {
 	  SPIFFS_close(FS, fd[fdn]);
 	}
 	fd[fdn] = -1;
+        openindex[fdn] = -1;
 	break;
 
       case 'b':
@@ -706,21 +736,51 @@ static int run_fuzz_test(FILE *f, int maxfds, int debuglog) {
 	}
 	break;
 
+#ifdef HAVE_REMOVE_OPEN
       case 'D':
 	if (fd[fdn] >= 0) {
           LOGOP("  fremove(%d)\n", fd[fdn]);
 	  SPIFFS_fremove(FS, fd[fdn]);
 	}
 	break;
+#endif
 
       case 'd':
-        LOGOP("  remove(\"%s\")\n", filename[arg & 7]);
-        SPIFFS_remove(FS, filename[arg & 7]);
+#ifndef HAVE_REMOVE_OPEN
+      {
+        int index = arg & 7;
+        for (i = 0; i < sizeof(openindex) / sizeof(openindex[0]); i++) {
+          if (openindex[i] == index) {
+            break;
+          }
+        }
+        if (i < sizeof(openindex) / sizeof(openindex[0])) {
+          break;
+        }
+      }
+#endif
+        LOGOP("  remove(\"%s\")", filename[arg & 7]);
+        rc = SPIFFS_remove(FS, filename[arg & 7]);
+        LOGOP(" -> %d\n", rc);
 	break;
 
       case 'r':
-        LOGOP("  rename(\"%s\", \"%s\")\n", filename[arg & 7], filename[(arg >> 3) & 7]);
-        SPIFFS_rename(FS, filename[arg & 7], filename[(arg >> 3) & 7]);
+#ifndef HAVE_REMOVE_OPEN
+      {
+        int index = arg & 7;
+        for (i = 0; i < sizeof(openindex) / sizeof(openindex[0]); i++) {
+          if (openindex[i] == index) {
+            break;
+          }
+        }
+        if (i < sizeof(openindex) / sizeof(openindex[0])) {
+          break;
+        }
+      }
+#endif
+        LOGOP("  rename(\"%s\", \"%s\")", filename[arg & 7], filename[(arg >> 3) & 7]);
+        rc = SPIFFS_rename(FS, filename[arg & 7], filename[(arg >> 3) & 7]);
+        LOGOP(" -> %d\n", rc);
 	break;
 
       case 'U':
@@ -729,21 +789,33 @@ static int run_fuzz_test(FILE *f, int maxfds, int debuglog) {
 	  fd[i] = -1;
 	}
 	{
+#ifdef DO_UNMOUNT
+          LOGOP("  unmount\n");
+          SPIFFS_unmount(FS);
+#endif
 	  char *tmpfile = strdup("/tmp/fsdump.XXXXXX");
-          LOGOP("  unmount and remount\n");
+          LOGOP("  cycle and remount\n");
 	  close(mkstemp(tmpfile));
 	  fs_store_dump(tmpfile);
 	  fs_mount_dump(tmpfile, 0, 0, blocks * block_size, erase_size, block_size, page_size);
 	  unlink(tmpfile);
 	  free(tmpfile);
+#ifndef NO_FORCE_CHECK
+          LOGOP("  forcecheck()");
+          rc = SPIFFS_check(FS);
+          LOGOP(" -> %d\n", rc);
+#endif
 	}
 	break;
 
       case 'c':
-        LOGOP("  check()\n");
-        SPIFFS_check(FS);
+      {
+        LOGOP("  check()");
+        rc = SPIFFS_check(FS);
+        LOGOP(" -> %d\n", rc);
 	ungetc(arg, f);
 	break;
+      }
 
       default:
 	ungetc(arg, f);
@@ -775,8 +847,26 @@ TEST(fuzzer_found_3) {
   return run_fuzz_test(fmemopen(FMEMARGS("\264O4OqWeWWWWW@O4WWW\027"), "r"), 4, 1);
 } TEST_END
 
+TEST(fuzzer_found_4) {
+  unsigned char smalltest[] = {
+      0x62, 0x4f, 0x24, 0x57, 0x3f, 0x57, 0x3f, 0x57, 0x3f, 0x57, 0x3f, 0x57,
+      0x3f, 0x4f, 0x34, 0x57, 0x3f, 0x55, 0x4f, 0x61, 0x57, 0x61, 0x4f, 0x61,
+      0x57, 0x65, 0x43, 0x61, 0x4f, 0x24, 0x57, 0x30
+  };
+  unsigned int smalltest_len = 32;
+
+  return run_fuzz_test(fmemopen(smalltest, smalltest_len, "r"), 4, 1);
+} TEST_END
+
 TEST(fuzzer_found_single_1) {
   return run_fuzz_test(fmemopen(FMEMARGS("\000O\004Odr4d\356Okr0WWUO;WWWWd\035W4"), "r"), 1, 1);
+} TEST_END
+
+TEST(log_afl_test) {
+  u32_t old_val = set_abort_on_error(1);
+  int rc = run_fuzz_test(stdin, 4, 1);
+  set_abort_on_error(old_val);
+  return rc;
 } TEST_END
 
 TEST(afl_test) {
@@ -1040,10 +1130,12 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(temporal_fd_cache)
   //ADD_TEST(small_free_space)
   ADD_TEST(lots_of_overwrite)
-  ADD_TEST(fuzzer_found_1)
-  ADD_TEST(fuzzer_found_2)
-  ADD_TEST(fuzzer_found_3)
-  ADD_TEST(fuzzer_found_single_1)
+  ADD_TEST_NON_DEFAULT(fuzzer_found_1)
+  ADD_TEST_NON_DEFAULT(fuzzer_found_2)
+  ADD_TEST_NON_DEFAULT(fuzzer_found_3)
+  ADD_TEST_NON_DEFAULT(fuzzer_found_4)
+  ADD_TEST_NON_DEFAULT(fuzzer_found_single_1)
+  ADD_TEST_NON_DEFAULT(log_afl_test)
   ADD_TEST_NON_DEFAULT(afl_test)
   ADD_TEST_NON_DEFAULT(afl_single)
 #if 0
