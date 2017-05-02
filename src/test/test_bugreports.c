@@ -1116,6 +1116,51 @@ TEST(null_deref_check_93) {
 } TEST_END
 #endif
 
+TEST(spiffs_145) {
+  int res;
+  fs_reset_specific(0, 0, 1024*1024, 65536, 65536, 1024);
+  {
+    spiffs_file fd = SPIFFS_open(FS, "biggie", SPIFFS_CREAT | SPIFFS_TRUNC | SPIFFS_WRONLY, 0);
+    TEST_CHECK(fd >= 0);
+    char buf[1024*512];
+    memset(buf, 0xee, sizeof(buf));
+    TEST_CHECK_GT(SPIFFS_write(FS, fd, buf, sizeof(buf)), 0);
+    TEST_CHECK_EQ(SPIFFS_close(FS, fd), SPIFFS_OK);
+  }
+  const int runs = 1000;
+  int run = 0;
+  while (run++ < runs) {
+    spiffs_file fd = SPIFFS_open(FS, "clobber", SPIFFS_CREAT | SPIFFS_TRUNC | SPIFFS_WRONLY, 0);
+    TEST_CHECK(fd >= 0);
+    char buf[8192];
+    memset(buf, 0xee, sizeof(buf));
+    TEST_CHECK_GT(SPIFFS_write(FS, fd, buf, sizeof(buf)), 0);
+    TEST_CHECK_EQ(SPIFFS_close(FS, fd), SPIFFS_OK);
+    TEST_CHECK_EQ(SPIFFS_remove(FS, "clobber"), SPIFFS_OK);
+  }
+
+  // below stolen from SPIFFS_vis
+  spiffs *fs = FS;
+  int entries_per_page = (SPIFFS_CFG_LOG_PAGE_SZ(fs) / sizeof(spiffs_obj_id));
+  spiffs_obj_id *obj_lu_buf = (spiffs_obj_id *)fs->lu_work;
+  spiffs_block_ix bix = 0;
+
+  while (bix < fs->block_count) {
+    // check each object lookup page
+    spiffs_obj_id erase_count;
+    TEST_CHECK_EQ(_spiffs_rd(fs, SPIFFS_OP_C_READ | SPIFFS_OP_T_OBJ_LU2, 0,
+        SPIFFS_ERASE_COUNT_PADDR(fs, bix),
+        sizeof(spiffs_obj_id), (u8_t *)&erase_count), SPIFFS_OK);
+    TEST_CHECK_NEQ(erase_count, (spiffs_obj_id)-1);
+    TEST_CHECK_NEQ(erase_count, 0);
+    bix++;
+  } // per block
+
+  return TEST_RES_OK;
+} TEST_END
+
+
+
 SUITE_TESTS(bug_tests)
   ADD_TEST(nodemcu_full_fs_1)
   ADD_TEST(nodemcu_full_fs_2)
@@ -1128,6 +1173,7 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(eof_tell_72)
   ADD_TEST(spiffs_dup_file_74)
   ADD_TEST(temporal_fd_cache)
+  ADD_TEST(spiffs_145)
   //ADD_TEST(small_free_space)
   ADD_TEST(lots_of_overwrite)
   ADD_TEST_NON_DEFAULT(fuzzer_found_1)

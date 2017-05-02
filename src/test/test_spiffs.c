@@ -354,22 +354,25 @@ void area_read(u32_t addr, u8_t *buf, u32_t size) {
 
 void dump_erase_counts(spiffs *fs) {
   spiffs_block_ix bix;
+  spiffs_block_ix bix_offs;
   printf("  BLOCK     |\n");
   printf("   AGE COUNT|\n");
-  for (bix = 0; bix < fs->block_count; bix++) {
-    printf("----%3i ----|", bix);
-  }
-  printf("\n");
-  for (bix = 0; bix < fs->block_count; bix++) {
-    spiffs_obj_id erase_mark;
-    _spiffs_rd(fs, 0, 0, SPIFFS_ERASE_COUNT_PADDR(fs, bix), sizeof(spiffs_obj_id), (u8_t *)&erase_mark);
-    if (_erases[bix] == 0) {
-      printf("            |");
-    } else {
-      printf("%7i %4i|", (fs->max_erase_count - erase_mark), _erases[bix]);
+  for (bix_offs = 0; bix_offs < fs->block_count; bix_offs+=8) {
+    for (bix = bix_offs; bix < bix_offs+8 && bix < fs->block_count; bix++) {
+      printf("----%3i ----|", bix);
     }
+    printf("\n");
+    for (bix = bix_offs; bix < bix_offs+8 && bix < fs->block_count; bix++) {
+      spiffs_obj_id erase_mark;
+      _spiffs_rd(fs, 0, 0, SPIFFS_ERASE_COUNT_PADDR(fs, bix), sizeof(spiffs_obj_id), (u8_t *)&erase_mark);
+      if (_erases[bix] == 0) {
+        printf("            |");
+      } else {
+        printf("%7i %4i|", (fs->max_erase_count - erase_mark), _erases[bix]);
+      }
+    }
+    printf("\n");
   }
-  printf("\n");
 }
 
 void dump_flash_access_stats() {
