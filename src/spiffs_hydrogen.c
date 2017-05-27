@@ -597,13 +597,13 @@ s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence) {
     break;
   }
 
-  if ((offs > fileSize)) {
+  if (offs > fileSize) {
     fd->fdoffset = fileSize;
     res = SPIFFS_ERR_END_OF_OBJECT;
   }
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
-  spiffs_span_ix data_spix = offs / SPIFFS_DATA_PAGE_SIZE(fs);
+  spiffs_span_ix data_spix = (offs > 0 ? (offs-1) : 0) / SPIFFS_DATA_PAGE_SIZE(fs);
   spiffs_span_ix objix_spix = SPIFFS_OBJ_IX_ENTRY_SPAN_IX(fs, data_spix);
   if (fd->cursor_objix_spix != objix_spix) {
     spiffs_page_ix pix;

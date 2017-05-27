@@ -1160,6 +1160,21 @@ TEST(spiffs_145) {
 } TEST_END
 
 
+TEST(seek_bug_148) {
+  int res;
+#define MAGIC_SIZE_THAT_FAILS 26355 // happens to be SPIFFS_DATA_PAGE_SIZE(FS) * SPIFFS_OBJ_HDR_IX_LEN(FS)
+  fs_reset_specific(0, 0, 64*1024, 4096, 4096, 256);
+  u8_t buf[MAGIC_SIZE_THAT_FAILS];
+  spiffs_file fd = SPIFFS_open(FS, "EVENT", SPIFFS_O_CREAT | SPIFFS_O_RDWR, 0);
+  TEST_CHECK_GT(fd, 0);
+  TEST_CHECK_EQ(SPIFFS_write(FS, fd, &buf, sizeof(buf)), sizeof(buf));
+  TEST_CHECK_EQ(SPIFFS_close(FS, fd), SPIFFS_OK);
+  fd = SPIFFS_open(FS, "EVENT", SPIFFS_O_RDONLY, 0);
+  TEST_CHECK_GT(fd, 0);
+  TEST_CHECK_EQ(SPIFFS_lseek(FS, fd, 0, SEEK_END), MAGIC_SIZE_THAT_FAILS);
+  return TEST_RES_OK;
+} TEST_END
+
 
 SUITE_TESTS(bug_tests)
   ADD_TEST(nodemcu_full_fs_1)
@@ -1174,6 +1189,7 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(spiffs_dup_file_74)
   ADD_TEST(temporal_fd_cache)
   ADD_TEST(spiffs_145)
+  ADD_TEST(seek_bug_148)
   //ADD_TEST(small_free_space)
   ADD_TEST(lots_of_overwrite)
   ADD_TEST_NON_DEFAULT(fuzzer_found_1)
