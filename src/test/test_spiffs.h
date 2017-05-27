@@ -55,9 +55,6 @@ typedef struct  {
   char name[32];
 } tfile;
 
-u32_t set_abort_on_error(u32_t val);
-int get_error_count();
-
 void fs_reset();
 void fs_reset_specific(u32_t addr_offset, u32_t phys_addr, u32_t phys_size,
     u32_t phys_sector_size,
@@ -92,6 +89,7 @@ u32_t get_flash_ops_log_write_bytes();
 void invoke_error_after_read_bytes(u32_t b, char once_only);
 void invoke_error_after_write_bytes(u32_t b, char once_only);
 void fs_set_validate_flashing(int i);
+int get_error_count();
 
 void memrand(u8_t *b, int len);
 int test_create_file(char *name);

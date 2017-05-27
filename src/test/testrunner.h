@@ -65,6 +65,12 @@ void add_suites() {
 #define TEST_RES_FAIL -1
 #define TEST_RES_ASSERT -2
 
+#define ERREXIT() if (abort_on_error) abort(); else error_count++
+
+static int abort_on_error = 0;
+static int error_count = 0;
+
+
 struct test_s;
 
 typedef int (*test_f)(struct test_s *t);
@@ -85,35 +91,35 @@ typedef struct test_res_s {
 } test_res;
 
 #define TEST_CHECK(x) if (!(x)) { \
-  printf("  TEST FAIL %s:%i\n", __FILE__, __LINE__); \
+  printf("  TEST FAIL %s:%d\n", __FILE__, __LINE__); \
   goto __fail_stop; \
 }
 #define TEST_CHECK_EQ(x, y) if ((x) != (y)) { \
-  printf("  TEST FAIL %s:%i, %i != %i\n", __FILE__, __LINE__, (x), (y)); \
+  printf("  TEST FAIL %s:%d, %d != %d\n", __FILE__, __LINE__, (int)(x), (int)(y)); \
   goto __fail_stop; \
 }
 #define TEST_CHECK_NEQ(x, y) if ((x) == (y)) { \
-  printf("  TEST FAIL %s:%i, %i == %i\n", __FILE__, __LINE__, (x), (y)); \
+  printf("  TEST FAIL %s:%d, %d == %d\n", __FILE__, __LINE__, (int)(x), (int)(y)); \
   goto __fail_stop; \
 }
 #define TEST_CHECK_GT(x, y) if ((x) <= (y)) { \
-  printf("  TEST FAIL %s:%i, %i <= %i\n", __FILE__, __LINE__, (x), (y)); \
+  printf("  TEST FAIL %s:%d, %d <= %d\n", __FILE__, __LINE__, (int)(x), (int)(y)); \
   goto __fail_stop; \
 }
 #define TEST_CHECK_LT(x, y) if ((x) >= (y)) { \
-  printf("  TEST FAIL %s:%i, %i >= %i\n", __FILE__, __LINE__, (x), (y)); \
+  printf("  TEST FAIL %s:%d, %d >= %d\n", __FILE__, __LINE__, (int)(x), (int)(y)); \
   goto __fail_stop; \
 }
 #define TEST_CHECK_GE(x, y) if ((x) < (y)) { \
-  printf("  TEST FAIL %s:%i, %i < %i\n", __FILE__, __LINE__, (x), (y)); \
+  printf("  TEST FAIL %s:%d, %d < %d\n", __FILE__, __LINE__, (int)(x), (int)(y)); \
   goto __fail_stop; \
 }
 #define TEST_CHECK_LE(x, y) if ((x) > (y)) { \
-  printf("  TEST FAIL %s:%i, %i > %i\n", __FILE__, __LINE__, (x), (y)); \
+  printf("  TEST FAIL %s:%d, %d > %d\n", __FILE__, __LINE__, (int)(x), (int)(y)); \
   goto __fail_stop; \
 }
 #define TEST_ASSERT(x) if (!(x)) { \
-  printf("  TEST ASSERT %s:%i\n", __FILE__, __LINE__); \
+  printf("  TEST ASSERT %s:%d\n", __FILE__, __LINE__); \
   goto __fail_assert; \
 }
 
@@ -147,6 +153,9 @@ typedef struct test_res_s {
   __fail_stop: return TEST_RES_FAIL; \
   __fail_assert: return TEST_RES_ASSERT; \
   }
+
+int set_abort_on_error(int val);
+int get_error_count();
 
 void add_suites();
 void test_init(void (*on_stop)(test *t));

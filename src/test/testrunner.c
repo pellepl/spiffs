@@ -108,6 +108,17 @@ static void dump_res(test_res **head) {
   }
 }
 
+int get_error_count() {
+  return error_count;
+}
+
+int set_abort_on_error(int val) {
+  int old_val = abort_on_error;
+  abort_on_error = val;
+
+  return old_val;
+}
+
 int run_tests(int argc, char **args) {
   memset(&test_main, 0, sizeof(test_main));
   int arg;
