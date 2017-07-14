@@ -67,10 +67,11 @@ extern void test_unlock(struct spiffs_t *fs);
 #endif
 
 // dbg output
-#define SPIFFS_DBG(...) //printf(__VA_ARGS__)
-#define SPIFFS_GC_DBG(...) //printf(__VA_ARGS__)
-#define SPIFFS_CACHE_DBG(...) //printf(__VA_ARGS__)
-#define SPIFFS_CHECK_DBG(...) //printf(__VA_ARGS__)
+#define SPIFFS_DBG(_f, ...) //printf("\x1b[32m" _f "\x1b[0m", ## __VA_ARGS__)
+#define SPIFFS_API_DBG(_f, ...) //printf("\n\x1b[1m\x1b[7m" _f "\x1b[0m", ## __VA_ARGS__)
+#define SPIFFS_GC_DBG(_f, ...) //printf("\x1b[36m" _f "\x1b[0m", ## __VA_ARGS__)
+#define SPIFFS_CACHE_DBG(_f, ...) //printf("\x1b[33m" _f "\x1b[0m", ## __VA_ARGS__)
+#define SPIFFS_CHECK_DBG(_f, ...) //printf("\x1b[31m" _f "\x1b[0m", ## __VA_ARGS__)
 
 // needed types
 typedef signed int s32_t;

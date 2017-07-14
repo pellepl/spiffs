@@ -65,11 +65,7 @@ void add_suites() {
 #define TEST_RES_FAIL -1
 #define TEST_RES_ASSERT -2
 
-#define ERREXIT() if (abort_on_error) abort(); else error_count++
-
-static int abort_on_error = 0;
-static int error_count = 0;
-
+#define ERREXIT() if (get_abort_on_error()) abort(); else inc_error_count()
 
 struct test_s;
 
@@ -155,7 +151,9 @@ typedef struct test_res_s {
   }
 
 int set_abort_on_error(int val);
-int get_error_count();
+int get_abort_on_error(void);
+int get_error_count(void);
+void inc_error_count(void);
 
 void add_suites();
 void test_init(void (*on_stop)(test *t));

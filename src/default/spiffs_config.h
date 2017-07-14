@@ -23,20 +23,26 @@
 
 // Set generic spiffs debug output call.
 #ifndef SPIFFS_DBG
-#define SPIFFS_DBG(...) //printf(__VA_ARGS__)
+#define SPIFFS_DBG(_f, ...) //printf(_f, ## __VA_ARGS__)
 #endif
 // Set spiffs debug output call for garbage collecting.
 #ifndef SPIFFS_GC_DBG
-#define SPIFFS_GC_DBG(...) //printf(__VA_ARGS__)
+#define SPIFFS_GC_DBG(_f, ...) //printf(_f, ## __VA_ARGS__)
 #endif
 // Set spiffs debug output call for caching.
 #ifndef SPIFFS_CACHE_DBG
-#define SPIFFS_CACHE_DBG(...) //printf(__VA_ARGS__)
+#define SPIFFS_CACHE_DBG(_f, ...) //printf(_f, ## __VA_ARGS__)
 #endif
 // Set spiffs debug output call for system consistency checks.
 #ifndef SPIFFS_CHECK_DBG
-#define SPIFFS_CHECK_DBG(...) //printf(__VA_ARGS__)
+#define SPIFFS_CHECK_DBG(_f, ...) //printf(_f, ## __VA_ARGS__)
 #endif
+// Set spiffs debug output call for all api invocations.
+#ifndef SPIFFS_API_DBG
+#define SPIFFS_API_DBG(_f, ...) //printf(_f, ## __VA_ARGS__)
+#endif
+
+
 
 // Defines spiffs debug print formatters
 // some general signed number

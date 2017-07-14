@@ -36,6 +36,9 @@ void test_init(void (*on_stop)(test *t)) {
   test_main.on_stop = on_stop;
 }
 
+static int abort_on_error = 0;
+static int error_count = 0;
+
 static char check_spec(char *name) {
   if (test_main.spec) {
     fseek(test_main.spec, 0, SEEK_SET);
@@ -108,8 +111,12 @@ static void dump_res(test_res **head) {
   }
 }
 
-int get_error_count() {
+int get_error_count(void) {
   return error_count;
+}
+
+void inc_error_count(void) {
+  error_count++;
 }
 
 int set_abort_on_error(int val) {
@@ -117,6 +124,10 @@ int set_abort_on_error(int val) {
   abort_on_error = val;
 
   return old_val;
+}
+
+int get_abort_on_error(void) {
+  return abort_on_error;
 }
 
 int run_tests(int argc, char **args) {
@@ -178,10 +189,12 @@ int run_tests(int argc, char **args) {
     DBGT("TEST %i/%i : running test %s\n", i, test_main.test_count, cur_t->name);
     i++;
     int start_error_count = get_error_count();
+    printf("get_error_count:%d\n", get_error_count());
     int res = cur_t->f(cur_t);
     if (res == TEST_RES_OK && get_error_count() != start_error_count) {
       res = TEST_RES_FAIL;
     }
+    printf("get_error_count:%d\n", get_error_count());
     cur_t->test_result = res;
     int fd = res == TEST_RES_OK ? fd_success : fd_bad;
     write(fd, cur_t->name, strlen(cur_t->name));
