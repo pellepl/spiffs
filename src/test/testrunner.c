@@ -189,12 +189,10 @@ int run_tests(int argc, char **args) {
     DBGT("TEST %i/%i : running test %s\n", i, test_main.test_count, cur_t->name);
     i++;
     int start_error_count = get_error_count();
-    printf("get_error_count:%d\n", get_error_count());
     int res = cur_t->f(cur_t);
     if (res == TEST_RES_OK && get_error_count() != start_error_count) {
       res = TEST_RES_FAIL;
     }
-    printf("get_error_count:%d\n", get_error_count());
     cur_t->test_result = res;
     int fd = res == TEST_RES_OK ? fd_success : fd_bad;
     write(fd, cur_t->name, strlen(cur_t->name));
