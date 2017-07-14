@@ -1063,6 +1063,12 @@ void spiffs_cb_object_event(
           cur_fd->size = new_size;
         }
       } else {
+#if SPIFFS_CACHE_WR
+        if (cur_fd->file_nbr && cur_fd->cache_page) {
+          SPIFFS_CACHE_DBG("CACHE_DROP: file deleted, dropping cache page "_SPIPRIi", no writeback\n", cur_fd->cache_page->ix);
+          spiffs_cache_fd_release(fs, cur_fd->cache_page);
+        }
+#endif
         cur_fd->file_nbr = 0;
         cur_fd->obj_id = SPIFFS_OBJ_ID_DELETED;
       }
