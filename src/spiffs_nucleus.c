@@ -713,8 +713,8 @@ s32_t spiffs_populate_ix_map(spiffs *fs, spiffs_fd *fd, u32_t vec_entry_start, u
   s32_t res;
   spiffs_ix_map *map = fd->ix_map;
   spiffs_ix_map_populate_state state;
-  vec_entry_start = MIN((map->end_spix - map->start_spix + 1) - 1, (s32_t)vec_entry_start);
-  vec_entry_end = MAX((map->end_spix - map->start_spix + 1) - 1, (s32_t)vec_entry_end);
+  vec_entry_start = MIN((u32_t)(map->end_spix - map->start_spix), vec_entry_start);
+  vec_entry_end = MAX((u32_t)(map->end_spix - map->start_spix), vec_entry_end);
   if (vec_entry_start > vec_entry_end) {
     return SPIFFS_ERR_IX_MAP_BAD_RANGE;
   }
