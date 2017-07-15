@@ -8,14 +8,6 @@
 #include "spiffs.h"
 #include "spiffs_nucleus.h"
 
-#if SPIFFS_FILEHDL_OFFSET
-#define SPIFFS_FH_OFFS(fs, fh)   ((fh) != 0 ? ((fh) + (fs)->cfg.fh_ix_offset) : 0)
-#define SPIFFS_FH_UNOFFS(fs, fh) ((fh) != 0 ? ((fh) - (fs)->cfg.fh_ix_offset) : 0)
-#else
-#define SPIFFS_FH_OFFS(fs, fh)   (fh)
-#define SPIFFS_FH_UNOFFS(fs, fh) (fh)
-#endif
-
 #if SPIFFS_CACHE == 1
 static s32_t spiffs_fflush_cache(spiffs *fs, spiffs_file fh);
 #endif

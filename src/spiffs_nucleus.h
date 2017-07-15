@@ -242,6 +242,15 @@
 #define SPIFFS_DATA_SPAN_IX_FOR_OBJ_IX_SPAN_IX(fs, spix) \
   ( (spix) == 0 ? 0 : (SPIFFS_OBJ_HDR_IX_LEN(fs) + (((spix)-1) * SPIFFS_OBJ_IX_LEN(fs))) )
 
+#if SPIFFS_FILEHDL_OFFSET
+#define SPIFFS_FH_OFFS(fs, fh)   ((fh) != 0 ? ((fh) + (fs)->cfg.fh_ix_offset) : 0)
+#define SPIFFS_FH_UNOFFS(fs, fh) ((fh) != 0 ? ((fh) - (fs)->cfg.fh_ix_offset) : 0)
+#else
+#define SPIFFS_FH_OFFS(fs, fh)   (fh)
+#define SPIFFS_FH_UNOFFS(fs, fh) (fh)
+#endif
+
+
 #define SPIFFS_OP_T_OBJ_LU    (0<<0)
 #define SPIFFS_OP_T_OBJ_LU2   (1<<0)
 #define SPIFFS_OP_T_OBJ_IX    (2<<0)
@@ -430,7 +439,7 @@ typedef struct {
   spiffs_span_ix cursor_objix_spix;
   // current absolute offset
   u32_t offset;
-  // current file descriptor offset
+  // current file descriptor offset (cached)
   u32_t fdoffset;
   // fd flags
   spiffs_flags flags;

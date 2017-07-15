@@ -1048,6 +1048,8 @@ void spiffs_cb_object_event(
   spiffs_obj_id obj_id = obj_id_raw & ~SPIFFS_OBJ_ID_IX_FLAG;
   u32_t i;
   spiffs_fd *fds = (spiffs_fd *)fs->fd_space;
+  SPIFFS_DBG("       CALLBACK  %s obj_id:"_SPIPRIid" spix:"_SPIPRIsp" npix:"_SPIPRIpg" nsz:"_SPIPRIi"\n", (const char *[]){"UPD", "NEW", "DEL", "MOV", "HUP","???"}[MIN(ev,5)],
+      obj_id_raw, spix, new_pix, new_size);
   for (i = 0; i < fs->fd_count; i++) {
     spiffs_fd *cur_fd = &fds[i];
 #if SPIFFS_TEMPORAL_FD_CACHE
@@ -1057,12 +1059,25 @@ void spiffs_cb_object_event(
 #endif
     if (spix == 0) {
       if (ev != SPIFFS_EV_IX_DEL) {
-        SPIFFS_DBG("       callback: setting fd "_SPIPRIfd":"_SPIPRIid" objix_hdr_pix to "_SPIPRIpg", size:"_SPIPRIi"\n", cur_fd->file_nbr, cur_fd->obj_id, new_pix, new_size);
+        SPIFFS_DBG("       callback: setting fd "_SPIPRIfd":"_SPIPRIid"(fdoffs:"_SPIPRIi" offs:"_SPIPRIi") objix_hdr_pix to "_SPIPRIpg", size:"_SPIPRIi"\n", SPIFFS_FH_OFFS(fs, cur_fd->file_nbr), cur_fd->obj_id, cur_fd->fdoffset, cur_fd->offset, new_pix, new_size);
         cur_fd->objix_hdr_pix = new_pix;
         if (new_size != 0) {
+          // update size and offsets for fds to this file
           cur_fd->size = new_size;
+          u32_t act_new_size = new_size == SPIFFS_UNDEFINED_LEN ? 0 : new_size;
+          if (cur_fd->offset > act_new_size) {
+            cur_fd->offset = act_new_size;
+          }
+          if (cur_fd->fdoffset > act_new_size) {
+            cur_fd->fdoffset = act_new_size;
+          }
+          if (cur_fd->cache_page && cur_fd->cache_page->offset > act_new_size+1) {
+            SPIFFS_CACHE_DBG("CACHE_DROP: file trunced, dropping cache page "_SPIPRIi", no writeback\n", cur_fd->cache_page->ix);
+            spiffs_cache_fd_release(fs, cur_fd->cache_page);
+          }
         }
       } else {
+        // removing file
 #if SPIFFS_CACHE_WR
         if (cur_fd->file_nbr && cur_fd->cache_page) {
           SPIFFS_CACHE_DBG("CACHE_DROP: file deleted, dropping cache page "_SPIPRIi", no writeback\n", cur_fd->cache_page->ix);
@@ -1075,7 +1090,7 @@ void spiffs_cb_object_event(
     }
     if (cur_fd->cursor_objix_spix == spix) {
       if (ev != SPIFFS_EV_IX_DEL) {
-        SPIFFS_DBG("       callback: setting fd "_SPIPRIfd":"_SPIPRIid" span:"_SPIPRIsp" objix_pix to "_SPIPRIpg"\n", cur_fd->file_nbr, cur_fd->obj_id, spix, new_pix);
+        SPIFFS_DBG("       callback: setting fd "_SPIPRIfd":"_SPIPRIid" span:"_SPIPRIsp" objix_pix to "_SPIPRIpg"\n", SPIFFS_FH_OFFS(fs, cur_fd->file_nbr), cur_fd->obj_id, spix, new_pix);
         cur_fd->cursor_objix_pix = new_pix;
       } else {
         cur_fd->cursor_objix_pix = 0;
@@ -1093,7 +1108,7 @@ void spiffs_cb_object_event(
       if (cur_fd->file_nbr == 0 ||
           cur_fd->ix_map == 0 ||
           (cur_fd->obj_id & ~SPIFFS_OBJ_ID_IX_FLAG) != obj_id) continue;
-      SPIFFS_DBG("       callback: map ix update fd "_SPIPRIfd":"_SPIPRIid" span:"_SPIPRIsp"\n", cur_fd->file_nbr, cur_fd->obj_id, spix);
+      SPIFFS_DBG("       callback: map ix update fd "_SPIPRIfd":"_SPIPRIid" span:"_SPIPRIsp"\n", SPIFFS_FH_OFFS(fs, cur_fd->file_nbr), cur_fd->obj_id, spix);
       spiffs_update_ix_map(fs, cur_fd, spix, objix);
     }
   }
@@ -1170,7 +1185,7 @@ s32_t spiffs_object_open_by_page(
 
   SPIFFS_VALIDATE_OBJIX(oix_hdr.p_hdr, fd->obj_id, 0);
 
-  SPIFFS_DBG("open: fd "_SPIPRIfd" is obj id "_SPIPRIid"\n", fd->file_nbr, fd->obj_id);
+  SPIFFS_DBG("open: fd "_SPIPRIfd" is obj id "_SPIPRIid"\n", SPIFFS_FH_OFFS(fs, fd->file_nbr), fd->obj_id);
 
   return res;
 }
