@@ -1071,10 +1071,12 @@ void spiffs_cb_object_event(
           if (cur_fd->fdoffset > act_new_size) {
             cur_fd->fdoffset = act_new_size;
           }
+#if SPIFFS_CACHE_WR
           if (cur_fd->cache_page && cur_fd->cache_page->offset > act_new_size+1) {
             SPIFFS_CACHE_DBG("CACHE_DROP: file trunced, dropping cache page "_SPIPRIi", no writeback\n", cur_fd->cache_page->ix);
             spiffs_cache_fd_release(fs, cur_fd->cache_page);
           }
+#endif
         }
       } else {
         // removing file
