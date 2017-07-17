@@ -1,9 +1,9 @@
 # SPIFFS (SPI Flash File System) 
-**V0.3.6**
+**V0.3.7**
 
 [![Build Status](https://travis-ci.org/pellepl/spiffs.svg?branch=master)](https://travis-ci.org/pellepl/spiffs)
 
-Copyright (c) 2013-2016 Peter Andersson (pelleplutt1976 at gmail.com)
+Copyright (c) 2013-2017 Peter Andersson (pelleplutt1976 at gmail.com)
 
 For legal stuff, see [LICENSE](https://github.com/pellepl/spiffs/blob/master/LICENSE). Basically, you may do whatever you want with the source. Use, modify, sell, print it out, roll it and smoke it - as long as I won't be held responsible.
 
@@ -59,6 +59,25 @@ For design, see [docs/TECH_SPEC](https://github.com/pellepl/spiffs/blob/master/d
 For a generic spi flash driver, see [this](https://github.com/pellepl/spiflash_driver).
 
 ## HISTORY
+
+### 0.3.7
+- fixed prevent seeking to negative offsets #158
+- fixed file descriptor offsets not updated for multiple fds on same file #157
+- fixed cache page not closed for removed files #156
+- fixed a lseek bug when seeking exactly to end of a fully indexed first level LUT #148
+- fixed wear leveling issue #145
+- fixed attempt to write out of bounds in flash #130, 
+- set file offset when seeking over end #121 (thanks @sensslen)
+- fixed seeking in virgin files #120 (thanks @sensslen)
+- Optional file metadata #128 (thanks @cesanta)
+- AFL testing framework #100 #143 (thanks @pjsg)
+- Testframe updates
+
+New API functions:
+- `SPIFFS_update_meta, SPIFFS_fupdate_meta` - updates metadata for a file
+
+New config defines:
+- `SPIFFS_OBJ_META_LEN` - enable possibility to add extra metadata to files
 
 ### 0.3.6
 - Fix range bug in index memory mapping #98
