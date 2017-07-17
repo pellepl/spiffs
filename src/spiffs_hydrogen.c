@@ -86,7 +86,7 @@ s32_t SPIFFS_mount(spiffs *fs, spiffs_config *config, u8_t *work,
   SPIFFS_LOCK(fs);
   user_data = fs->user_data;
   memset(fs, 0, sizeof(spiffs));
-  memcpy(&fs->cfg, config, sizeof(spiffs_config));
+  _SPIFFS_MEMCPY(&fs->cfg, config, sizeof(spiffs_config));
   fs->user_data = user_data;
   fs->block_count = SPIFFS_CFG_PHYS_SZ(fs) / SPIFFS_CFG_LOG_BLOCK_SZ(fs);
   fs->work = &work[0];
@@ -543,7 +543,18 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
             offset, offset_in_cpage, len);
         spiffs_cache *cache = spiffs_get_cache(fs);
         u8_t *cpage_data = spiffs_get_cache_page(fs, cache, fd->cache_page->ix);
-        memcpy(&cpage_data[offset_in_cpage], buf, len);
+#ifdef _SPIFFS_TEST
+        {
+          intptr_t __a1 = (u8_t*)&cpage_data[offset_in_cpage]-(u8_t*)cache;
+          intptr_t __a2 = (u8_t*)&cpage_data[offset_in_cpage]+len-(u8_t*)cache;
+          intptr_t __b = sizeof(spiffs_cache) + cache->cpage_count * (sizeof(spiffs_cache_page) + SPIFFS_CFG_LOG_PAGE_SZ(fs));
+          if (__a1 > __b || __a2 > __b) {
+            printf("FATAL OOB: CACHE_WR: memcpy to cache buffer ixs:%4ld..%4ld of %4ld\n", __a1, __a2, __b);
+            ERREXIT();
+          }
+        }
+#endif
+        _SPIFFS_MEMCPY(&cpage_data[offset_in_cpage], buf, len);
         fd->cache_page->size = MAX(fd->cache_page->size, offset_in_cpage + len);
         fd->fdoffset += len;
         SPIFFS_UNLOCK(fs);
@@ -583,7 +594,7 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
 }
 
 s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence) {
-  SPIFFS_API_DBG("%s "_SPIPRIfd " "_SPIPRIi " "_SPIPRIi "\n", __func__, fh, offs, whence);
+  SPIFFS_API_DBG("%s "_SPIPRIfd " "_SPIPRIi " %s\n", __func__, fh, offs, (const char* []){"SET","CUR","END","???"}[MIN(whence,3)]);
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
   SPIFFS_LOCK(fs);
@@ -598,19 +609,21 @@ s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence) {
   spiffs_fflush_cache(fs, fh);
 #endif
 
-  s32_t fileSize = fd->size == SPIFFS_UNDEFINED_LEN ? 0 : fd->size;
+  s32_t file_size = fd->size == SPIFFS_UNDEFINED_LEN ? 0 : fd->size;
 
   switch (whence) {
   case SPIFFS_SEEK_CUR:
     offs = fd->fdoffset+offs;
     break;
   case SPIFFS_SEEK_END:
-    offs = fileSize + offs;
+    offs = file_size + offs;
     break;
   }
-
-  if (offs > fileSize) {
-    fd->fdoffset = fileSize;
+  if (offs < 0) {
+    SPIFFS_API_CHECK_RES_UNLOCK(fs, SPIFFS_ERR_SEEK_BOUNDS);
+  }
+  if (offs > file_size) {
+    fd->fdoffset = file_size;
     res = SPIFFS_ERR_END_OF_OBJECT;
   }
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
@@ -730,7 +743,7 @@ static s32_t spiffs_stat_pix(spiffs *fs, spiffs_page_ix pix, spiffs_file fh, spi
   s->pix = pix;
   strncpy((char *)s->name, (char *)objix_hdr.name, SPIFFS_OBJ_NAME_LEN);
 #if SPIFFS_OBJ_META_LEN
-  memcpy(s->meta, objix_hdr.meta, SPIFFS_OBJ_META_LEN);
+  _SPIFFS_MEMCPY(s->meta, objix_hdr.meta, SPIFFS_OBJ_META_LEN);
 #endif
 
   return res;
@@ -1033,7 +1046,7 @@ static s32_t spiffs_read_dir_v(
     e->size = objix_hdr.size == SPIFFS_UNDEFINED_LEN ? 0 : objix_hdr.size;
     e->pix = pix;
 #if SPIFFS_OBJ_META_LEN
-  memcpy(e->meta, objix_hdr.meta, SPIFFS_OBJ_META_LEN);
+    _SPIFFS_MEMCPY(e->meta, objix_hdr.meta, SPIFFS_OBJ_META_LEN);
 #endif
     return SPIFFS_OK;
   }

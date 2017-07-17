@@ -155,7 +155,7 @@ int get_abort_on_error(void);
 int get_error_count(void);
 void inc_error_count(void);
 
-void add_suites();
+void add_suites(void);
 void test_init(void (*on_stop)(test *t));
 // returns 0 if all tests ok, -1 if any test failed, -2 on badness
 int run_tests(int argc, char **args);

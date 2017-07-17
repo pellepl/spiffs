@@ -137,7 +137,7 @@ s32_t spiffs_phys_rd(
 #endif
     cp->last_access = cache->last_access;
     u8_t *mem =  spiffs_get_cache_page(fs, cache, cp->ix);
-    memcpy(dst, &mem[SPIFFS_PADDR_TO_PAGE_OFFSET(fs, addr)], len);
+    _SPIFFS_MEMCPY(dst, &mem[SPIFFS_PADDR_TO_PAGE_OFFSET(fs, addr)], len);
   } else {
     if ((op & SPIFFS_OP_TYPE_MASK) == SPIFFS_OP_T_OBJ_LU2) {
       // for second layer lookup functions, we do not cache in order to prevent shredding
@@ -165,7 +165,7 @@ s32_t spiffs_phys_rd(
         res = res2;
       }
       u8_t *mem =  spiffs_get_cache_page(fs, cache, cp->ix);
-      memcpy(dst, &mem[SPIFFS_PADDR_TO_PAGE_OFFSET(fs, addr)], len);
+      _SPIFFS_MEMCPY(dst, &mem[SPIFFS_PADDR_TO_PAGE_OFFSET(fs, addr)], len);
     } else {
       // this will never happen, last resort for sake of symmetry
       s32_t res2 = SPIFFS_HAL_READ(fs, addr, len, dst);
@@ -203,7 +203,7 @@ s32_t spiffs_phys_wr(
     }
 
     u8_t *mem =  spiffs_get_cache_page(fs, cache, cp->ix);
-    memcpy(&mem[SPIFFS_PADDR_TO_PAGE_OFFSET(fs, addr)], src, len);
+    _SPIFFS_MEMCPY(&mem[SPIFFS_PADDR_TO_PAGE_OFFSET(fs, addr)], src, len);
 
     cache->last_access++;
     cp->last_access = cache->last_access;
@@ -302,7 +302,7 @@ void spiffs_cache_init(spiffs *fs) {
 
   cache.cpage_use_map = 0xffffffff;
   cache.cpage_use_mask = cache_mask;
-  memcpy(fs->cache, &cache, sizeof(spiffs_cache));
+  _SPIFFS_MEMCPY(fs->cache, &cache, sizeof(spiffs_cache));
 
   spiffs_cache *c = spiffs_get_cache(fs);
 
