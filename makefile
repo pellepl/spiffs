@@ -17,11 +17,11 @@ builddir = build
 #############
 
 CC ?= gcc
-LD = ld
-GDB = gdb
-OBJCOPY = objcopy
-OBJDUMP = objdump
-MKDIR = mkdir -p
+LD ?= ld
+GDB ?= gdb
+OBJCOPY ?= objcopy
+OBJDUMP ?= objdump
+MKDIR ?= mkdir -p
 
 ###############
 #
@@ -43,6 +43,7 @@ CFILES_TEST = main.c \
 	test_bugreports.c \
 	testsuites.c \
 	testrunner.c
+CFLAGS += -D_SPIFFS_TEST
 endif
 include files.mk
 INCLUDE_DIRECTIVES = -I./${sourcedir} -I./${sourcedir}/default -I./${sourcedir}/test 

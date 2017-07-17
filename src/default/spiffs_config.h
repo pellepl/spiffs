@@ -17,6 +17,9 @@
 #include <string.h>
 #include <stddef.h>
 #include <unistd.h>
+#ifdef _SPIFFS_TEST
+#include "testrunner.h"
+#endif
 // ----------- >8 ------------
 
 // compile time switches

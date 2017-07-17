@@ -803,4 +803,24 @@ s32_t spiffs_page_consistency_check(
 s32_t spiffs_object_index_consistency_check(
     spiffs *fs);
 
+// memcpy macro,
+// checked in test builds, otherwise plain memcpy (unless already defined)
+#ifdef _SPIFFS_TEST
+#define _SPIFFS_MEMCPY(__d, __s, __l) do { \
+    intptr_t __a1 = (intptr_t)((u8_t*)(__s)); \
+    intptr_t __a2 = (intptr_t)((u8_t*)(__s)+(__l)); \
+    intptr_t __b1 = (intptr_t)((u8_t*)(__d)); \
+    intptr_t __b2 = (intptr_t)((u8_t*)(__d)+(__l)); \
+    if (__a1 <= __b2 && __b1 <= __a2) { \
+      printf("FATAL OVERLAP: memcpy from %lx..%lx to %lx..%lx\n", __a1, __a2, __b1, __b2); \
+      ERREXIT(); \
+    } \
+    memcpy((__d),(__s),(__l)); \
+} while (0)
+#else
+#ifndef _SPIFFS_MEMCPY
+#define _SPIFFS_MEMCPY(__d, __s, __l) do{memcpy((__d),(__s),(__l));}while(0)
+#endif
+#endif //_SPIFFS_TEST
+
 #endif /* SPIFFS_NUCLEUS_H_ */

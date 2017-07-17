@@ -1589,6 +1589,33 @@ TEST(lseek_read) {
 TEST_END
 
 
+
+TEST(lseek_oob) {
+  int res;
+  spiffs_file fd;
+  char *fname = "seekfile";
+  int len = (FS_PURE_DATA_PAGES(FS) / 2) * SPIFFS_DATA_PAGE_SIZE(FS);
+
+  fd = SPIFFS_open(FS, fname, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
+  TEST_CHECK(fd > 0);
+  u8_t *refbuf = malloc(len);
+  memrand(refbuf, len);
+  res = SPIFFS_write(FS, fd, refbuf, len);
+  TEST_CHECK(res >= 0);
+
+  int offs = 0;
+  res = SPIFFS_lseek(FS, fd, -1, SPIFFS_SEEK_SET);
+  TEST_CHECK_EQ(res, SPIFFS_ERR_SEEK_BOUNDS);
+  res = SPIFFS_lseek(FS, fd, len+1, SPIFFS_SEEK_SET);
+  TEST_CHECK_EQ(res, SPIFFS_ERR_END_OF_OBJECT);
+  free(refbuf);
+  SPIFFS_close(FS, fd);
+
+  return TEST_RES_OK;
+}
+TEST_END
+
+
 TEST(gc_quick)
 {
   char name[32];
@@ -2459,6 +2486,7 @@ SUITE_TESTS(hydrogen_tests)
   ADD_TEST(lseek_modification_append)
   ADD_TEST(lseek_modification_append_multi)
   ADD_TEST(lseek_read)
+  ADD_TEST(lseek_oob)
   ADD_TEST(gc_quick)
   ADD_TEST(write_small_file_chunks_1)
   ADD_TEST(write_small_files_chunks_1)

@@ -1,0 +1,41 @@
+diff --git a/src/spiffs_cache.c b/src/spiffs_cache.c
+index 0c5b5b9..76688a9 100644
+--- a/src/spiffs_cache.c
++++ b/src/spiffs_cache.c
+@@ -203,6 +203,16 @@ s32_t spiffs_phys_wr(
+     }
+ 
+     u8_t *mem =  spiffs_get_cache_page(fs, cache, cp->ix);
++
++    intptr_t a1 = (intptr_t)((u8_t*)src);
++    intptr_t a2 = (intptr_t)((u8_t*)src+len);
++    intptr_t b1 = (intptr_t)((u8_t*)&mem[SPIFFS_PADDR_TO_PAGE_OFFSET(fs, addr)]);
++    intptr_t b2 = (intptr_t)((u8_t*)&mem[SPIFFS_PADDR_TO_PAGE_OFFSET(fs, addr)]+len);
++    if (a1 <= b2 && b1 <= a2) {
++      printf("CACHE_PHYS_WR: memcpy from %lx..%lx to %lx..%lx\n", a1, a2, b1, b2);
++      printf("               OVERLAP\n");
++    }
++
+     memcpy(&mem[SPIFFS_PADDR_TO_PAGE_OFFSET(fs, addr)], src, len);
+ 
+     cache->last_access++;
+diff --git a/src/spiffs_hydrogen.c b/src/spiffs_hydrogen.c
+index b6fd093..de87e31 100644
+--- a/src/spiffs_hydrogen.c
++++ b/src/spiffs_hydrogen.c
+@@ -543,6 +543,15 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
+             offset, offset_in_cpage, len);
+         spiffs_cache *cache = spiffs_get_cache(fs);
+         u8_t *cpage_data = spiffs_get_cache_page(fs, cache, fd->cache_page->ix);
++
++        intptr_t a1 = (u8_t*)&cpage_data[offset_in_cpage]-(u8_t*)cache;
++        intptr_t a2 = (u8_t*)&cpage_data[offset_in_cpage]+len-(u8_t*)cache;
++        intptr_t b = sizeof(spiffs_cache) + cache->cpage_count * (sizeof(spiffs_cache_page) + SPIFFS_CFG_LOG_PAGE_SZ(fs));
++        if (a1 >= b || a2 >= b) {
++          printf("CACHE_WR: memcpy to cache buffer ixs:%4ld..%4ld of %4ld\n", a1, a2, b);
++          printf("          OOB\n");
++        }
++
+         memcpy(&cpage_data[offset_in_cpage], buf, len);
+         fd->cache_page->size = MAX(fd->cache_page->size, offset_in_cpage + len);
+         fd->fdoffset += len;

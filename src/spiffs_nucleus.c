@@ -270,7 +270,7 @@ s32_t spiffs_probe(
   s32_t res;
   u32_t paddr;
   spiffs dummy_fs; // create a dummy fs struct just to be able to use macros
-  memcpy(&dummy_fs.cfg, cfg, sizeof(spiffs_config));
+  _SPIFFS_MEMCPY(&dummy_fs.cfg, cfg, sizeof(spiffs_config));
   dummy_fs.block_count = 0;
 
   // Read three magics, as one block may be in an aborted erase state.
@@ -942,7 +942,7 @@ s32_t spiffs_object_create(
   strncpy((char*)oix_hdr.name, (const char*)name, SPIFFS_OBJ_NAME_LEN);
 #if SPIFFS_OBJ_META_LEN
   if (meta) {
-    memcpy(oix_hdr.meta, meta, SPIFFS_OBJ_META_LEN);
+    _SPIFFS_MEMCPY(oix_hdr.meta, meta, SPIFFS_OBJ_META_LEN);
   } else {
     memset(oix_hdr.meta, 0xff, SPIFFS_OBJ_META_LEN);
   }
@@ -1006,7 +1006,7 @@ s32_t spiffs_object_update_index_hdr(
   }
 #if SPIFFS_OBJ_META_LEN
   if (meta) {
-    memcpy(objix_hdr->meta, meta, SPIFFS_OBJ_META_LEN);
+    _SPIFFS_MEMCPY(objix_hdr->meta, meta, SPIFFS_OBJ_META_LEN);
   }
 #else
   (void) meta;
@@ -1298,7 +1298,7 @@ s32_t spiffs_object_append(spiffs_fd *fd, u32_t offset, u8_t *data, u32_t len) {
           SPIFFS_CHECK_RES(res);
           // quick "load" of new object index page
           memset(fs->work, 0xff, SPIFFS_CFG_LOG_PAGE_SZ(fs));
-          memcpy(fs->work, &p_hdr, sizeof(spiffs_page_header));
+          _SPIFFS_MEMCPY(fs->work, &p_hdr, sizeof(spiffs_page_header));
           spiffs_cb_object_event(fs, (spiffs_page_object_ix *)fs->work,
               SPIFFS_EV_IX_NEW, fd->obj_id, cur_objix_spix, cur_objix_pix, 0);
           SPIFFS_DBG("append: "_SPIPRIid" create objix page, "_SPIPRIpg":"_SPIPRIsp", written "_SPIPRIi"\n", fd->obj_id
