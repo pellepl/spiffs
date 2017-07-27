@@ -43,10 +43,12 @@ static s32_t spiffs_cache_page_free(spiffs *fs, int ix, u8_t write_back) {
       res = SPIFFS_HAL_WRITE(fs, SPIFFS_PAGE_TO_PADDR(fs, cp->pix), SPIFFS_CFG_LOG_PAGE_SZ(fs), mem);
     }
 
-
+#if SPIFFS_CACHE_WR
     if (cp->flags & SPIFFS_CACHE_FLAG_TYPE_WR) {
       SPIFFS_CACHE_DBG("CACHE_FREE: free cache page "_SPIPRIi" objid "_SPIPRIid"\n", ix, cp->obj_id);
-    } else {
+    } else
+#endif
+    {
       SPIFFS_CACHE_DBG("CACHE_FREE: free cache page "_SPIPRIi" pix "_SPIPRIpg"\n", ix, cp->pix);
     }
     cache->cpage_use_map &= ~(1 << ix);
