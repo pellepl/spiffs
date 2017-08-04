@@ -1176,6 +1176,30 @@ TEST(seek_bug_148) {
 } TEST_END
 
 
+TEST(remove_release_fd_152) {
+  int res;
+  fs_reset_specific(0, 0, 64*1024, 4096, 4096, 256);
+  u8_t buf[1024];
+  memrand(buf, sizeof(buf));
+  TEST_CHECK_EQ(count_taken_fds(FS), 0);
+  spiffs_file fd1 = SPIFFS_open(FS, "removemeandloseafd", SPIFFS_O_CREAT | SPIFFS_O_RDWR, 0);
+  TEST_CHECK_GT(fd1, 0);
+  TEST_CHECK_EQ(count_taken_fds(FS), 1);
+  TEST_CHECK_EQ(SPIFFS_write(FS, fd1, &buf, sizeof(buf)), sizeof(buf));
+  TEST_CHECK_EQ(SPIFFS_close(FS, fd1), SPIFFS_OK);
+  TEST_CHECK_EQ(count_taken_fds(FS), 0);
+  spiffs_file fd2 = SPIFFS_open(FS, "removemeandloseafd", SPIFFS_O_RDWR, 0);
+  TEST_CHECK_GT(fd2, 0);
+  TEST_CHECK_EQ(count_taken_fds(FS), 1);
+  spiffs_file fd3 = SPIFFS_open(FS, "removemeandloseafd", SPIFFS_O_RDWR, 0);
+  TEST_CHECK_GT(fd3, 0);
+  TEST_CHECK_EQ(count_taken_fds(FS), 2);
+  TEST_CHECK_EQ(SPIFFS_remove(FS, "removemeandloseafd"), SPIFFS_OK);
+  TEST_CHECK_EQ(count_taken_fds(FS), 0);
+  return TEST_RES_OK;
+} TEST_END
+
+
 SUITE_TESTS(bug_tests)
   ADD_TEST(nodemcu_full_fs_1)
   ADD_TEST(nodemcu_full_fs_2)
@@ -1196,6 +1220,7 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(fuzzer_found_2)
   ADD_TEST(fuzzer_found_3)
   ADD_TEST(fuzzer_found_4)
+  ADD_TEST(remove_release_fd_152)
   ADD_TEST_NON_DEFAULT(fuzzer_found_single_1)
   ADD_TEST_NON_DEFAULT(log_afl_test)
   ADD_TEST_NON_DEFAULT(afl_test)

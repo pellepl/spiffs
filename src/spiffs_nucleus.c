@@ -1052,13 +1052,15 @@ void spiffs_cb_object_event(
       obj_id_raw, spix, new_pix, new_size);
   for (i = 0; i < fs->fd_count; i++) {
     spiffs_fd *cur_fd = &fds[i];
-#if SPIFFS_TEMPORAL_FD_CACHE
-    if (cur_fd->score == 0 || (cur_fd->obj_id & ~SPIFFS_OBJ_ID_IX_FLAG) != obj_id) continue;
-#else
-    if (cur_fd->file_nbr == 0 || (cur_fd->obj_id & ~SPIFFS_OBJ_ID_IX_FLAG) != obj_id) continue;
+    if ((cur_fd->obj_id & ~SPIFFS_OBJ_ID_IX_FLAG) != obj_id) continue; // fd not related to updated file
+#if !SPIFFS_TEMPORAL_FD_CACHE
+    if (cur_fd->file_nbr == 0) continue; // fd closed
 #endif
-    if (spix == 0) {
+    if (spix == 0) { // object index header update
       if (ev != SPIFFS_EV_IX_DEL) {
+#if SPIFFS_TEMPORAL_FD_CACHE
+        if (cur_fd->score == 0) continue; // never used fd
+#endif
         SPIFFS_DBG("       callback: setting fd "_SPIPRIfd":"_SPIPRIid"(fdoffs:"_SPIPRIi" offs:"_SPIPRIi") objix_hdr_pix to "_SPIPRIpg", size:"_SPIPRIi"\n", SPIFFS_FH_OFFS(fs, cur_fd->file_nbr), cur_fd->obj_id, cur_fd->fdoffset, cur_fd->offset, new_pix, new_size);
         cur_fd->objix_hdr_pix = new_pix;
         if (new_size != 0) {
@@ -1086,10 +1088,11 @@ void spiffs_cb_object_event(
           spiffs_cache_fd_release(fs, cur_fd->cache_page);
         }
 #endif
+        SPIFFS_DBG("       callback: release fd "_SPIPRIfd":"_SPIPRIid" span:"_SPIPRIsp" objix_pix to "_SPIPRIpg"\n", SPIFFS_FH_OFFS(fs, cur_fd->file_nbr), cur_fd->obj_id, spix, new_pix);
         cur_fd->file_nbr = 0;
         cur_fd->obj_id = SPIFFS_OBJ_ID_DELETED;
       }
-    }
+    } // object index header update
     if (cur_fd->cursor_objix_spix == spix) {
       if (ev != SPIFFS_EV_IX_DEL) {
         SPIFFS_DBG("       callback: setting fd "_SPIPRIfd":"_SPIPRIid" span:"_SPIPRIsp" objix_pix to "_SPIPRIpg"\n", SPIFFS_FH_OFFS(fs, cur_fd->file_nbr), cur_fd->obj_id, spix, new_pix);
@@ -1098,7 +1101,7 @@ void spiffs_cb_object_event(
         cur_fd->cursor_objix_pix = 0;
       }
     }
-  }
+  } // fd update loop
 
 #if SPIFFS_IX_MAP
 
@@ -2245,7 +2248,7 @@ s32_t spiffs_fd_find_new(spiffs *fs, spiffs_fd **fd, const char *name) {
     }
   }
 
-  // find the free fd with least score
+  // find the free fd with least score or name match
   for (i = 0; i < fs->fd_count; i++) {
     spiffs_fd *cur_fd = &fds[i];
     if (cur_fd->file_nbr == 0) {

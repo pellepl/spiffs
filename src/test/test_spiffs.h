@@ -90,6 +90,7 @@ void invoke_error_after_read_bytes(u32_t b, char once_only);
 void invoke_error_after_write_bytes(u32_t b, char once_only);
 void fs_set_validate_flashing(int i);
 int get_error_count();
+int count_taken_fds(spiffs *fs);
 
 void memrand(u8_t *b, int len);
 int test_create_file(char *name);

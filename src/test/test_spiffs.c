@@ -1091,5 +1091,13 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
   return 0;
 }
 
-
-
+int count_taken_fds(spiffs *fs) {
+  int i;
+  spiffs_fd *fds = (spiffs_fd *)fs->fd_space;
+  int taken = 0;
+  for (i = 0; i < fs->fd_count; i++) {
+    spiffs_fd *cur_fd = &fds[i];
+    if (cur_fd->file_nbr) taken++;
+  }
+  return taken;
+}
