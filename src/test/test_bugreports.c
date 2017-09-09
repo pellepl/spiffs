@@ -1199,6 +1199,37 @@ TEST(remove_release_fd_152) {
   return TEST_RES_OK;
 } TEST_END
 
+TEST(certain_file_size_fail_165) {
+  fs_reset_specific(0, 0, 512*1024, 4*1024, 64*1024, 256);
+  const int NUM = 134;
+  const int SIZ = 200;
+  u8_t buf[SIZ];
+
+  TEST_CHECK_EQ(SPIFFS_creat(FS, "test", 0), SPIFFS_OK);
+  spiffs_file fd = SPIFFS_open(FS, "test", SPIFFS_O_CREAT | SPIFFS_O_WRONLY, 0);
+  TEST_CHECK_GT(fd, 0);
+
+  int i;
+  for (i = 0; i < NUM; i++) {
+    TEST_CHECK_EQ(SPIFFS_write(FS, fd, buf, SIZ), SIZ);
+  }
+  TEST_CHECK_EQ(SPIFFS_close(FS, fd), SPIFFS_OK);
+  fd = SPIFFS_open(FS, "test", SPIFFS_O_RDONLY, 0);
+  TEST_CHECK_GT(fd, 0);
+
+  spiffs_stat s;
+  TEST_CHECK_EQ(SPIFFS_fstat(FS, fd, &s), SPIFFS_OK);
+  TEST_CHECK_EQ(s.size, NUM*SIZ);
+
+  int size = 0;
+  for (i = 0; i < NUM; i++) {
+    size += SPIFFS_read(FS, fd, buf, SIZ);
+  }
+  TEST_CHECK_EQ(size, NUM*SIZ);
+
+  return TEST_RES_OK;
+} TEST_END
+
 
 SUITE_TESTS(bug_tests)
   ADD_TEST(nodemcu_full_fs_1)
@@ -1221,6 +1252,7 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(fuzzer_found_3)
   ADD_TEST(fuzzer_found_4)
   ADD_TEST(remove_release_fd_152)
+  ADD_TEST(certain_file_size_fail_165)
   ADD_TEST_NON_DEFAULT(fuzzer_found_single_1)
   ADD_TEST_NON_DEFAULT(log_afl_test)
   ADD_TEST_NON_DEFAULT(afl_test)

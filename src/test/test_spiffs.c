@@ -645,6 +645,14 @@ int read_and_verify_fd(spiffs_file fd, char *name) {
     printf("  read_and_verify: could not stat file %s\n", name);
     return res;
   }
+
+  off_t fsize = lseek(pfd, 0, SEEK_END);
+  if (s.size != fsize) {
+    printf("  read_and_verify: size differs, %s spiffs:%d!=fs:%ld\n", name, s.size, fsize);
+    return -1;
+  }
+  lseek(pfd, 0, SEEK_SET);
+
   if (s.size == 0) {
     SPIFFS_close(&__fs, fd);
     close(pfd);
