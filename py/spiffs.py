@@ -9,6 +9,64 @@ assert(0==os.system('cd "%s" && make spiffs_.so' % this_path))
 
 spiffs_lib = ctypes.CDLL(os.path.join(this_path,'spiffs_.so'))
 
+error_tab = { 0:"SPIFFS_OK",
+              -10000:"SPIFFS_ERR_NOT_MOUNTED",
+              -10001:"SPIFFS_ERR_FULL",
+              -10002:"SPIFFS_ERR_NOT_FOUND",
+              -10003:"SPIFFS_ERR_END_OF_OBJECT",
+              -10004:"SPIFFS_ERR_DELETED",
+              -10005:"SPIFFS_ERR_NOT_FINALIZED",
+              -10006:"SPIFFS_ERR_NOT_INDEX",
+              -10007:"SPIFFS_ERR_OUT_OF_FILE_DESCS",
+              -10008:"SPIFFS_ERR_FILE_CLOSED",
+              -10009:"SPIFFS_ERR_FILE_DELETED",
+              -10010:"SPIFFS_ERR_BAD_DESCRIPTOR",
+              -10011:"SPIFFS_ERR_IS_INDEX",
+              -10012:"SPIFFS_ERR_IS_FREE",
+              -10013:"SPIFFS_ERR_INDEX_SPAN_MISMATCH",
+              -10014:"SPIFFS_ERR_DATA_SPAN_MISMATCH",
+              -10015:"SPIFFS_ERR_INDEX_REF_FREE",
+              -10016:"SPIFFS_ERR_INDEX_REF_LU",
+              -10017:"SPIFFS_ERR_INDEX_REF_INVALID",
+              -10018:"SPIFFS_ERR_INDEX_FREE",
+              -10019:"SPIFFS_ERR_INDEX_LU",
+              -10020:"SPIFFS_ERR_INDEX_INVALID",
+              -10021:"SPIFFS_ERR_NOT_WRITABLE",
+              -10022:"SPIFFS_ERR_NOT_READABLE",
+              -10023:"SPIFFS_ERR_CONFLICTING_NAME",
+              -10024:"SPIFFS_ERR_NOT_CONFIGURED",
+
+              -10025:"SPIFFS_ERR_NOT_A_FS",
+              -10026:"SPIFFS_ERR_MOUNTED",
+              -10027:"SPIFFS_ERR_ERASE_FAIL",
+              -10028:"SPIFFS_ERR_MAGIC_NOT_POSSIBLE",
+
+              -10029:"SPIFFS_ERR_NO_DELETED_BLOCKS",
+
+              -10030:"SPIFFS_ERR_FILE_EXISTS",
+
+              -10031:"SPIFFS_ERR_NOT_A_FILE",
+              -10032:"SPIFFS_ERR_RO_NOT_IMPL",
+              -10033:"SPIFFS_ERR_RO_ABORTED_OPERATION",
+              -10034:"SPIFFS_ERR_PROBE_TOO_FEW_BLOCKS",
+              -10035:"SPIFFS_ERR_PROBE_NOT_A_FS",
+              -10036:"SPIFFS_ERR_NAME_TOO_LONG",
+
+              -10037:"SPIFFS_ERR_IX_MAP_UNMAPPED",
+              -10038:"SPIFFS_ERR_IX_MAP_MAPPED",
+              -10039:"SPIFFS_ERR_IX_MAP_BAD_RANGE",
+
+              -10040:"SPIFFS_ERR_SEEK_BOUNDS",
+              -10050:"SPIFFS_ERR_INTERNAL",
+
+              -10100:"SPIFFS_ERR_TEST"}
+
+def spiffs_error(code):
+    try:
+        return error_tab[code]
+    except KeyError:
+        return "unknown error %d"%code
+
 SPIFFS_O_APPEND  = SPIFFS_APPEND = (1<<0)
 SPIFFS_O_TRUNC   = SPIFFS_TRUNC  = (1<<1)
 SPIFFS_O_CREAT   = SPIFFS_CREAT  = (1<<2)
@@ -22,7 +80,10 @@ SPIFFS_SEEK_SET = 0
 SPIFFS_SEEK_CUR = 1
 SPIFFS_SEEK_END = 2
 
-class SpiffsException(Exception): pass
+class SpiffsException(Exception):
+    def __str__(self):
+        errno = self.args[0]
+        return "%d (%s)"%(errno, spiffs_error(errno))
 
 class Spiffs(object):
     def __init__(self,
@@ -67,21 +128,36 @@ class Spiffs(object):
                                              self._wcb,
                                              self._ecb)
 
+
+    def _error_print_traceback(f):
+        def ret(self, *args):
+            try:
+                return f(self, *args)
+            except:
+                import traceback
+                traceback.print_exc()
+                return -1
+        return ret
+
+    @_error_print_traceback
     def _on_read(self, addr, size, dst):
         "Extra layer of indirection to unwrap the ctypes stuff"
+        #print "on_read",addr,size
         data = self.on_read(int(addr), int(size))
         for i in range(size):
             dst[i] = ord(data[i])
-
         return 0
 
+    @_error_print_traceback
     def _on_write(self, addr, size, src):
+        #print "on_write",addr,size
         data = [chr(src[i]) for i in range(size)]
         self.on_write(addr, size, data)
         return 0
 
+    @_error_print_traceback
     def _on_erase(self, addr, size):
-        print "on_erase",args
+        #print "on_erase",addr,size
         self.on_erase(addr, size)
         return 0
 
@@ -90,16 +166,16 @@ class Spiffs(object):
 
     def on_read(self, addr, size):
         "Subclass me!"
-        print "read",addr,size
+        print "base on_read",addr,size
         return '\xff'*size
 
     def on_write(self, addr, size, data):
         "Subclass me!"
-        print "on_write",addr,size
+        print "base on_write",addr,size
 
     def on_erase(self, addr, size):
         "Subclass me!"
-        print "on_erase",addr,size
+        print "base on_erase",addr,size
 
     ##############################################
     # API wrap
@@ -157,8 +233,8 @@ class Spiffs(object):
         res = spiffs_lib.SPIFFS_remove(self.fs, path)
         if res<0: raise SpiffsException(res)
 
-        ##############################################
-        # Pythonic API
+    ##############################################
+    # Pythonic API
 
     def open(self, filename, mode=None):
         mode = mode or 'r'
