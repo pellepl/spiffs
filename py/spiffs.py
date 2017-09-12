@@ -105,11 +105,14 @@ class Spiffs(object):
     # API wrap
 
     def fopen(self, filename, flags):
-        return spiffs_lib.SPIFFS_open(self.fs, filename, flags)
+        res = spiffs_lib.SPIFFS_open(self.fs, filename, flags)
+        if res<0: raise SpiffsException(res)
+        return res
 
     def fwrite(self, fd, data):
         res = spiffs_lib.SPIFFS_write(self.fs, fd, data, len(data))
         if res != len(data): raise SpiffsException(res)
+        return res
 
     def fread(self, fd, count=1):
         buf = (ctypes.c_uint8 * count)()
@@ -210,13 +213,13 @@ class SpiffsCharsBack(Spiffs):
 
     def __init__(self, chars):
         self.chars = chars
-        super(SpiffsFileBack, self).__init__(len(chars))
+        super(SpiffsCharsBack, self).__init__(len(chars))
 
     def on_read(self, addr, size):
-        return ''.join(self.chars[addr:size])
+        return ''.join(self.chars[addr:addr+size])
 
     def on_write(self, addr, size, data):
-        was_data = self.chars[addr:size]
+        was_data = self.chars[addr:addr+size]
         is_data = []
 
         for was,new in zip(was_data,data):
@@ -255,29 +258,38 @@ class SpiffsFileBack(Spiffs):
         self.back_fd.seek(addr)
         self.back_fd.write('\xff'*size)
 
+
+def _tests(spiffs_mount):
+    s = spiffs_mount
+    print s.dir()
+
+    fd = s.fopen("Hello", SPIFFS_CREAT | SPIFFS_WRONLY)
+    print fd
+    s.fwrite(fd, "Hello World")
+    s.fclose(fd)
+
+    print s.dir()
+
+    with s.open("Testfile","w") as tf:
+        for x in range(100):
+            print >> tf, "Test message",x,
+
+    print s.dir()
+    print s.open("Testfile").read()
+
+    print s.dir()
+    s.remove("Testfile")
+
+    print s.dir()
+
 if __name__=="__main__":
 
     file('/tmp/back.bin','w').write('\xff'*8*1024*1024)
 
     with file('/tmp/back.bin','r+wb') as bf:
         s = SpiffsFileBack(bf)
-        print s.dir()
+        _tests(s)
 
-        fd = s.fopen("Hello", SPIFFS_CREAT | SPIFFS_WRONLY)
-        print fd
-        s.fwrite(fd, "Hello World")
-        s.fclose(fd)
-
-        print s.dir()
-
-        with s.open("Testfile","w") as tf:
-            for x in range(100):
-                print >> tf, "Test message",x,
-
-        print s.dir()
-        print s.open("Testfile").read()
-
-        print s.dir()
-        s.remove("Testfile")
-
-        print s.dir()
+    loc=['\xff']*4*1024*1024
+    s = SpiffsCharsBack(loc)
+    _tests(s)

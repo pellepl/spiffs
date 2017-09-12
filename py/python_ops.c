@@ -3,27 +3,6 @@
 
 #include "spiffs.h"
 
-static s32_t my_spiffs_read(u32_t addr, u32_t size, u8_t *dst) {
-	//my_spi_read(addr, size, dst);
-	printf("SPI read %d bytes at %x\n",size,addr);
-
-	return SPIFFS_OK;
-}
-
-static s32_t my_spiffs_write(u32_t addr, u32_t size, u8_t *src) {
-	//my_spi_write(addr, size, src);
-	printf("SPI write %d bytes at %x\n",size, addr);
-	return SPIFFS_OK;
-}
-
-static s32_t my_spiffs_erase(u32_t addr, u32_t size) {
-	//my_spi_erase(addr, size);
-	printf("SPI erase %d blocks at %x\n",size, addr);
-	return SPIFFS_OK;
-}
-
-#define LOG_PAGE_SIZE (256)
-
 void *my_spiffs_mount(int phys_size,
                       int phys_addr,
                       int phys_erase_block,
