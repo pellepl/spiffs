@@ -119,15 +119,23 @@ class Spiffs(object):
         self._wcb = RWCallback(self._on_write)
         self._ecb = EraseCallback(self._on_erase)
 
-        self.fs = spiffs_lib.my_spiffs_mount(self.phys_size,
-                                             self.phys_addr,
-                                             self.phys_erase_block,
-                                             self.log_page_size,
-                                             self.log_block_size,
-                                             self._rcb,
-                                             self._wcb,
-                                             self._ecb)
+        spiffs_lib.my_spiffs_mount.restype = ctypes.c_void_p
 
+        fs = spiffs_lib.my_spiffs_mount(self.phys_size,
+                                        self.phys_addr,
+                                        self.phys_erase_block,
+                                        self.log_page_size,
+                                        self.log_block_size,
+                                        self._rcb,
+                                        self._wcb,
+                                        self._ecb)
+
+        self.fs = ctypes.c_void_p(fs)
+
+    def unmount(self):
+        res = spiffs_lib.my_spiffs_umount(self.fs)
+        if res<0: raise SpiffsException(res)
+        self.fs = None
 
     def _error_print_traceback(f):
         def ret(self, *args):
@@ -334,6 +342,48 @@ class SpiffsFileBack(Spiffs):
         self.back_fd.seek(addr)
         self.back_fd.write('\xff'*size)
 
+def _destructive_tests(spiffs_mount):
+    """Tests that the callbacks are implemented OK.
+    These tests will damage the filesystem."""
+
+    print "destructive test"
+    s = spiffs_mount
+
+    addr = s.phys_erase_block
+    size = s.phys_erase_block
+    old_data = s.on_read(addr, size)
+    s.on_erase(addr, size)
+    erased = s.on_read(addr, size)
+    assert erased == '\xff'*size
+    print "erased ok"
+
+    data = ''.join(chr(x & 0xff) for x in range(size))
+    s.on_write(addr,size,data)
+    readback = s.on_read(addr,size)
+    assert readback==data
+    print "wrote ok"
+
+    data2 = '\0'*10
+    s.on_write(addr+10,len(data2),data2)
+    readback = s.on_read(addr,size)
+    assert readback[20:]==data[20:]
+    assert readback[:10]==data[:10]
+    print "part write ok"
+    assert readback[10:20]==data2
+    print "part write ok"
+
+    s.on_write(addr+size, size, data)
+    s.on_erase(addr,size)
+    readback = s.on_read(addr+size,size)
+    assert readback==data
+    print "erase bounded ok"
+
+    s.on_write(addr,size,data)
+    data2 = ''.join(chr(0xff^ord(c)) for c in data)
+    s.on_write(addr,size,data2)
+    readback = s.on_read(addr,size)
+    assert readback=='\0'*size
+    print "AND ok"
 
 def _tests(spiffs_mount):
     s = spiffs_mount
@@ -365,7 +415,9 @@ if __name__=="__main__":
     with file('/tmp/back.bin','r+wb') as bf:
         s = SpiffsFileBack(bf)
         _tests(s)
+        _destructive_tests(s)
 
     loc=['\xff']*4*1024*1024
     s = SpiffsCharsBack(loc)
     _tests(s)
+    _destructive_tests(s)

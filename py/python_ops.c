@@ -11,15 +11,22 @@ void *my_spiffs_mount(int phys_size,
                       s32_t (read_cb)(u32_t addr, u32_t size, u8_t *dst),
                       s32_t (write_cb)(u32_t addr, u32_t size, u8_t *src),
                       s32_t (erase_cb)(u32_t addr, u32_t size)
-                      ) {
+                      )
+{
 
-	spiffs *fs = malloc(sizeof(spiffs));
-
-	uint8_t *spiffs_work_buf = malloc(log_page_size*2);
+#define WORK_BUF_SIZE (log_page_size*2)
 #define SPIFFS_FDS_SIZE (32*4)
-	uint8_t *spiffs_fds = malloc(SPIFFS_FDS_SIZE);
-#define SPIFFS_CACHE_BUF_SIZE ((log_page_size+32)*4)
-	uint8_t *spiffs_cache_buf = malloc(SPIFFS_CACHE_BUF_SIZE);
+#define SPIFFS_CACHE_BUF_SIZE (phys_size) //(log_page_size+32)*128)
+
+	struct alloced {
+		spiffs fs;
+		uint8_t spiffs_work_buf[WORK_BUF_SIZE];
+		uint8_t spiffs_fds[SPIFFS_FDS_SIZE];
+		uint8_t spiffs_cache_buf[SPIFFS_CACHE_BUF_SIZE];
+	};
+
+	struct alloced *d = malloc(sizeof(struct alloced));
+	spiffs *pfs = &d->fs;
 
 	spiffs_config cfg;
 	cfg.phys_size = phys_size; // use all spi flash
@@ -32,17 +39,27 @@ void *my_spiffs_mount(int phys_size,
 	cfg.hal_write_f = write_cb;
 	cfg.hal_erase_f = erase_cb;
 
-	int res = SPIFFS_mount(fs,
+	int res = SPIFFS_mount(pfs,
 	                       &cfg,
-	                       spiffs_work_buf,
-	                       spiffs_fds,
+	                       d->spiffs_work_buf,
+	                       d->spiffs_fds,
 	                       SPIFFS_FDS_SIZE,
-	                       spiffs_cache_buf,
+	                       d->spiffs_cache_buf,
 	                       SPIFFS_CACHE_BUF_SIZE,
 	                       0);
-	//printf("mount res: %i\n", res);
 
-	return res?NULL:(void *)fs;
+	return res?NULL:(void *)pfs;
+}
+
+int my_spiffs_umount(spiffs *fs)
+{
+	SPIFFS_clearerr(fs);
+	SPIFFS_unmount(fs);
+
+	int ret = SPIFFS_errno(fs);
+	free(fs);
+
+	return ret;
 }
 
 int my_dir(spiffs *fs,
