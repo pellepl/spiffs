@@ -160,7 +160,7 @@ class Spiffs(object):
     def _on_write(self, addr, size, src):
         #print "on_write",addr,size
         data = [chr(src[i]) for i in range(size)]
-        self.on_write(addr, size, data)
+        self.on_write(addr, data)
         return 0
 
     @_error_print_traceback
@@ -177,9 +177,9 @@ class Spiffs(object):
         print "base on_read",addr,size
         return '\xff'*size
 
-    def on_write(self, addr, size, data):
+    def on_write(self, addr, data):
         "Subclass me!"
-        print "base on_write",addr,size
+        print "base on_write",addr,len(data)
 
     def on_erase(self, addr, size):
         "Subclass me!"
@@ -295,22 +295,22 @@ class SpiffsFile(object):
 class SpiffsCharsBack(Spiffs):
     "list-of-chars as block device"
 
-    def __init__(self, chars):
+    def __init__(self, chars, *args, **kwargs):
         self.chars = chars
-        super(SpiffsCharsBack, self).__init__(len(chars))
+        super(SpiffsCharsBack, self).__init__(len(chars), *args, **kwargs)
 
     def on_read(self, addr, size):
         return ''.join(self.chars[addr:addr+size])
 
-    def on_write(self, addr, size, data):
-        was_data = self.chars[addr:addr+size]
+    def on_write(self, addr, data):
+        was_data = self.chars[addr:addr+len(data)]
         is_data = []
 
         for was,new in zip(was_data,data):
             now = ord(was) & ord(new)
             is_data.append(chr(now))
 
-        self.chars[addr:addr+size] = is_data
+        self.chars[addr:addr+len(data)] = is_data
 
     def on_erase(self, addr, size):
         self.chars[addr:addr+size] = ['\xff'] * size
@@ -326,9 +326,9 @@ class SpiffsFileBack(Spiffs):
         self.back_fd.seek(addr)
         return self.back_fd.read(size)
 
-    def on_write(self, addr, size, data):
+    def on_write(self, addr, data):
         self.back_fd.seek(addr)
-        was_data = self.back_fd.read(size)
+        was_data = self.back_fd.read(len(data))
         is_data = []
 
         for was,new in zip(was_data,data):
@@ -358,13 +358,13 @@ def _destructive_tests(spiffs_mount):
     print "erased ok"
 
     data = ''.join(chr(x & 0xff) for x in range(size))
-    s.on_write(addr,size,data)
+    s.on_write(addr,data)
     readback = s.on_read(addr,size)
     assert readback==data
     print "wrote ok"
 
     data2 = '\0'*10
-    s.on_write(addr+10,len(data2),data2)
+    s.on_write(addr+10,data2)
     readback = s.on_read(addr,size)
     assert readback[20:]==data[20:]
     assert readback[:10]==data[:10]
@@ -372,15 +372,15 @@ def _destructive_tests(spiffs_mount):
     assert readback[10:20]==data2
     print "part write ok"
 
-    s.on_write(addr+size, size, data)
+    s.on_write(addr+size, data)
     s.on_erase(addr,size)
     readback = s.on_read(addr+size,size)
     assert readback==data
     print "erase bounded ok"
 
-    s.on_write(addr,size,data)
+    s.on_write(addr, data)
     data2 = ''.join(chr(0xff^ord(c)) for c in data)
-    s.on_write(addr,size,data2)
+    s.on_write(addr, data2)
     readback = s.on_read(addr,size)
     assert readback=='\0'*size
     print "AND ok"
