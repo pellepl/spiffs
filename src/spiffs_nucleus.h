@@ -143,8 +143,8 @@
 
 
 
-#if defined(__GNUC__) || defined(__clang__)
-    /* For GCC and clang */
+#if defined(__GNUC__) || defined(__clang__) || defined(__TI_COMPILER_VERSION__)
+    /* For GCC, clang and TI compilers */
 #define SPIFFS_PACKED __attribute__((packed))
 #elif defined(__ICCARM__) || defined(__CC_ARM)
     /* For IAR ARM and Keil MDK-ARM compilers */
