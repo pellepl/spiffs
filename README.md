@@ -1,9 +1,9 @@
 # SPIFFS (SPI Flash File System) 
-**V0.3.6**
+**V0.3.7**
 
 [![Build Status](https://travis-ci.org/pellepl/spiffs.svg?branch=master)](https://travis-ci.org/pellepl/spiffs)
 
-Copyright (c) 2013-2016 Peter Andersson (pelleplutt1976 at gmail.com)
+Copyright (c) 2013-2017 Peter Andersson (pelleplutt1976 at gmail.com)
 
 For legal stuff, see [LICENSE](https://github.com/pellepl/spiffs/blob/master/LICENSE). Basically, you may do whatever you want with the source. Use, modify, sell, print it out, roll it and smoke it - as long as I won't be held responsible.
 
@@ -21,6 +21,13 @@ Spiffs is designed with following characteristics in mind:
  - Writing pulls one to zeroes
  - Zeroes can only be pulled to ones by erase
  - Wear leveling
+
+
+## BUILDING
+
+`mkdir build; make`
+
+Otherwise, configure the `builddir` variable towards the top of `makefile` as something opposed to the default `build`. Sanity check on the host via `make test` and refer to `.travis.yml` for the official in-depth testing procedure. See the wiki for [integrating](https://github.com/pellepl/spiffs/wiki/Integrate-spiffs) spiffs into projects and [spiffsimg](https://github.com/nodemcu/nodemcu-firmware/tree/master/tools/spiffsimg) from [nodemcu](https://github.com/nodemcu) is a good example on the subject.
 
 
 ## FEATURES
@@ -42,6 +49,9 @@ What spiffs does not:
  - Presently, it does not detect or handle bad blocks.
  - One configuration, one binary. There's no generic spiffs binary that handles all types of configurations.
 
+## NOTICE
+
+0.4.0 is under construction. This is a full rewrite and will change the underlying structure. Hence, it will not be compatible with earlier versions of the filesystem. The API is the same, with minor modifications. Some config flags will be removed (as they are mandatory in 0.4.0) and some features might fall away until 0.4.1. If you have any worries or questions, it can be discussed in issue [#179](https://github.com/pellepl/spiffs/issues/179)
  
 ## MORE INFO 
  
@@ -52,6 +62,25 @@ For design, see [docs/TECH_SPEC](https://github.com/pellepl/spiffs/blob/master/d
 For a generic spi flash driver, see [this](https://github.com/pellepl/spiflash_driver).
 
 ## HISTORY
+
+### 0.3.7
+- fixed prevent seeking to negative offsets #158
+- fixed file descriptor offsets not updated for multiple fds on same file #157
+- fixed cache page not closed for removed files #156
+- fixed a lseek bug when seeking exactly to end of a fully indexed first level LUT #148
+- fixed wear leveling issue #145
+- fixed attempt to write out of bounds in flash #130, 
+- set file offset when seeking over end #121 (thanks @sensslen)
+- fixed seeking in virgin files #120 (thanks @sensslen)
+- Optional file metadata #128 (thanks @cesanta)
+- AFL testing framework #100 #143 (thanks @pjsg)
+- Testframe updates
+
+New API functions:
+- `SPIFFS_update_meta, SPIFFS_fupdate_meta` - updates metadata for a file
+
+New config defines:
+- `SPIFFS_OBJ_META_LEN` - enable possibility to add extra metadata to files
 
 ### 0.3.6
 - Fix range bug in index memory mapping #98

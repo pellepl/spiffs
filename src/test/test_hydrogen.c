@@ -30,7 +30,7 @@ TEST(info)
   int res = SPIFFS_info(FS, &total, &used);
   TEST_CHECK(res == SPIFFS_OK);
   TEST_CHECK(used == 0);
-  TEST_CHECK(total < __fs.cfg.phys_size);
+  TEST_CHECK(total < SPIFFS_CFG_PHYS_SZ(&__fs));
   return TEST_RES_OK;
 }
 TEST_END
@@ -189,6 +189,12 @@ TEST(bad_fd)
   res = SPIFFS_write(FS, fd, 0, 0);
   TEST_CHECK(res < 0);
   TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_BAD_DESCRIPTOR);
+#if SPIFFS_OBJ_META_LEN
+  u8_t new_meta[SPIFFS_OBJ_META_LEN] = {0};
+  res = SPIFFS_fupdate_meta(FS, fd, new_meta);
+  TEST_CHECK(res < 0);
+  TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_BAD_DESCRIPTOR);
+#endif
   return TEST_RES_OK;
 }
 TEST_END
@@ -218,6 +224,12 @@ TEST(closed_fd)
   res = SPIFFS_write(FS, fd, 0, 0);
   TEST_CHECK(res < 0);
   TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_FILE_CLOSED);
+#if SPIFFS_OBJ_META_LEN
+  u8_t new_meta[SPIFFS_OBJ_META_LEN] = {0};
+  res = SPIFFS_fupdate_meta(FS, fd, new_meta);
+  TEST_CHECK(res < 0);
+  TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_FILE_CLOSED);
+#endif
   return TEST_RES_OK;
 }
 TEST_END
@@ -351,8 +363,6 @@ TEST_END
 #if SPIFFS_FILEHDL_OFFSET
 TEST(open_fh_offs)
 {
-  int res;
-  spiffs_stat s;
   spiffs_file fd1, fd2, fd3;
   fd1 = SPIFFS_open(FS, "1", SPIFFS_CREAT | SPIFFS_EXCL, 0);
   fd2 = SPIFFS_open(FS, "2", SPIFFS_CREAT | SPIFFS_EXCL, 0);
@@ -416,6 +426,17 @@ TEST(list_dir)
         found++;
         break;
       }
+    }
+    {
+      spiffs_stat s;
+      TEST_CHECK_EQ(SPIFFS_stat(FS, pe->name, &s), 0);
+      TEST_CHECK_EQ(pe->obj_id, s.obj_id);
+      TEST_CHECK_EQ(pe->size, s.size);
+      TEST_CHECK_EQ(pe->type, s.type);
+      TEST_CHECK_EQ(pe->pix, s.pix);
+#if SPIFFS_OBJ_META_LEN
+      TEST_CHECK_EQ(memcmp(pe->meta, s.meta, SPIFFS_OBJ_META_LEN), 0);
+#endif
     }
   }
   SPIFFS_closedir(&d);
@@ -727,6 +748,53 @@ TEST(rename) {
   return TEST_RES_OK;
 } TEST_END
 
+#if SPIFFS_OBJ_META_LEN
+TEST(update_meta) {
+  s32_t i, res, fd;
+  spiffs_stat s;
+  u8_t new_meta[SPIFFS_OBJ_META_LEN], new_meta2[SPIFFS_OBJ_META_LEN];
+
+  res = test_create_file("foo");
+  TEST_CHECK(res >= 0);
+
+  for (i = 0; i < SPIFFS_OBJ_META_LEN; i++) {
+    new_meta[i] = 0xaa;
+  }
+  res = SPIFFS_update_meta(FS, "foo", new_meta);
+  TEST_CHECK(res >= 0);
+
+  res = SPIFFS_stat(FS, "foo", &s);
+  TEST_CHECK(res >= 0);
+  TEST_CHECK_EQ(memcmp(s.meta, new_meta, SPIFFS_OBJ_META_LEN), 0);
+
+  for (i = 0; i < SPIFFS_OBJ_META_LEN; i++) {
+    new_meta2[i] = 0xbb;
+  }
+
+  fd = SPIFFS_open(FS, "foo", SPIFFS_RDONLY, 0);
+  TEST_CHECK(fd >= 0);
+  res = SPIFFS_fupdate_meta(FS, fd, new_meta2);
+  TEST_CHECK(res < 0);
+  TEST_CHECK(SPIFFS_errno(FS) == SPIFFS_ERR_NOT_WRITABLE);
+  SPIFFS_close(FS, fd);
+
+  res = SPIFFS_stat(FS, "foo", &s);
+  TEST_CHECK(res >= 0);
+  TEST_CHECK_EQ(memcmp(s.meta, new_meta, SPIFFS_OBJ_META_LEN), 0);
+
+  fd = SPIFFS_open(FS, "foo", SPIFFS_RDWR, 0);
+  TEST_CHECK(fd >= 0);
+  res = SPIFFS_fupdate_meta(FS, fd, new_meta2);
+  TEST_CHECK_EQ(res, 0);
+  SPIFFS_close(FS, fd);
+
+  res = SPIFFS_stat(FS, "foo", &s);
+  TEST_CHECK(res >= 0);
+  TEST_CHECK_EQ(memcmp(s.meta, new_meta2, SPIFFS_OBJ_META_LEN), 0);
+
+  return TEST_RES_OK;
+} TEST_END
+#endif
 
 TEST(remove_single_by_path)
 {
@@ -801,7 +869,7 @@ TEST_END
 
 TEST(write_big_file_chunks_page)
 {
-  int size = ((50*(FS)->cfg.phys_size)/100);
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100);
   printf("  filesize %i\n", size);
   int res = test_create_and_write_file("bigfile", size, SPIFFS_DATA_PAGE_SIZE(FS));
   TEST_CHECK(res >= 0);
@@ -819,7 +887,7 @@ TEST(write_big_files_chunks_page)
   int f;
   int files = 10;
   int res;
-  int size = ((50*(FS)->cfg.phys_size)/100)/files;
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100)/files;
   printf("  filesize %i\n", size);
   for (f = 0; f < files; f++) {
     sprintf(name, "bigfile%i", f);
@@ -839,7 +907,7 @@ TEST_END
 
 TEST(write_big_file_chunks_index)
 {
-  int size = ((50*(FS)->cfg.phys_size)/100);
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100);
   printf("  filesize %i\n", size);
   int res = test_create_and_write_file("bigfile", size, SPIFFS_DATA_PAGE_SIZE(FS) * SPIFFS_OBJ_HDR_IX_LEN(FS));
   TEST_CHECK(res >= 0);
@@ -857,7 +925,7 @@ TEST(write_big_files_chunks_index)
   int f;
   int files = 10;
   int res;
-  int size = ((50*(FS)->cfg.phys_size)/100)/files;
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100)/files;
   printf("  filesize %i\n", size);
   for (f = 0; f < files; f++) {
     sprintf(name, "bigfile%i", f);
@@ -895,7 +963,7 @@ TEST(write_big_files_chunks_huge)
   int f;
   int files = 10;
   int res;
-  int size = ((50*(FS)->cfg.phys_size)/100)/files;
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100)/files;
   printf("  filesize %i\n", size);
   for (f = 0; f < files; f++) {
     sprintf(name, "bigfile%i", f);
@@ -1174,7 +1242,7 @@ TEST_END
 
 TEST(read_chunk_huge)
 {
-  int sz = (2*(FS)->cfg.phys_size)/3;
+  int sz = (2*SPIFFS_CFG_PHYS_SZ(FS))/3;
   TEST_CHECK(create_and_read_back(sz, sz) == 0);
   return TEST_RES_OK;
 }
@@ -1217,6 +1285,48 @@ TEST(read_beyond)
   free(buf);
 
   TEST_CHECK(res == size);
+
+  return TEST_RES_OK;
+}
+TEST_END
+
+TEST(read_beyond2)
+{
+  char *name = "file";
+  spiffs_file fd;
+  s32_t res;
+  const s32_t size = SPIFFS_DATA_PAGE_SIZE(FS);
+
+  u8_t buf[size*2];
+  memrand(buf, size);
+
+  res = test_create_file(name);
+  CHECK(res >= 0);
+  fd = SPIFFS_open(FS, name, SPIFFS_APPEND | SPIFFS_RDWR, 0);
+  CHECK(fd >= 0);
+  res = SPIFFS_write(FS, fd, buf, size);
+  CHECK(res >= 0);
+
+  spiffs_stat stat;
+  res = SPIFFS_fstat(FS, fd, &stat);
+  CHECK(res >= 0);
+  CHECK(stat.size == size);
+
+  SPIFFS_close(FS, fd);
+
+  int i,j;
+  for (j = 1; j <= size+1; j++) {
+    fd = SPIFFS_open(FS, name, SPIFFS_RDONLY, 0);
+    CHECK(fd >= 0);
+    SPIFFS_clearerr(FS);
+    for (i = 0; i < size * 2; i += j) {
+      u8_t dst;
+      res = SPIFFS_read(FS, fd, buf, j);
+      TEST_CHECK_EQ(SPIFFS_errno(FS), i < size ? SPIFFS_OK : SPIFFS_ERR_END_OF_OBJECT);
+      TEST_CHECK_EQ(res, MIN(j, MAX(0, size - (i + j) + j)));
+    }
+    SPIFFS_close(FS, fd);
+  }
 
   return TEST_RES_OK;
 }
@@ -1301,7 +1411,6 @@ TEST(lseek_simple_modification) {
   int res;
   spiffs_file fd;
   char *fname = "seekfile";
-  int i;
   int len = 4096;
   fd = SPIFFS_open(FS, fname, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
   TEST_CHECK(fd > 0);
@@ -1341,7 +1450,6 @@ TEST(lseek_modification_append) {
   int res;
   spiffs_file fd;
   char *fname = "seekfile";
-  int i;
   int len = 4096;
   fd = SPIFFS_open(FS, fname, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
   TEST_CHECK(fd > 0);
@@ -1481,6 +1589,33 @@ TEST(lseek_read) {
 TEST_END
 
 
+
+TEST(lseek_oob) {
+  int res;
+  spiffs_file fd;
+  char *fname = "seekfile";
+  int len = (FS_PURE_DATA_PAGES(FS) / 2) * SPIFFS_DATA_PAGE_SIZE(FS);
+
+  fd = SPIFFS_open(FS, fname, SPIFFS_TRUNC | SPIFFS_CREAT | SPIFFS_RDWR, 0);
+  TEST_CHECK(fd > 0);
+  u8_t *refbuf = malloc(len);
+  memrand(refbuf, len);
+  res = SPIFFS_write(FS, fd, refbuf, len);
+  TEST_CHECK(res >= 0);
+
+  int offs = 0;
+  res = SPIFFS_lseek(FS, fd, -1, SPIFFS_SEEK_SET);
+  TEST_CHECK_EQ(res, SPIFFS_ERR_SEEK_BOUNDS);
+  res = SPIFFS_lseek(FS, fd, len+1, SPIFFS_SEEK_SET);
+  TEST_CHECK_EQ(res, SPIFFS_ERR_END_OF_OBJECT);
+  free(refbuf);
+  SPIFFS_close(FS, fd);
+
+  return TEST_RES_OK;
+}
+TEST_END
+
+
 TEST(gc_quick)
 {
   char name[32];
@@ -1570,7 +1705,7 @@ TEST(write_small_files_chunks_1)
   char name[32];
   int f;
   int size = 512;
-  int files = ((20*(FS)->cfg.phys_size)/100)/size;
+  int files = ((20*SPIFFS_CFG_PHYS_SZ(FS))/100)/size;
   int res;
   for (f = 0; f < files; f++) {
     sprintf(name, "smallfile%i", f);
@@ -1589,7 +1724,7 @@ TEST_END
 
 TEST(write_big_file_chunks_1)
 {
-  int size = ((50*(FS)->cfg.phys_size)/100);
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100);
   printf("  filesize %i\n", size);
   int res = test_create_and_write_file("bigfile", size, 1);
   TEST_CHECK(res >= 0);
@@ -1606,7 +1741,7 @@ TEST(write_big_files_chunks_1)
   int f;
   int files = 10;
   int res;
-  int size = ((50*(FS)->cfg.phys_size)/100)/files;
+  int size = ((50*SPIFFS_CFG_PHYS_SZ(FS))/100)/files;
   printf("  filesize %i\n", size);
   for (f = 0; f < files; f++) {
     sprintf(name, "bigfile%i", f);
@@ -2022,7 +2157,7 @@ TEST(ix_map_remap)
 {
   // create a file, 10 data pages long
   s32_t res;
-  spiffs_file fd1, fd2;
+  spiffs_file fd1;
   fd1 = SPIFFS_open(FS, "1", SPIFFS_O_CREAT | SPIFFS_O_WRONLY, 0);
   TEST_CHECK_GT(fd1, 0);
 
@@ -2128,7 +2263,7 @@ TEST(ix_map_partial)
 {
   // create a file, 10 data pages long
   s32_t res;
-  spiffs_file fd, fd2;
+  spiffs_file fd;
   fd = SPIFFS_open(FS, "1", SPIFFS_O_CREAT | SPIFFS_O_WRONLY, 0);
   TEST_CHECK_GT(fd, 0);
 
@@ -2160,7 +2295,6 @@ TEST(ix_map_partial)
   const int entries = SPIFFS_bytes_to_ix_map_entries(FS, size/2);
   spiffs_ix_map map;
   spiffs_page_ix ixbuf[entries];
-  spiffs_page_ix ixbuf_ref[entries];
 
   printf("map 0-50%%\n");
   res = SPIFFS_ix_map(FS, fd, &map, 0, size/2, ixbuf);
@@ -2324,6 +2458,9 @@ SUITE_TESTS(hydrogen_tests)
   ADD_TEST(user_callback_gc)
   ADD_TEST(name_too_long)
   ADD_TEST(rename)
+#if SPIFFS_OBJ_META_LEN
+  ADD_TEST(update_meta)
+#endif
   ADD_TEST(remove_single_by_path)
   ADD_TEST(remove_single_by_fd)
   ADD_TEST(write_cache)
@@ -2342,12 +2479,14 @@ SUITE_TESTS(hydrogen_tests)
   ADD_TEST(read_chunk_index)
   ADD_TEST(read_chunk_huge)
   ADD_TEST(read_beyond)
+  ADD_TEST(read_beyond2)
   ADD_TEST(bad_index_1)
   ADD_TEST(bad_index_2)
   ADD_TEST(lseek_simple_modification)
   ADD_TEST(lseek_modification_append)
   ADD_TEST(lseek_modification_append_multi)
   ADD_TEST(lseek_read)
+  ADD_TEST(lseek_oob)
   ADD_TEST(gc_quick)
   ADD_TEST(write_small_file_chunks_1)
   ADD_TEST(write_small_files_chunks_1)

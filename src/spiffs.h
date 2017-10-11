@@ -60,6 +60,9 @@ extern "C" {
 #define SPIFFS_ERR_IX_MAP_MAPPED        -10038
 #define SPIFFS_ERR_IX_MAP_BAD_RANGE     -10039
 
+#define SPIFFS_ERR_SEEK_BOUNDS          -10040
+
+
 #define SPIFFS_ERR_INTERNAL             -10050
 
 #define SPIFFS_ERR_TEST                 -10100
@@ -137,7 +140,7 @@ typedef void (*spiffs_file_callback)(struct spiffs_t *fs, spiffs_fileop_type op,
 
 #ifndef SPIFFS_DBG
 #define SPIFFS_DBG(...) \
-    print(__VA_ARGS__)
+    printf(__VA_ARGS__)
 #endif
 #ifndef SPIFFS_GC_DBG
 #define SPIFFS_GC_DBG(...) printf(__VA_ARGS__)
@@ -297,6 +300,9 @@ typedef struct {
   spiffs_obj_type type;
   spiffs_page_ix pix;
   u8_t name[SPIFFS_OBJ_NAME_LEN];
+#if SPIFFS_OBJ_META_LEN
+  u8_t meta[SPIFFS_OBJ_META_LEN];
+#endif
 } spiffs_stat;
 
 struct spiffs_dirent {
@@ -305,6 +311,9 @@ struct spiffs_dirent {
   spiffs_obj_type type;
   u32_t size;
   spiffs_page_ix pix;
+#if SPIFFS_OBJ_META_LEN
+  u8_t meta[SPIFFS_OBJ_META_LEN];
+#endif
 };
 
 typedef struct {
@@ -524,6 +533,24 @@ s32_t SPIFFS_close(spiffs *fs, spiffs_file fh);
  * @param newPath       new path of file
  */
 s32_t SPIFFS_rename(spiffs *fs, const char *old, const char *newPath);
+
+#if SPIFFS_OBJ_META_LEN
+/**
+ * Updates file's metadata
+ * @param fs            the file system struct
+ * @param path          path to the file
+ * @param meta          new metadata. must be SPIFFS_OBJ_META_LEN bytes long.
+ */
+s32_t SPIFFS_update_meta(spiffs *fs, const char *name, const void *meta);
+
+/**
+ * Updates file's metadata
+ * @param fs            the file system struct
+ * @param fh            file handle of the file
+ * @param meta          new metadata. must be SPIFFS_OBJ_META_LEN bytes long.
+ */
+s32_t SPIFFS_fupdate_meta(spiffs *fs, spiffs_file fh, const void *meta);
+#endif
 
 /**
  * Returns last error of last file operation.

@@ -7,7 +7,7 @@
 
 #include "testrunner.h"
 
-void add_suites() {
+void add_suites(void) {
   //ADD_SUITE(dev_tests);
   ADD_SUITE(check_tests);
   ADD_SUITE(hydrogen_tests);
