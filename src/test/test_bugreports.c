@@ -628,7 +628,7 @@ static int run_fuzz_test(FILE *f, int maxfds, int debuglog) {
 
   for (i = 0; i < 8; i++) {
     char buff[128];
-    sprintf(buff, "%dfile%d.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxasdasdasdadxxxxxxxxxxxxxxxxxxx", i, i);
+    snprintf(buff, sizeof(buff), "%dfile%d.xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxasdasdasdadxxxxxxxxxxxxxxxxxxx", i, i);
     buff[9 + 2 * i] = 0;
     filename[i] = strdup(buff);
   }

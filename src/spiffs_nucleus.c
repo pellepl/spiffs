@@ -451,8 +451,9 @@ s32_t spiffs_obj_lu_find_free(
     spiffs_block_ix starting_block,
     int starting_lu_entry,
     spiffs_block_ix *block_ix,
-    int *lu_entry) {
-  s32_t res;
+    int *lu_entry)
+{
+  s32_t res = SPIFFS_OK;
   if (!fs->cleaning && fs->free_blocks < 2) {
     res = spiffs_gc_quick(fs, 0);
     if (res == SPIFFS_ERR_NO_DELETED_BLOCKS) {
@@ -910,16 +911,18 @@ s32_t spiffs_page_delete(
 #if !SPIFFS_READ_ONLY
 // Create an object index header page with empty index and undefined length
 s32_t spiffs_object_create(
-    spiffs *fs,
-    spiffs_obj_id obj_id,
-    const u8_t name[],
-    const u8_t meta[],
-    spiffs_obj_type type,
-    spiffs_page_ix *objix_hdr_pix) {
-  s32_t res = SPIFFS_OK;
-  spiffs_block_ix bix;
-  spiffs_page_object_ix_header oix_hdr;
-  int entry;
+                           spiffs         * fs,
+                           spiffs_obj_id    obj_id,
+                           const u8_t       name[],
+                           const u8_t       meta[],
+                           spiffs_obj_type  type,
+                           spiffs_page_ix * objix_hdr_pix
+						  )
+{
+  s32_t                        res     = SPIFFS_OK;
+  spiffs_block_ix              bix     = 0;
+  spiffs_page_object_ix_header oix_hdr = {.p_hdr = {0}};
+  int                          entry   = 0;
 
   res = spiffs_gc_check(fs, SPIFFS_DATA_PAGE_SIZE(fs));
   SPIFFS_CHECK_RES(res);
@@ -939,12 +942,13 @@ s32_t spiffs_object_create(
   fs->stats_p_allocated++;
 
   // write empty object index page
+  size_t const len = MIN( strlen((const char *)name), sizeof(oix_hdr.name));
   oix_hdr.p_hdr.obj_id = obj_id;
   oix_hdr.p_hdr.span_ix = 0;
   oix_hdr.p_hdr.flags = 0xff & ~(SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_INDEX | SPIFFS_PH_FLAG_USED);
   oix_hdr.type = type;
   oix_hdr.size = SPIFFS_UNDEFINED_LEN; // keep ones so we can update later without wasting this page
-  strncpy((char*)oix_hdr.name, (const char*)name, SPIFFS_OBJ_NAME_LEN);
+  strncpy((char*)oix_hdr.name, (const char*)name, len);
 #if SPIFFS_OBJ_META_LEN
   if (meta) {
     _SPIFFS_MEMCPY(oix_hdr.meta, meta, SPIFFS_OBJ_META_LEN);
@@ -1051,7 +1055,7 @@ void spiffs_cb_object_event(
 #endif
   // update index caches in all file descriptors
   spiffs_obj_id obj_id = obj_id_raw & ~SPIFFS_OBJ_ID_IX_FLAG;
-  u32_t i;
+  u32_t i = 0;
   spiffs_fd *fds = (spiffs_fd *)fs->fd_space;
   SPIFFS_DBG("       CALLBACK  %s obj_id:"_SPIPRIid" spix:"_SPIPRIsp" npix:"_SPIPRIpg" nsz:"_SPIPRIi"\n", (const char *[]){"UPD", "NEW", "DEL", "MOV", "HUP","???"}[MIN(ev,5)],
       obj_id_raw, spix, new_pix, new_size);

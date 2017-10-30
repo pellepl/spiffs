@@ -113,7 +113,7 @@ static int mkpath(const char *path, mode_t mode) {
 //
 //
 char *make_test_fname(const char *name) {
-  sprintf(_path, "%s/%s", TEST_PATH, name);
+  snprintf(_path, sizeof(_path), "%s/%s", TEST_PATH, name);
   return _path;
 }
 
@@ -132,7 +132,7 @@ void clear_test_path() {
   if (dp != NULL) {
     while ((ep = readdir(dp))) {
       if (ep->d_name[0] != '.') {
-        sprintf(_path, "%s/%s", TEST_PATH, ep->d_name);
+        snprintf(_path, sizeof(_path), "%s/%s", TEST_PATH, ep->d_name);
         remove(_path);
       }
     }
