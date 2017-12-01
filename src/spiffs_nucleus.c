@@ -16,7 +16,7 @@ static s32_t spiffs_page_data_check(spiffs *fs, spiffs_fd *fd, spiffs_page_ix pi
     return SPIFFS_ERR_INDEX_REF_INVALID;
   }
 #if SPIFFS_PAGE_CHECK
-  spiffs_page_header ph;
+  spiffs_page_header ph = {0};
   res = _spiffs_rd(
       fs, SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_READ,
       fd->file_nbr,
@@ -45,7 +45,7 @@ static s32_t spiffs_page_index_check(spiffs *fs, spiffs_fd *fd, spiffs_page_ix p
     return SPIFFS_ERR_INDEX_INVALID;
   }
 #if SPIFFS_PAGE_CHECK
-  spiffs_page_header ph;
+  spiffs_page_header ph = {0};
   res = _spiffs_rd(
       fs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ,
       fd->file_nbr,
@@ -233,7 +233,8 @@ s32_t spiffs_erase_block(
   // here we ignore res, just try erasing the block
   while (size > 0) {
     SPIFFS_DBG("erase "_SPIPRIad":"_SPIPRIi"\n", addr,  SPIFFS_CFG_PHYS_ERASE_SZ(fs));
-    SPIFFS_HAL_ERASE(fs, addr, SPIFFS_CFG_PHYS_ERASE_SZ(fs));
+    res = SPIFFS_HAL_ERASE(fs, addr, SPIFFS_CFG_PHYS_ERASE_SZ(fs));
+    SPIFFS_CHECK_RES(res);
 
     addr += SPIFFS_CFG_PHYS_ERASE_SZ(fs);
     size -= SPIFFS_CFG_PHYS_ERASE_SZ(fs);
@@ -275,10 +276,10 @@ s32_t spiffs_probe(
 
   // Read three magics, as one block may be in an aborted erase state.
   // At least two of these must contain magic and be in decreasing order.
-  spiffs_obj_id magic[3];
-  spiffs_obj_id bix_count[3];
+  spiffs_obj_id magic[3] = {0};
+  spiffs_obj_id bix_count[3] = {0};
 
-  spiffs_block_ix bix;
+  spiffs_block_ix bix = {0};
   for (bix = 0; bix < 3; bix++) {
     paddr = SPIFFS_MAGIC_PADDR(&dummy_fs, bix);
 #if SPIFFS_HAL_CALLBACK_EXTRA
@@ -347,8 +348,8 @@ static s32_t spiffs_obj_lu_scan_v(
 // Checks magic if enabled
 s32_t spiffs_obj_lu_scan(
     spiffs *fs) {
-  s32_t res;
-  spiffs_block_ix bix;
+  s32_t res = SPIFFS_OK;
+  spiffs_block_ix bix = {0};
   int entry;
 #if SPIFFS_USE_MAGIC
   spiffs_block_ix unerased_bix = (spiffs_block_ix)-1;
@@ -362,7 +363,7 @@ s32_t spiffs_obj_lu_scan(
   spiffs_obj_id erase_count_max = 0;
   while (bix < fs->block_count) {
 #if SPIFFS_USE_MAGIC
-    spiffs_obj_id magic;
+    spiffs_obj_id magic = 0;
     res = _spiffs_rd(fs,
         SPIFFS_OP_T_OBJ_LU2 | SPIFFS_OP_C_READ,
         0, SPIFFS_MAGIC_PADDR(fs, bix) ,
@@ -379,7 +380,7 @@ s32_t spiffs_obj_lu_scan(
       }
     }
 #endif
-    spiffs_obj_id erase_count;
+    spiffs_obj_id erase_count = 0;
     res = _spiffs_rd(fs,
         SPIFFS_OP_T_OBJ_LU2 | SPIFFS_OP_C_READ,
         0, SPIFFS_ERASE_COUNT_PADDR(fs, bix) ,
@@ -506,8 +507,8 @@ static s32_t spiffs_obj_lu_find_id_and_span_v(
     int ix_entry,
     const void *user_const_p,
     void *user_var_p) {
-  s32_t res;
-  spiffs_page_header ph;
+  s32_t res = SPIFFS_OK;
+  spiffs_page_header ph = {0};
   spiffs_page_ix pix = SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(fs, bix, ix_entry);
   res = _spiffs_rd(fs, 0, SPIFFS_OP_T_OBJ_LU2 | SPIFFS_OP_C_READ,
       SPIFFS_PAGE_TO_PADDR(fs, pix), sizeof(spiffs_page_header), (u8_t *)&ph);
@@ -531,9 +532,9 @@ s32_t spiffs_obj_lu_find_id_and_span(
     spiffs_span_ix spix,
     spiffs_page_ix exclusion_pix,
     spiffs_page_ix *pix) {
-  s32_t res;
-  spiffs_block_ix bix;
-  int entry;
+  s32_t res = SPIFFS_OK;
+  spiffs_block_ix bix = {0};
+  int entry = 0;
 
   res = spiffs_obj_lu_find_entry_visitor(fs,
       fs->cursor_block_ix,
@@ -570,9 +571,9 @@ s32_t spiffs_obj_lu_find_id_and_span_by_phdr(
     spiffs_span_ix spix,
     spiffs_page_ix exclusion_pix,
     spiffs_page_ix *pix) {
-  s32_t res;
-  spiffs_block_ix bix;
-  int entry;
+  s32_t res = SPIFFS_OK;
+  spiffs_block_ix bix = {0};
+  int entry = 0;
 
   res = spiffs_obj_lu_find_entry_visitor(fs,
       fs->cursor_block_ix,
@@ -671,7 +672,7 @@ static s32_t spiffs_populate_ix_map_v(
     const void *user_const_p,
     void *user_var_p) {
   (void)user_const_p;
-  s32_t res;
+  s32_t res = SPIFFS_OK;
   spiffs_ix_map_populate_state *state = (spiffs_ix_map_populate_state *)user_var_p;
   spiffs_page_ix pix = SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(fs, bix, ix_entry);
 
@@ -711,7 +712,7 @@ static s32_t spiffs_populate_ix_map_v(
 
 // populates index map, from vector entry start to vector entry end, inclusive
 s32_t spiffs_populate_ix_map(spiffs *fs, spiffs_fd *fd, u32_t vec_entry_start, u32_t vec_entry_end) {
-  s32_t res;
+  s32_t res = SPIFFS_OK;
   spiffs_ix_map *map = fd->ix_map;
   spiffs_ix_map_populate_state state;
   vec_entry_start = MIN((u32_t)(map->end_spix - map->start_spix), vec_entry_start);
@@ -761,8 +762,8 @@ s32_t spiffs_page_allocate_data(
     u8_t finalize,
     spiffs_page_ix *pix) {
   s32_t res = SPIFFS_OK;
-  spiffs_block_ix bix;
-  int entry;
+  spiffs_block_ix bix = {0};
+  int entry= 0;
 
   // find free entry
   res = spiffs_obj_lu_find_free(fs, fs->free_cursor_block_ix, fs->free_cursor_obj_lu_entry, &bix, &entry);
@@ -818,12 +819,12 @@ s32_t spiffs_page_move(
     spiffs_page_header *page_hdr,
     spiffs_page_ix src_pix,
     spiffs_page_ix *dst_pix) {
-  s32_t res;
+  s32_t res = SPIFFS_OK;
   u8_t was_final = 0;
-  spiffs_page_header *p_hdr;
-  spiffs_block_ix bix;
-  int entry;
-  spiffs_page_ix free_pix;
+  spiffs_page_header *p_hdr = NULL;
+  spiffs_block_ix bix = 0;
+  int entry = 0;
+  spiffs_page_ix free_pix = 0;
 
   // find free entry
   res = spiffs_obj_lu_find_free(fs, fs->free_cursor_block_ix, fs->free_cursor_obj_lu_entry, &bix, &entry);
@@ -877,7 +878,7 @@ s32_t spiffs_page_move(
 s32_t spiffs_page_delete(
     spiffs *fs,
     spiffs_page_ix pix) {
-  s32_t res;
+  s32_t res = SPIFFS_OK;
   // mark deleted entry in source object lookup
   spiffs_obj_id d_obj_id = SPIFFS_OBJ_ID_DELETED;
   res = _spiffs_wr(fs, SPIFFS_OP_T_OBJ_LU | SPIFFS_OP_C_DELE,
@@ -991,8 +992,8 @@ s32_t spiffs_object_update_index_hdr(
     u32_t size,
     spiffs_page_ix *new_pix) {
   s32_t res = SPIFFS_OK;
-  spiffs_page_object_ix_header *objix_hdr;
-  spiffs_page_ix new_objix_hdr_pix;
+  spiffs_page_object_ix_header *objix_hdr = NULL;
+  spiffs_page_ix new_objix_hdr_pix = 0;
 
   obj_id |=  SPIFFS_OBJ_ID_IX_FLAG;
 
@@ -1162,7 +1163,7 @@ s32_t spiffs_object_open_by_id(
     spiffs_flags flags,
     spiffs_mode mode) {
   s32_t res = SPIFFS_OK;
-  spiffs_page_ix pix;
+  spiffs_page_ix pix = 0;
 
   res = spiffs_obj_lu_find_id_and_span(fs, obj_id | SPIFFS_OBJ_ID_IX_FLAG, 0, 0, &pix);
   SPIFFS_CHECK_RES(res);
@@ -1181,8 +1182,8 @@ s32_t spiffs_object_open_by_page(
     spiffs_mode mode) {
   (void)mode;
   s32_t res = SPIFFS_OK;
-  spiffs_page_object_ix_header oix_hdr;
-  spiffs_obj_id obj_id;
+  spiffs_page_object_ix_header oix_hdr = {.p_hdr = {0}};
+  spiffs_obj_id obj_id = 0;
 
   res = _spiffs_rd(fs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ,
       fd->file_nbr, SPIFFS_PAGE_TO_PADDR(fs, pix), sizeof(spiffs_page_object_ix_header), (u8_t *)&oix_hdr);

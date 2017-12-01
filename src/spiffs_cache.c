@@ -17,6 +17,10 @@ static spiffs_cache_page *spiffs_cache_page_get(spiffs *fs, spiffs_page_ix pix) 
   int i;
   for (i = 0; i < cache->cpage_count; i++) {
     spiffs_cache_page *cp = spiffs_get_cache_page_hdr(fs, cache, i);
+    if (NULL == cp)
+    {
+    	return 0;
+    }
     if ((cache->cpage_use_map & (1<<i)) &&
         (cp->flags & SPIFFS_CACHE_FLAG_TYPE_WR) == 0 &&
         cp->pix == pix ) {
@@ -165,6 +169,7 @@ s32_t spiffs_phys_rd(
       if (res2 != SPIFFS_OK) {
         // honor read failure before possible write failure (bad idea?)
         res = res2;
+        return res2;
       }
       u8_t *mem =  spiffs_get_cache_page(fs, cache, cp->ix);
       _SPIFFS_MEMCPY(dst, &mem[SPIFFS_PADDR_TO_PAGE_OFFSET(fs, addr)], len);
@@ -174,6 +179,7 @@ s32_t spiffs_phys_rd(
       if (res2 != SPIFFS_OK) {
         // honor read failure before possible write failure (bad idea?)
         res = res2;
+        return res2;
       }
     }
   }
