@@ -746,7 +746,7 @@ int read_and_verify_fd(spiffs_file fd, char *name) {
     int read_len = MIN(s.size - offs, sizeof(buf_d));
     res = SPIFFS_read(&__fs, fd, buf_d, read_len);
     if (res < 0) {
-      printf("  read_and_verify: could not read file %s offs:%i len:%i filelen:%i\n", name, offs, read_len, s.size);
+      printf("  read_and_verify: could not read file %s offs:%i len:%i filelen:%i (res:%d)\n", name, offs, read_len, s.size, res);
       return res;
     }
     int pres = read(pfd, buf_v, read_len);
