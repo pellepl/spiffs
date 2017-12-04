@@ -258,12 +258,8 @@ static s32_t _erase(
 	if (!div) {
 		return -2;
 	}
-	uint32_t offset = SPIFFS_CFG_PHYS_ADDR(&__fs) / div;
-	if (offset > addr) {
-		return -3;
-	}
 
-	_erases[(addr - offset)]++;
+    _erases[(addr-SPIFFS_CFG_PHYS_ADDR(&__fs))/div]++;
 	memset(&AREA(addr), 0xff, size);
 	return 0;
 }
