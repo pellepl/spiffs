@@ -231,46 +231,41 @@ static s32_t _erase(
     u32_t addr,
 	u32_t size)
 {
-	  if (addr < SPIFFS_CFG_PHYS_ADDR(&__fs)) {
-	    printf("FATAL erase addr too low %08x < %08x\n", addr, SPIFFS_PHYS_ADDR);
-	    ERREXIT();
-	    return -1;
-	  }
-	  if (addr + size > SPIFFS_CFG_PHYS_ADDR(&__fs) + SPIFFS_CFG_PHYS_SZ(&__fs)) {
-	    printf("FATAL erase addr too high %08x + %08x > %08x\n", addr, size, SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
-	    ERREXIT();
-	    return -1;
-	  }
-  if (addr & (SPIFFS_CFG_PHYS_ERASE_SZ(&__fs)-1)) {
-    printf("trying to erase at addr %08x, out of boundary\n", addr);
-    ERREXIT();
-    return -1;
-  }
-  if (size & (SPIFFS_CFG_PHYS_ERASE_SZ(&__fs)-1)) {
-    printf("trying to erase at with size %08x, out of boundary\n", size);
-    ERREXIT();
-    return -1;
-  }
-  // exceeds the memory boundaries
-  uint32_t div = SPIFFS_CFG_PHYS_ERASE_SZ(&__fs);
-  if (!div)
-  {
-	  return -2;
-  }
-  uint32_t offset = SPIFFS_CFG_PHYS_ADDR(&__fs)/div;
-  if (offset > addr)
-  {
-	  return -3;
-  }
-  uint32_t new_addr = addr-offset;
-  if (new_addr>erase_sz)
-  {
-	  return -4;
-  }
+	if (addr < SPIFFS_CFG_PHYS_ADDR(&__fs)) {
+		printf("FATAL erase addr too low %08x < %08x\n", addr,
+				SPIFFS_PHYS_ADDR);
+		ERREXIT();
+		return -1;
+	}
+	if (addr + size > SPIFFS_CFG_PHYS_ADDR(&__fs) + SPIFFS_CFG_PHYS_SZ(&__fs)) {
+		printf("FATAL erase addr too high %08x + %08x > %08x\n", addr, size,
+				SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
+		ERREXIT();
+		return -1;
+	}
+	if (addr & (SPIFFS_CFG_PHYS_ERASE_SZ(&__fs) - 1)) {
+		printf("trying to erase at addr %08x, out of boundary\n", addr);
+		ERREXIT();
+		return -1;
+	}
+	if (size & (SPIFFS_CFG_PHYS_ERASE_SZ(&__fs) - 1)) {
+		printf("trying to erase at with size %08x, out of boundary\n", size);
+		ERREXIT();
+		return -1;
+	}
+	// exceeds the memory boundaries
+	uint32_t div = SPIFFS_CFG_PHYS_ERASE_SZ(&__fs);
+	if (!div) {
+		return -2;
+	}
+	uint32_t offset = SPIFFS_CFG_PHYS_ADDR(&__fs) / div;
+	if (offset > addr) {
+		return -3;
+	}
 
-  _erases[(addr-offset)]++;
-  memset(&AREA(addr), 0xff, size);
-  return 0;
+	_erases[(addr - offset)]++;
+	memset(&AREA(addr), 0xff, size);
+	return 0;
 }
 
 void hexdump_mem(u8_t *b, u32_t len) {
