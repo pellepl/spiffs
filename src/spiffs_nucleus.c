@@ -349,7 +349,7 @@ static s32_t spiffs_obj_lu_scan_v(
 s32_t spiffs_obj_lu_scan(
     spiffs *fs) {
   s32_t res = SPIFFS_OK;
-  spiffs_block_ix bix = {0};
+  spiffs_block_ix bix;
   int entry;
 #if SPIFFS_USE_MAGIC
   spiffs_block_ix unerased_bix = (spiffs_block_ix)-1;
@@ -943,13 +943,12 @@ s32_t spiffs_object_create(
   fs->stats_p_allocated++;
 
   // write empty object index page
-  size_t const len = MIN( strlen((const char *)name), sizeof(oix_hdr.name));
   oix_hdr.p_hdr.obj_id = obj_id;
   oix_hdr.p_hdr.span_ix = 0;
   oix_hdr.p_hdr.flags = 0xff & ~(SPIFFS_PH_FLAG_FINAL | SPIFFS_PH_FLAG_INDEX | SPIFFS_PH_FLAG_USED);
   oix_hdr.type = type;
   oix_hdr.size = SPIFFS_UNDEFINED_LEN; // keep ones so we can update later without wasting this page
-  strncpy((char*)oix_hdr.name, (const char*)name, len);
+  strncpy((char*)oix_hdr.name, (const char*)name, sizeof(oix_hdr.name));
 #if SPIFFS_OBJ_META_LEN
   if (meta) {
     _SPIFFS_MEMCPY(oix_hdr.meta, meta, SPIFFS_OBJ_META_LEN);
@@ -1012,7 +1011,7 @@ s32_t spiffs_object_update_index_hdr(
 
   // change name
   if (name) {
-    strncpy((char*)objix_hdr->name, (const char*)name, SPIFFS_OBJ_NAME_LEN);
+    strncpy((char*)objix_hdr->name, (const char*)name, sizeof(objix_hdr->name));
   }
 #if SPIFFS_OBJ_META_LEN
   if (meta) {
