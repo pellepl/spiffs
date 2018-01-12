@@ -194,7 +194,7 @@ s32_t SPIFFS_creat(spiffs *fs, const char *path, spiffs_mode mode) {
     SPIFFS_API_CHECK_RES(fs, SPIFFS_ERR_NAME_TOO_LONG);
   }
   SPIFFS_LOCK(fs);
-  spiffs_obj_id obj_id;
+  spiffs_obj_id obj_id = SPIFFS_OBJ_ID_DELETED;
   s32_t res;
 
   res = spiffs_obj_lu_find_free_obj_id(fs, &obj_id, (const u8_t*)path);
@@ -245,7 +245,7 @@ spiffs_file SPIFFS_open(spiffs *fs, const char *path, spiffs_flags flags, spiffs
 
   if ((flags & SPIFFS_O_CREAT) && res == SPIFFS_ERR_NOT_FOUND) {
 #if !SPIFFS_READ_ONLY
-    spiffs_obj_id obj_id;
+    spiffs_obj_id obj_id = SPIFFS_OBJ_ID_DELETED;
     // no need to enter conflicting name here, already looked for it above
     res = spiffs_obj_lu_find_free_obj_id(fs, &obj_id, 0);
     if (res < SPIFFS_OK) {
@@ -727,7 +727,7 @@ s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh) {
 static s32_t spiffs_stat_pix(spiffs *fs, spiffs_page_ix pix, spiffs_file fh, spiffs_stat *s) {
   (void)fh;
   spiffs_page_object_ix_header objix_hdr;
-  spiffs_obj_id obj_id;
+  spiffs_obj_id obj_id = SPIFFS_OBJ_ID_DELETED;
   s32_t res =_spiffs_rd(fs,  SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ, fh,
       SPIFFS_PAGE_TO_PADDR(fs, pix), sizeof(spiffs_page_object_ix_header), (u8_t *)&objix_hdr);
   SPIFFS_API_CHECK_RES(fs, res);
@@ -1026,10 +1026,15 @@ static s32_t spiffs_read_dir_v(
     void *user_var_p) {
   (void)user_const_p;
   s32_t res;
-  spiffs_page_object_ix_header objix_hdr;
+  spiffs_page_object_ix_header objix_hdr = {.p_hdr = {0}};
   if (obj_id == SPIFFS_OBJ_ID_FREE || obj_id == SPIFFS_OBJ_ID_DELETED ||
       (obj_id & SPIFFS_OBJ_ID_IX_FLAG) == 0) {
     return SPIFFS_VIS_COUNTINUE;
+  }
+
+  if (NULL == user_var_p)
+  {
+	  return SPIFFS_VIS_END;
   }
 
   spiffs_page_ix pix = SPIFFS_OBJ_LOOKUP_ENTRY_TO_PIX(fs, bix, ix_entry);
@@ -1062,8 +1067,8 @@ struct spiffs_dirent *SPIFFS_readdir(spiffs_DIR *d, struct spiffs_dirent *e) {
   }
   SPIFFS_LOCK(d->fs);
 
-  spiffs_block_ix bix;
-  int entry;
+  spiffs_block_ix bix = 0;
+  int entry = 0;
   s32_t res;
   struct spiffs_dirent *ret = 0;
 

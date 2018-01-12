@@ -18,6 +18,7 @@
 
 #include "test_spiffs.h"
 
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -27,12 +28,14 @@
 
 #define AREA(x) _area[(x) - addr_offset]
 
-static u32_t _area_sz;
+static u32_t _area_sz = 0;
+static u32_t _start_address = 0;
 static unsigned char *_area = NULL;
 static u32_t addr_offset = 0;
 
-static int *_erases;
-static char _path[256];
+static u32_t *_erases = NULL;
+static u32_t erase_sz = 0;
+static char _path[512];
 static u32_t bytes_rd = 0;
 static u32_t bytes_wr = 0;
 static u32_t reads = 0;
@@ -113,7 +116,7 @@ static int mkpath(const char *path, mode_t mode) {
 //
 //
 char *make_test_fname(const char *name) {
-  sprintf(_path, "%s/%s", TEST_PATH, name);
+  snprintf(_path, sizeof(_path), "%s/%s", TEST_PATH, name);
   return _path;
 }
 
@@ -132,7 +135,7 @@ void clear_test_path() {
   if (dp != NULL) {
     while ((ep = readdir(dp))) {
       if (ep->d_name[0] != '.') {
-        sprintf(_path, "%s/%s", TEST_PATH, ep->d_name);
+        snprintf(_path, sizeof(_path), "%s/%s", TEST_PATH, ep->d_name);
         remove(_path);
       }
     }
@@ -175,7 +178,7 @@ static s32_t _write(
     spiffs *fs,
 #endif
     u32_t addr, u32_t size, u8_t *src) {
-  int i;
+	u32_t i;
   //printf("wr %08x %i\n", addr, size);
   if (log_flash_ops) {
     bytes_wr += size;
@@ -200,6 +203,11 @@ static s32_t _write(
   }
 
   for (i = 0; i < size; i++) {
+	    if ((addr + i) >= _area_sz || (addr + i) < _start_address)
+	    	{
+	    		printf("imp. address (_write): 0x%x (size:0x%x)\r\n", addr+i, _area_sz);
+	    		return -11;
+	    	}
 #if !SPIFFS_NO_BLIND_WRITES
     if (((addr + i) & (SPIFFS_CFG_LOG_PAGE_SZ(&__fs)-1)) == offsetof(spiffs_page_header, flags)) {
       /* Blind flag writes are allowed. */
@@ -220,20 +228,40 @@ static s32_t _erase(
 #if SPIFFS_HAL_CALLBACK_EXTRA
     spiffs *fs,
 #endif
-    u32_t addr, u32_t size) {
-  if (addr & (SPIFFS_CFG_PHYS_ERASE_SZ(&__fs)-1)) {
-    printf("trying to erase at addr %08x, out of boundary\n", addr);
-    ERREXIT();
-    return -1;
-  }
-  if (size & (SPIFFS_CFG_PHYS_ERASE_SZ(&__fs)-1)) {
-    printf("trying to erase at with size %08x, out of boundary\n", size);
-    ERREXIT();
-    return -1;
-  }
-  _erases[(addr-SPIFFS_CFG_PHYS_ADDR(&__fs))/SPIFFS_CFG_PHYS_ERASE_SZ(&__fs)]++;
-  memset(&AREA(addr), 0xff, size);
-  return 0;
+    u32_t addr,
+	u32_t size)
+{
+	if (addr < SPIFFS_CFG_PHYS_ADDR(&__fs)) {
+		printf("FATAL erase addr too low %08x < %08x\n", addr,
+				SPIFFS_PHYS_ADDR);
+		ERREXIT();
+		return -1;
+	}
+	if (addr + size > SPIFFS_CFG_PHYS_ADDR(&__fs) + SPIFFS_CFG_PHYS_SZ(&__fs)) {
+		printf("FATAL erase addr too high %08x + %08x > %08x\n", addr, size,
+				SPIFFS_PHYS_ADDR + SPIFFS_FLASH_SIZE);
+		ERREXIT();
+		return -1;
+	}
+	if (addr & (SPIFFS_CFG_PHYS_ERASE_SZ(&__fs) - 1)) {
+		printf("trying to erase at addr %08x, out of boundary\n", addr);
+		ERREXIT();
+		return -1;
+	}
+	if (size & (SPIFFS_CFG_PHYS_ERASE_SZ(&__fs) - 1)) {
+		printf("trying to erase at with size %08x, out of boundary\n", size);
+		ERREXIT();
+		return -1;
+	}
+	// exceeds the memory boundaries
+	uint32_t div = SPIFFS_CFG_PHYS_ERASE_SZ(&__fs);
+	if (!div) {
+		return -2;
+	}
+
+    _erases[(addr-SPIFFS_CFG_PHYS_ADDR(&__fs))/div]++;
+	memset(&AREA(addr), 0xff, size);
+	return 0;
 }
 
 void hexdump_mem(u8_t *b, u32_t len) {
@@ -289,6 +317,11 @@ void dump_page(spiffs *fs, spiffs_page_ix p) {
     // obj lu page
     printf("OBJ_LU");
   } else {
+	  if (addr >= _area_sz || addr < _start_address)
+	  {
+		  printf("imp. address (dump_page) 0x%x (size:0x%x)\r\n", addr, _area_sz);
+		  return;
+	  }
     u32_t obj_id_addr = SPIFFS_BLOCK_TO_PADDR(fs, SPIFFS_BLOCK_FOR_PAGE(fs , p)) +
         SPIFFS_OBJ_LOOKUP_ENTRY_FOR_PAGE(fs, p) * sizeof(spiffs_obj_id);
     spiffs_obj_id obj_id = *((spiffs_obj_id *)&AREA(obj_id_addr));
@@ -319,22 +352,37 @@ void dump_page(spiffs *fs, spiffs_page_ix p) {
 }
 
 void area_write(u32_t addr, u8_t *buf, u32_t size) {
-  int i;
+  u32_t i;
   for (i = 0; i < size; i++) {
+	 if ((addr+i) >= _area_sz /*|| (addr + i) < _start_address*/)
+	 {
+		 printf("imp. address (write): 0x%x (size:0x%x)", addr+i, _area_sz);
+		 return;
+	 }
     AREA(addr + i) = *buf++;
   }
 }
 
 void area_set(u32_t addr, u8_t d, u32_t size) {
-  int i;
+  u32_t i;
   for (i = 0; i < size; i++) {
+      if ((addr+i) >= _area_sz || (addr + i) < _start_address)
+      {
+    	  printf("imp. address (area_set): 0x%x (size:0x%x)", addr+i, _area_sz);
+    	  return;
+      }
     AREA(addr + i) = d;
   }
 }
 
 void area_read(u32_t addr, u8_t *buf, u32_t size) {
-  int i;
+  u32_t i;
   for (i = 0; i < size; i++) {
+	  if ((addr+i) >= _area_sz || (addr + i) < _start_address)
+	  {
+		  printf("imp. address (area_read): 0x%x (size:0x%x)", addr+i, _area_sz);
+		  return;
+	  }
     *buf++ = AREA(addr + i);
   }
 }
@@ -464,15 +512,26 @@ s32_t fs_mount_specific(u32_t phys_addr, u32_t phys_size,
   return SPIFFS_mount(&__fs, &c, _work, _fds, _fds_sz, _cache, _cache_sz, spiffs_check_cb_f);
 }
 
-static void fs_create(u32_t spiflash_size,
-    u32_t phys_sector_size,
-    u32_t log_page_size,
-    u32_t descriptors, u32_t cache_pages) {
+static void fs_create(
+                      u32_t spiflash_size,
+                      u32_t start_address,
+                      u32_t phys_sector_size,
+                      u32_t log_page_size,
+                      u32_t descriptors,
+                      u32_t cache_pages
+                     )
+{
+  _start_address = start_address;
   _area_sz = spiflash_size;
   _area = malloc(spiflash_size);
   ASSERT(_area != NULL, "testbench area could not be malloced");
 
-  const u32_t erase_sz = sizeof(int) * (spiflash_size / phys_sector_size);
+  if (!phys_sector_size)
+  {
+	  printf("FATAL: sector_size is zero!\r\n");
+	  return;
+  }
+  erase_sz = sizeof(int) * (spiflash_size / phys_sector_size);
   _erases = malloc(erase_sz);
   ASSERT(_erases != NULL, "testbench erase log could not be malloced");
   memset(_erases, 0, erase_sz);
@@ -496,25 +555,41 @@ static void fs_create(u32_t spiflash_size,
 }
 
 static void fs_free(void) {
-  if (_area) free(_area);
+  if (_area)
+	  free(_area);
   _area = NULL;
-  if (_erases) free(_erases);
+
+  if (_erases)
+	  free(_erases);
   _erases = NULL;
-  if (_fds) free(_fds);
+
+  if (_fds)
+	  free(_fds);
   _fds = NULL;
-  if (_cache) free(_cache);
+
+  if (_cache)
+	  free(_cache);
   _cache = NULL;
-  if (_work) free(_work);
+
+  if (_work)
+	  free(_work);
   _work = NULL;
 }
 
 /**
  * addr_offset
  */
-void fs_reset_specific(u32_t addr_offset, u32_t phys_addr, u32_t phys_size,
-    u32_t phys_sector_size,
-    u32_t log_block_size, u32_t log_page_size) {
+void fs_reset_specific(
+                       u32_t addr_offset,
+                       u32_t phys_addr,
+                       u32_t phys_size,
+                       u32_t phys_sector_size,
+                       u32_t log_block_size,
+                       u32_t log_page_size
+                      )
+{
   fs_create(phys_size + phys_addr - addr_offset,
+            phys_addr,
             phys_sector_size,
             log_page_size,
             DEFAULT_NUM_FD,
@@ -568,6 +643,7 @@ void fs_mount_dump(char *fname,
         u32_t phys_sector_size,
         u32_t log_block_size, u32_t log_page_size) {
   fs_create(phys_size + phys_addr - addr_offset,
+		    phys_addr,
             phys_sector_size,
             log_page_size,
             DEFAULT_NUM_FD,
@@ -670,7 +746,7 @@ int read_and_verify_fd(spiffs_file fd, char *name) {
     int read_len = MIN(s.size - offs, sizeof(buf_d));
     res = SPIFFS_read(&__fs, fd, buf_d, read_len);
     if (res < 0) {
-      printf("  read_and_verify: could not read file %s offs:%i len:%i filelen:%i\n", name, offs, read_len, s.size);
+      printf("  read_and_verify: could not read file %s offs:%i len:%i filelen:%i (res:%d)\n", name, offs, read_len, s.size, res);
       return res;
     }
     int pres = read(pfd, buf_v, read_len);
@@ -1027,8 +1103,15 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
           res = SPIFFS_write(FS, tf->fd, buf, size);
           CHECK_RES(res);
           int pfd = open(make_test_fname(tf->name), O_APPEND | O_RDWR);
-          write(pfd, buf, size);
-          close(pfd);
+          if (pfd >= 0)
+          {
+            write(pfd, buf, size);
+            close(pfd);
+          }
+          else
+          {
+        	  printf("\nERROR opening file: %s\n", tf->name);
+          }
           free(buf);
           res = read_and_verify(tf->name);
           CHECK_RES(res);

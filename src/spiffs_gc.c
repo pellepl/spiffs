@@ -107,9 +107,11 @@ s32_t spiffs_gc_quick(
 // Checks if garbage collecting is necessary. If so a candidate block is found,
 // cleansed and erased
 s32_t spiffs_gc_check(
-    spiffs *fs,
-    u32_t len) {
-  s32_t res;
+                      spiffs *fs,
+                      u32_t   len
+					 )
+{
+  s32_t res = SPIFFS_OK;
   s32_t free_pages =
       (SPIFFS_PAGES_PER_BLOCK(fs) - SPIFFS_OBJ_LOOKUP_PAGES(fs)) * (fs->block_count-2)
       - fs->stats_p_allocated - fs->stats_p_deleted;
