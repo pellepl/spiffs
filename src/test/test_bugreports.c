@@ -1230,8 +1230,55 @@ TEST(certain_file_size_fail_165) {
   return TEST_RES_OK;
 } TEST_END
 
+TEST(test_joel)
+{
+  char *file_name1 = "first_file";
+  char *file_name2 = "second_file";
+  char *file_name3 = "third_file";
+  int size = 512;
+  int res;
+  spiffs_DIR dir;
+  struct spiffs_dirent e;
+  struct spiffs_dirent *pe = &e;
+
+  // create a clean file system starting at address 0, 2 megabytes big,
+  // sector size 65536, block size 65536, page size 256
+  fs_reset_specific(0, 0, 1024*1024*2, 65536, 65536, 256);
+
+  res = test_create_and_write_file(file_name1, size, 1);
+  TEST_CHECK(res >= 0);
+
+  res = test_create_and_write_file(file_name2, size, 1);
+  TEST_CHECK(res >= 0);
+
+  res = test_create_and_write_file(file_name3, size, 1);
+  TEST_CHECK(res >= 0);
+
+  SPIFFS_opendir(FS, "/", &dir);
+  while ((pe = SPIFFS_readdir(&dir, &e))) {
+      printf("%s [%04x] size:%i\n", pe->name, pe->obj_id, pe->size);
+  }
+  SPIFFS_closedir(&dir);
+
+  res = SPIFFS_remove(FS, file_name2);
+  TEST_CHECK(res == SPIFFS_OK);
+  printf("deleted\n");
+
+  //This causes an error, I don't know why...
+  SPIFFS_opendir(FS, "/", &dir);
+  printf("open\n");
+  pe = &e;
+  while ((pe = SPIFFS_readdir(&dir, pe))) {
+      printf("%s [%04x] size:%i\n", pe->name, pe->obj_id, pe->size);
+  }
+  SPIFFS_closedir(&dir);
+
+  return TEST_RES_OK;
+}
+TEST_END
 
 SUITE_TESTS(bug_tests)
+  ADD_TEST(test_joel)
   ADD_TEST(nodemcu_full_fs_1)
   ADD_TEST(nodemcu_full_fs_2)
   ADD_TEST(magic_test)

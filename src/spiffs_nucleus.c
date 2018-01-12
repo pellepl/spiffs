@@ -1182,7 +1182,7 @@ s32_t spiffs_object_open_by_page(
   (void)mode;
   s32_t res = SPIFFS_OK;
   spiffs_page_object_ix_header oix_hdr = {.p_hdr = {0}};
-  spiffs_obj_id obj_id = 0;
+  spiffs_obj_id obj_id = SPIFFS_OBJ_ID_DELETED;
 
   res = _spiffs_rd(fs, SPIFFS_OP_T_OBJ_IX | SPIFFS_OP_C_READ,
       fd->file_nbr, SPIFFS_PAGE_TO_PADDR(fs, pix), sizeof(spiffs_page_object_ix_header), (u8_t *)&oix_hdr);
@@ -2137,7 +2137,7 @@ static s32_t spiffs_obj_lu_find_free_obj_id_compact_v(spiffs *fs, spiffs_obj_id 
 s32_t spiffs_obj_lu_find_free_obj_id(spiffs *fs, spiffs_obj_id *obj_id, const u8_t *conflicting_name) {
   s32_t res = SPIFFS_OK;
   u32_t max_objects = (fs->block_count * SPIFFS_OBJ_LOOKUP_MAX_ENTRIES(fs)) / 2;
-  spiffs_free_obj_id_state state;
+  spiffs_free_obj_id_state state = {0};
   spiffs_obj_id free_obj_id = SPIFFS_OBJ_ID_FREE;
   state.min_obj_id = 1;
   state.max_obj_id = max_objects + 1;
@@ -2152,7 +2152,10 @@ s32_t spiffs_obj_lu_find_free_obj_id(spiffs *fs, spiffs_obj_id *obj_id, const u8
       u32_t i, j;
       SPIFFS_DBG("free_obj_id: BITM min:"_SPIPRIid" max:"_SPIPRIid"\n", state.min_obj_id, state.max_obj_id);
 
-      memset(fs->work, 0, SPIFFS_CFG_LOG_PAGE_SZ(fs));
+      if (fs->work != NULL)
+      {
+        memset(fs->work, 0, SPIFFS_CFG_LOG_PAGE_SZ(fs));
+      }
       res = spiffs_obj_lu_find_entry_visitor(fs, 0, 0, 0, 0, spiffs_obj_lu_find_free_obj_id_bitmap_v,
           conflicting_name, &state.min_obj_id, 0, 0);
       if (res == SPIFFS_VIS_END) res = SPIFFS_OK;

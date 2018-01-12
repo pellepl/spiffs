@@ -35,7 +35,7 @@ static u32_t addr_offset = 0;
 
 static u32_t *_erases = NULL;
 static u32_t erase_sz = 0;
-static char _path[256];
+static char _path[512];
 static u32_t bytes_rd = 0;
 static u32_t bytes_wr = 0;
 static u32_t reads = 0;
@@ -1103,8 +1103,15 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
           res = SPIFFS_write(FS, tf->fd, buf, size);
           CHECK_RES(res);
           int pfd = open(make_test_fname(tf->name), O_APPEND | O_RDWR);
-          write(pfd, buf, size);
-          close(pfd);
+          if (pfd >= 0)
+          {
+            write(pfd, buf, size);
+            close(pfd);
+          }
+          else
+          {
+        	  printf("\nERROR opening file: %s\n", tf->name);
+          }
           free(buf);
           res = read_and_verify(tf->name);
           CHECK_RES(res);

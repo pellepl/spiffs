@@ -283,7 +283,7 @@ void spiffs_cache_fd_release(spiffs *fs, spiffs_cache_page *cp) {
   }
   spiffs_cache_page_free(fs, cp->ix, 0);
 
-  cp->obj_id = 0;
+  cp->obj_id = SPIFFS_OBJ_ID_DELETED;
 }
 
 #endif
