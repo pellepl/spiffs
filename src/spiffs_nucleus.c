@@ -1073,7 +1073,7 @@ void spiffs_cb_object_event(
           // update size and offsets for fds to this file
           cur_fd->size = new_size;
           u32_t act_new_size = new_size == SPIFFS_UNDEFINED_LEN ? 0 : new_size;
-#if SPIFFS_CACHE_WR
+#if SPIFFS_CACHE && SPIFFS_CACHE_WR
           if (act_new_size > 0 && cur_fd->cache_page) {
             act_new_size = MAX(act_new_size, cur_fd->cache_page->offset + cur_fd->cache_page->size);
           }
@@ -1084,7 +1084,7 @@ void spiffs_cb_object_event(
           if (cur_fd->fdoffset > act_new_size) {
             cur_fd->fdoffset = act_new_size;
           }
-#if SPIFFS_CACHE_WR
+#if SPIFFS_CACHE && SPIFFS_CACHE_WR
           if (cur_fd->cache_page && cur_fd->cache_page->offset > act_new_size+1) {
             SPIFFS_CACHE_DBG("CACHE_DROP: file trunced, dropping cache page "_SPIPRIi", no writeback\n", cur_fd->cache_page->ix);
             spiffs_cache_fd_release(fs, cur_fd->cache_page);
@@ -1093,7 +1093,7 @@ void spiffs_cb_object_event(
         }
       } else {
         // removing file
-#if SPIFFS_CACHE_WR
+#if SPIFFS_CACHE && SPIFFS_CACHE_WR
         if (cur_fd->file_nbr && cur_fd->cache_page) {
           SPIFFS_CACHE_DBG("CACHE_DROP: file deleted, dropping cache page "_SPIPRIi", no writeback\n", cur_fd->cache_page->ix);
           spiffs_cache_fd_release(fs, cur_fd->cache_page);
