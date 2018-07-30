@@ -724,7 +724,7 @@ s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh) {
 #endif // SPIFFS_READ_ONLY
 }
 
-s32_t SPIFFS_truncate(spiffs *fs, const char *path, off_t length) {
+s32_t SPIFFS_truncate(spiffs *fs, const char *path, u32_t length) {
   SPIFFS_API_DBG("%s '%s'\n", __func__, path);
 #if SPIFFS_READ_ONLY
   (void)fs; (void)path;
