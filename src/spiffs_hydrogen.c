@@ -727,7 +727,7 @@ s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh) {
 s32_t SPIFFS_truncate(spiffs *fs, const char *path, u32_t length) {
   SPIFFS_API_DBG("%s '%s'\n", __func__, path);
 #if SPIFFS_READ_ONLY
-  (void)fs; (void)path;
+  (void)fs; (void)path; (void)length;
   return SPIFFS_ERR_RO_NOT_IMPL;
 #else
   SPIFFS_API_CHECK_CFG(fs);
