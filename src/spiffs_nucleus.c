@@ -2030,7 +2030,7 @@ s32_t spiffs_object_read(
     // remaining data in page
     len_to_read = MIN(len_to_read, SPIFFS_DATA_PAGE_SIZE(fs) - (cur_offset % SPIFFS_DATA_PAGE_SIZE(fs)));
     // remaining data in file
-    len_to_read = MIN(len_to_read, fd->size);
+    len_to_read = MIN(len_to_read, fd->size - cur_offset);
     SPIFFS_DBG("read: offset:"_SPIPRIi" rd:"_SPIPRIi" data spix:"_SPIPRIsp" is data_pix:"_SPIPRIpg" addr:"_SPIPRIad"\n", cur_offset, len_to_read, data_spix, data_pix,
         (u32_t)(SPIFFS_PAGE_TO_PADDR(fs, data_pix) + sizeof(spiffs_page_header) + (cur_offset % SPIFFS_DATA_PAGE_SIZE(fs))));
     if (len_to_read <= 0) {

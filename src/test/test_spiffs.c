@@ -32,7 +32,7 @@ static unsigned char *_area = NULL;
 static u32_t addr_offset = 0;
 
 static int *_erases;
-static char _path[256];
+static char _path[255+32];
 static u32_t bytes_rd = 0;
 static u32_t bytes_wr = 0;
 static u32_t reads = 0;
