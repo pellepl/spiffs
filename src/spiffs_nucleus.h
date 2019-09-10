@@ -262,8 +262,8 @@
 #define SPIFFS_FH_OFFS(fs, fh)   ((fh) != 0 ? ((fh) + (fs)->cfg.fh_ix_offset) : 0)
 #define SPIFFS_FH_UNOFFS(fs, fh) ((fh) != 0 ? ((fh) - (fs)->cfg.fh_ix_offset) : 0)
 #else
-#define SPIFFS_FH_OFFS(fs, fh)   (fh)
-#define SPIFFS_FH_UNOFFS(fs, fh) (fh)
+#define SPIFFS_FH_OFFS(fs, fh)   ((spiffs_file)(fh))
+#define SPIFFS_FH_UNOFFS(fs, fh) ((spiffs_file)(fh))
 #endif
 
 
