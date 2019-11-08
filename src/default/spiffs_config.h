@@ -350,6 +350,10 @@
 #endif
 #endif
 
+#ifndef SPIFFS_SECURE_ERASE
+#define SPIFFS_SECURE_ERASE 0
+#endif
+
 // Types depending on configuration such as the amount of flash bytes
 // given to spiffs file system in total (spiffs_file_system_size),
 // the logical block size (log_block_size), and the logical page size

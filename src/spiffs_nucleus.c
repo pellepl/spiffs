@@ -889,6 +889,16 @@ s32_t spiffs_page_delete(
   fs->stats_p_deleted++;
   fs->stats_p_allocated--;
 
+#if SPIFFS_SECURE_ERASE
+  // Secure erase
+  unsigned char data[SPIFFS_CFG_LOG_PAGE_SZ(fs) - sizeof(spiffs_page_header)];
+  bzero(data, sizeof(data));
+  res = _spiffs_wr(fs,  SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_DELE,
+      0,
+      SPIFFS_PAGE_TO_PADDR(fs, pix) + sizeof(spiffs_page_header), sizeof(data), data);
+  SPIFFS_CHECK_RES(res);
+#endif
+
   // mark deleted in source page
   u8_t flags = 0xff;
 #if SPIFFS_NO_BLIND_WRITES
