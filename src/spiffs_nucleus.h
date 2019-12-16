@@ -7,14 +7,14 @@
 
 /* SPIFFS layout
  *
- * spiffs is designed for following spi flash characteristics:
+ * spiffs is designed for following SPI flash characteristics:
  *   - only big areas of data (blocks) can be erased
  *   - erasing resets all bits in a block to ones
  *   - writing pulls ones to zeroes
  *   - zeroes cannot be pulled to ones, without erase
  *   - wear leveling
  *
- * spiffs is also meant to be run on embedded, memory constraint devices.
+ * spiffs is also meant to be run on embedded, memory constrained devices.
  *
  * Entire area is divided in blocks. Entire area is also divided in pages.
  * Each block contains same number of pages. A page cannot be erased, but a

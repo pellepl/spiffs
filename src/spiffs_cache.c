@@ -68,7 +68,7 @@ static s32_t spiffs_cache_page_remove_oldest(spiffs *fs, u8_t flag_mask, u8_t fl
     return SPIFFS_OK;
   }
 
-  // all busy, scan thru all to find the cpage which has oldest access
+  // all busy, scan through all to find the cpage which has oldest access
   int i;
   int cand_ix = -1;
   u32_t oldest_val = 0;
@@ -119,7 +119,7 @@ void spiffs_cache_drop_page(spiffs *fs, spiffs_page_ix pix) {
 
 // ------------------------------
 
-// reads from spi flash or the cache
+// reads from SPI flash or the cache
 s32_t spiffs_phys_rd(
     spiffs *fs,
     u8_t op,
@@ -180,7 +180,7 @@ s32_t spiffs_phys_rd(
   return res;
 }
 
-// writes to spi flash and/or the cache
+// writes to SPI flash and/or the cache
 s32_t spiffs_phys_wr(
     spiffs *fs,
     u8_t op,
@@ -211,13 +211,13 @@ s32_t spiffs_phys_wr(
     cp->last_access = cache->last_access;
 
     if (cp->flags & SPIFFS_CACHE_FLAG_WRTHRU) {
-      // page is being updated, no write-cache, just pass thru
+      // page is being updated, no write-cache, just pass through
       return SPIFFS_HAL_WRITE(fs, addr, len, src);
     } else {
       return SPIFFS_OK;
     }
   } else {
-    // no cache page, no write cache - just write thru
+    // no cache page, no write cache - just write through
     return SPIFFS_HAL_WRITE(fs, addr, len, src);
   }
 }

@@ -18,7 +18,7 @@
 #include <unistd.h>
 
 /* The follow defines control details of how the fuzzer can exercise the API. If you
- * undef any of these, then the fuzzer is less brutal. FOr example, if you undef
+ * undef any of these, then the fuzzer is less brutal. For example, if you undef
  * HAVE_REMOVE_OPEN, then the fuzzer will not attempt to remove (or rename) an open file
  */
 #define HAVE_REMOVE_OPEN
@@ -531,7 +531,7 @@ TEST(spiffs_dup_file_74) {
     spiffs_stat stat;
     SPIFFS_fstat(FS, fd, &stat);
     if (strcmp((const char*) stat.name, "/data") != 0) {
-      // oops! lets check the list of files...
+      // oops! let's check the list of files...
       spiffs_DIR dir;
       SPIFFS_opendir(FS, "/", &dir);
       struct spiffs_dirent dirent;
@@ -601,7 +601,7 @@ TEST(temporal_fd_cache) {
 
 static int run_fuzz_test(FILE *f, int maxfds, int debuglog) {
   // There are a bunch of arbitrary constants in this test case. Changing them will
-  // almost certainly change the effets of an input file. It *may* be worth
+  // almost certainly change the effects of an input file. It *may* be worth
   // making some of these constants to come from the input file. 
   int setup = fgetc(f);
 

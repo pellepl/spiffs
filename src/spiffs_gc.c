@@ -5,7 +5,7 @@
 
 // Erases a logical block and updates the erase counter.
 // If cache is enabled, all pages that might be cached in this block
-// is dropped.
+// are dropped.
 static s32_t spiffs_gc_erase_block(
     spiffs *fs,
     spiffs_block_ix bix) {
@@ -561,7 +561,7 @@ s32_t spiffs_gc_clean(spiffs *fs, spiffs_block_ix bix) {
         SPIFFS_VALIDATE_OBJIX(objix->p_hdr, gc.cur_obj_id | SPIFFS_OBJ_ID_IX_FLAG, gc.cur_objix_spix);
         gc.cur_objix_pix = objix_pix;
       } else {
-        // no more data pages found, passed thru all block, start evacuating object indices
+        // no more data pages found, passed through all block, start evacuating object indices
         gc.state = MOVE_OBJ_IX;
         cur_entry = 0; // restart entry scan index
       }
@@ -589,7 +589,7 @@ s32_t spiffs_gc_clean(spiffs *fs, spiffs_block_ix bix) {
     }
     break;
     case MOVE_OBJ_IX:
-      // scanned thru all block, no more object indices found - our work here is done
+      // scanned through all block, no more object indices found - our work here is done
       gc.state = FINISHED;
       break;
     default:

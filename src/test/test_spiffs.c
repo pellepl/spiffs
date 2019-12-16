@@ -1014,7 +1014,7 @@ int run_file_config(int cfg_count, tfile_conf* cfgs, int max_runs, int max_concu
 
         cur_config_ix++;
       } else if (tf->state > 0) {
-// hande file lifecycle
+// handle file lifecycle
         switch (tf->cfg.ttype) {
         case UNTAMPERED: {
           break;

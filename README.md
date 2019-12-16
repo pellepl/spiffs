@@ -33,9 +33,9 @@ Otherwise, configure the `builddir` variable towards the top of `makefile` as so
 ## FEATURES
 
 What spiffs does:
- - Specifically designed for low ram usage
- - Uses statically sized ram buffers, independent of number of files
- - Posix-like api: open, close, read, write, seek, stat, etc
+ - Specifically designed for low RAM usage
+ - Uses statically sized RAM buffers, independent of number of files
+ - Posix-like API: open, close, read, write, seek, stat, etc
  - It can run on any NOR flash, not only SPI flash - theoretically also on embedded flash of a microprocessor
  - Multiple spiffs configurations can run on same target - and even on same SPI flash device
  - Implements static wear leveling 
@@ -45,7 +45,7 @@ What spiffs does:
 What spiffs does not:
  - Presently, spiffs does not support directories. It produces a flat structure. Creating a file with path *tmp/myfile.txt* will create a file called *tmp/myfile.txt* instead of a *myfile.txt* under directory *tmp*. 
  - It is not a realtime stack. One write operation might last much longer than another.
- - Poor scalability. Spiffs is intended for small memory devices - the normal sizes for SPI flashes. Going beyond ~128Mbyte is probably a bad idea. This is a side effect of the design goal to use as little ram as possible.
+ - Poor scalability. Spiffs is intended for small memory devices - the normal sizes for SPI flashes. Going beyond ~128Mbyte is probably a bad idea. This is a side effect of the design goal to use as little RAM as possible.
  - Presently, it does not detect or handle bad blocks.
  - One configuration, one binary. There's no generic spiffs binary that handles all types of configurations.
 
@@ -59,7 +59,7 @@ See the [wiki](https://github.com/pellepl/spiffs/wiki) for [configuring](https:/
  
 For design, see [docs/TECH_SPEC](https://github.com/pellepl/spiffs/blob/master/docs/TECH_SPEC).
 
-For a generic spi flash driver, see [this](https://github.com/pellepl/spiflash_driver).
+For a generic SPI flash driver, see [this](https://github.com/pellepl/spiflash_driver).
 
 ## HISTORY
 
@@ -132,7 +132,7 @@ New config defines:
 
 New API functions:
 - `SPIFFS_set_file_callback_func` - register a callback informing about file events
-- `SPIFFS_probe_fs` - probe a spi flash trying to figure out size of fs
+- `SPIFFS_probe_fs` - probe a SPI flash trying to figure out size of fs
 - `SPIFFS_open_by_page` - open a file by page index
 - `SPIFFS_eof` - checks if end of file is reached
 - `SPIFFS_tell` - returns current file offset
