@@ -358,6 +358,10 @@
 // given to spiffs file system in total (spiffs_file_system_size),
 // the logical block size (log_block_size), and the logical page size
 // (log_page_size)
+//
+// Set SPIFFS_TYPES_OVERRIDE if you wish to have your own
+// definitions for these types (for example, if you want them
+// to be u32_t)
 
 #ifndef SPIFFS_TYPES_OVERRIDE
 // Block index type. Make sure the size of this type can hold
