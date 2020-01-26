@@ -359,6 +359,7 @@
 // the logical block size (log_block_size), and the logical page size
 // (log_page_size)
 
+#ifndef SPIFFS_TYPES_OVERRIDE
 // Block index type. Make sure the size of this type can hold
 // the highest number of all blocks - i.e. spiffs_file_system_size / log_block_size
 typedef u16_t spiffs_block_ix;
@@ -373,5 +374,6 @@ typedef u16_t spiffs_obj_id;
 // hold the largest possible span index on the system -
 // i.e. (spiffs_file_system_size / log_page_size) - 1
 typedef u16_t spiffs_span_ix;
+#endif
 
 #endif /* SPIFFS_CONFIG_H_ */
