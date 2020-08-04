@@ -521,7 +521,7 @@ s32_t spiffs_lookup_consistency_check(spiffs *fs, u8_t check_all_objects) {
 // The working memory might not fit all pages so several scans might be needed
 static s32_t spiffs_page_consistency_check_i(spiffs *fs) {
   const u32_t bits = 4;
-  const spiffs_page_ix pages_per_scan = SPIFFS_CFG_LOG_PAGE_SZ(fs) * 8 / bits;
+  const u32_t pages_per_scan = SPIFFS_CFG_LOG_PAGE_SZ(fs) * 8 / bits;
 
   s32_t res = SPIFFS_OK;
   spiffs_page_ix pix_offset = 0;
