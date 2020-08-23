@@ -134,7 +134,7 @@
 // updating an object index header data only, not the table itself
 #define SPIFFS_EV_IX_UPD_HDR            (4)
 
-#define SPIFFS_OBJ_ID_IX_FLAG           ((spiffs_obj_id)(1<<(8*sizeof(spiffs_obj_id)-1)))
+#define SPIFFS_OBJ_ID_IX_FLAG           ((spiffs_obj_id)(1UL<<(8*sizeof(spiffs_obj_id)-1)))
 
 #define SPIFFS_UNDEFINED_LEN            (u32_t)(-1)
 
