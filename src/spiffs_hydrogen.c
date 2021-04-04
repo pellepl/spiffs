@@ -724,6 +724,45 @@ s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh) {
 #endif // SPIFFS_READ_ONLY
 }
 
+s32_t SPIFFS_ftruncate(spiffs* fs, spiffs_file fh, u32_t new_size) {
+#if SPIFFS_READ_ONLY
+  (void)fs; (void)fh; (void)new_size;
+  return SPIFFS_ERR_RO_NOT_IMPL;
+#else
+  SPIFFS_API_CHECK_CFG(fs);
+  SPIFFS_API_CHECK_MOUNT(fs);
+  SPIFFS_LOCK(fs);
+
+  spiffs_fd* fd;
+
+  fh = SPIFFS_FH_UNOFFS(fs, fh);
+  s32_t res = spiffs_fd_get(fs, fh, &fd);
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  if ((fd->flags & SPIFFS_O_WRONLY) == 0) {
+    res = SPIFFS_ERR_NOT_WRITABLE;
+    SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+  }
+
+#if SPIFFS_CACHE_WR
+  spiffs_fflush_cache(fs, fh);
+#endif
+
+  s32_t file_size = (fd->size == SPIFFS_UNDEFINED_LEN) ? 0 : fd->size;
+  if (new_size == file_size) {
+    res = SPIFFS_OK;
+  } else if (new_size > file_size) {
+    res = SPIFFS_ERR_END_OF_OBJECT; // Same error we'd get from SPIFFS_lseek
+  } else {
+    res = spiffs_object_truncate(fd, new_size, 0);
+  }
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  SPIFFS_UNLOCK(fs);
+  return SPIFFS_OK;
+#endif
+}
+
 static s32_t spiffs_stat_pix(spiffs *fs, spiffs_page_ix pix, spiffs_file fh, spiffs_stat *s) {
   (void)fh;
   spiffs_page_object_ix_header objix_hdr;

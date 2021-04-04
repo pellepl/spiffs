@@ -497,6 +497,15 @@ s32_t SPIFFS_remove(spiffs *fs, const char *path);
 s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh);
 
 /**
+ * Truncates a file at given size
+ * @param fs            the file system struct
+ * @param fh            the filehandle of the file to truncate
+ * @param new_size      the new size, must be less than existing file size
+ * @retval s32_t        error code
+ */
+s32_t SPIFFS_ftruncate(spiffs* fs, spiffs_file fh, u32_t new_size);
+
+/**
  * Gets file status by path
  * @param fs            the file system struct
  * @param path          the path of the file to stat
