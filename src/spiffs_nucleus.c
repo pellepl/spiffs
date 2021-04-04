@@ -1019,6 +1019,7 @@ s32_t spiffs_object_update_index_hdr(
   // change name
   if (name) {
     strncpy((char*)objix_hdr->name, (const char*)name, SPIFFS_OBJ_NAME_LEN);
+    objix_hdr->name[SPIFFS_OBJ_NAME_LEN - 1] = '\0';
   }
 #if SPIFFS_OBJ_META_LEN
   if (meta) {
