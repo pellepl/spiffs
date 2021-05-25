@@ -724,6 +724,49 @@ s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh) {
 #endif // SPIFFS_READ_ONLY
 }
 
+s32_t SPIFFS_truncate(spiffs *fs, const char *path, u32_t length) {
+  SPIFFS_API_DBG("%s '%s'\n", __func__, path);
+#if SPIFFS_READ_ONLY
+  (void)fs; (void)path; (void)length;
+  return SPIFFS_ERR_RO_NOT_IMPL;
+#else
+  SPIFFS_API_CHECK_CFG(fs);
+  SPIFFS_API_CHECK_MOUNT(fs);
+  if (strlen(path) > SPIFFS_OBJ_NAME_LEN - 1) {
+    SPIFFS_API_CHECK_RES(fs, SPIFFS_ERR_NAME_TOO_LONG);
+  }
+  SPIFFS_LOCK(fs);
+
+  spiffs_fd *fd;
+  spiffs_page_ix pix;
+  s32_t res;
+
+  res = spiffs_fd_find_new(fs, &fd, 0);
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  res = spiffs_object_find_object_index_header_by_name(fs, (const u8_t*)path, &pix);
+  if (res != SPIFFS_OK) {
+    spiffs_fd_return(fs, fd->file_nbr);
+  }
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  res = spiffs_object_open_by_page(fs, pix, fd, 0,0);
+  if (res != SPIFFS_OK) {
+    spiffs_fd_return(fs, fd->file_nbr);
+  }
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  res = spiffs_object_truncate(fd, length, 0);
+  if (res != SPIFFS_OK) {
+    spiffs_fd_return(fs, fd->file_nbr);
+  }
+  SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
+
+  SPIFFS_UNLOCK(fs);
+  return 0;
+#endif // SPIFFS_READ_ONLY
+}
+
 static s32_t spiffs_stat_pix(spiffs *fs, spiffs_page_ix pix, spiffs_file fh, spiffs_stat *s) {
   (void)fh;
   spiffs_page_object_ix_header objix_hdr;
