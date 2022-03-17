@@ -748,7 +748,7 @@ s32_t SPIFFS_ftruncate(spiffs* fs, spiffs_file fh, u32_t new_size) {
   spiffs_fflush_cache(fs, fh);
 #endif
 
-  s32_t file_size = (fd->size == SPIFFS_UNDEFINED_LEN) ? 0 : fd->size;
+  u32_t file_size = (fd->size == SPIFFS_UNDEFINED_LEN) ? 0 : fd->size;
   if (new_size == file_size) {
     res = SPIFFS_OK;
   } else if (new_size > file_size) {
