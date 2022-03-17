@@ -1003,6 +1003,65 @@ TEST(truncate_big_file)
 }
 TEST_END
 
+TEST(ftruncate_file)
+{
+  int truncated_len = 0;
+  char input[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  char output[sizeof(input)];
+
+  spiffs_file fd = SPIFFS_open(FS, "ftruncate", SPIFFS_WRONLY | SPIFFS_CREAT | SPIFFS_TRUNC , 0);
+  TEST_CHECK(fd > 0);
+  TEST_CHECK_EQ(strlen(input), SPIFFS_write(FS, fd, input, strlen(input)));
+
+  // Extending file beyond size is not supported
+  TEST_CHECK_EQ(SPIFFS_ERR_END_OF_OBJECT, SPIFFS_ftruncate(FS, fd, strlen(input) + 1));
+  TEST_CHECK_EQ(SPIFFS_ERR_END_OF_OBJECT, SPIFFS_ftruncate(FS, fd, -1));
+
+  // Truncating should succeed
+  const char truncated_1[] = "ABCDEFGHIJ";
+  truncated_len = strlen(truncated_1);
+  TEST_CHECK_EQ(0, SPIFFS_ftruncate(FS, fd, truncated_len));
+  TEST_CHECK_EQ(0, SPIFFS_close(FS, fd));
+
+  // open file for reading and validate the content
+  fd = SPIFFS_open(FS, "ftruncate", SPIFFS_RDONLY, 0);
+  TEST_CHECK(fd > 0);
+  memset(output, 0, sizeof(output));
+  TEST_CHECK_EQ(truncated_len, SPIFFS_read(FS, fd, output, sizeof(output)));
+  TEST_CHECK_EQ(0, strncmp(truncated_1, output, truncated_len));
+  TEST_CHECK_EQ(0, SPIFFS_close(FS, fd));
+
+  // further truncate the file
+  fd = SPIFFS_open(FS, "ftruncate", SPIFFS_WRONLY, 0);
+  TEST_CHECK(fd > 0);
+  // Once truncated, the new file size should be the basis
+  // whether truncation should succeed or not
+  TEST_CHECK_EQ(SPIFFS_ERR_END_OF_OBJECT, SPIFFS_ftruncate(FS, fd, truncated_len + 1));
+  TEST_CHECK_EQ(SPIFFS_ERR_END_OF_OBJECT, SPIFFS_ftruncate(FS, fd, strlen(input)));
+  TEST_CHECK_EQ(SPIFFS_ERR_END_OF_OBJECT, SPIFFS_ftruncate(FS, fd, strlen(input) + 1));
+  TEST_CHECK_EQ(SPIFFS_ERR_END_OF_OBJECT, SPIFFS_ftruncate(FS, fd, -1));
+
+  // Truncating a truncated file should succeed
+  const char truncated_2[] = "ABCDE";
+  truncated_len = strlen(truncated_2);
+
+  TEST_CHECK_EQ(0, SPIFFS_ftruncate(FS, fd, truncated_len));
+  TEST_CHECK_EQ(0, SPIFFS_close(FS, fd));
+
+  // open file for reading and validate the content
+  fd = SPIFFS_open(FS, "ftruncate", SPIFFS_RDONLY, 0);
+  TEST_CHECK(fd > 0);
+
+  memset(output, 0, sizeof(output));
+
+  TEST_CHECK_EQ(truncated_len, SPIFFS_read(FS, fd, output, sizeof(output)));
+  TEST_CHECK_EQ(0, strncmp(truncated_2, output, truncated_len));
+
+  TEST_CHECK_EQ(0, SPIFFS_close(FS, fd));
+
+  return TEST_RES_OK;
+}
+TEST_END
 
 TEST(simultaneous_write) {
   int res = SPIFFS_creat(FS, "simul1", 0);
@@ -2471,6 +2530,7 @@ SUITE_TESTS(hydrogen_tests)
   ADD_TEST(write_big_file_chunks_huge)
   ADD_TEST(write_big_files_chunks_huge)
   ADD_TEST(truncate_big_file)
+  ADD_TEST(ftruncate_file)
   ADD_TEST(simultaneous_write)
   ADD_TEST(simultaneous_write_append)
   ADD_TEST(file_uniqueness)
