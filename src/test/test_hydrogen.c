@@ -439,6 +439,7 @@ TEST(list_dir)
 #endif
     }
   }
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_OK);
   SPIFFS_closedir(&d);
 
   TEST_CHECK(found == file_cnt);

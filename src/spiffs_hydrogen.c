@@ -1121,6 +1121,8 @@ struct spiffs_dirent *SPIFFS_readdir(spiffs_DIR *d, struct spiffs_dirent *e) {
     d->entry = entry + 1;
     e->obj_id &= ~SPIFFS_OBJ_ID_IX_FLAG;
     ret = e;
+  } else if (res == SPIFFS_VIS_END) {
+    // end of iteration
   } else {
     d->fs->err_code = res;
   }
