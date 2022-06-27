@@ -29,8 +29,8 @@ void *my_spiffs_mount(int phys_size,
 	spiffs *pfs = &d->fs;
 
 	spiffs_config cfg;
-	cfg.phys_size = phys_size; // use all spi flash
-	cfg.phys_addr = phys_addr; // start spiffs at start of spi flash
+	cfg.phys_size = phys_size; // use all SPI flash
+	cfg.phys_addr = phys_addr; // start spiffs at start of SPI flash
 	cfg.phys_erase_block = phys_erase_block; // according to datasheet
 	cfg.log_block_size = log_block_size; // let us not complicate things
 	cfg.log_page_size = log_page_size; // as we said

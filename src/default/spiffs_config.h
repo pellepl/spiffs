@@ -9,7 +9,7 @@
 #define SPIFFS_CONFIG_H_
 
 // ----------- 8< ------------
-// Following includes are for the linux test build of spiffs
+// Following includes are for the Linux test build of spiffs
 // These may/should/must be removed/altered/replaced in your target
 #include "params_test.h"
 #include <stdio.h>
@@ -40,7 +40,7 @@
 #ifndef SPIFFS_CHECK_DBG
 #define SPIFFS_CHECK_DBG(_f, ...) //printf(_f, ## __VA_ARGS__)
 #endif
-// Set spiffs debug output call for all api invocations.
+// Set spiffs debug output call for all API invocations.
 #ifndef SPIFFS_API_DBG
 #define SPIFFS_API_DBG(_f, ...) //printf(_f, ## __VA_ARGS__)
 #endif
@@ -127,7 +127,7 @@
 // used pages normally gives a negative score (as these must be moved).
 // To have a fair wear-leveling, the erase age is also included in score,
 // whose factor normally is the most positive.
-// The larger the score, the more likely it is that the block will
+// The larger the score, the more likely it is that the block will be
 // picked for garbage collection.
 
 // Garbage collecting heuristics - weight used for deleted pages.
@@ -144,7 +144,7 @@
 #define SPIFFS_GC_HEUR_W_ERASE_AGE      (50)
 #endif
 
-// Object name maximum length. Note that this length include the
+// Object name maximum length. Note that this length includes the
 // zero-termination character, meaning maximum string of characters
 // can at most be SPIFFS_OBJ_NAME_LEN - 1.
 #ifndef SPIFFS_OBJ_NAME_LEN
@@ -191,7 +191,7 @@
 #endif
 #endif
 
-// SPIFFS_LOCK and SPIFFS_UNLOCK protects spiffs from reentrancy on api level
+// SPIFFS_LOCK and SPIFFS_UNLOCK protects spiffs from reentrancy on API level
 // These should be defined on a multithreaded system
 
 // define this to enter a mutex if you're running on a multithreaded system
@@ -253,8 +253,8 @@
 // Enable this to compile a read only version of spiffs.
 // This will reduce binary size of spiffs. All code comprising modification
 // of the file system will not be compiled. Some config will be ignored.
-// HAL functions for erasing and writing to spi-flash may be null. Cache
-// can be disabled for even further binary size reduction (and ram savings).
+// HAL functions for erasing and writing to SPI-flash may be null. Cache
+// can be disabled for even further binary size reduction (and RAM savings).
 // Functions modifying the fs will return SPIFFS_ERR_RO_NOT_IMPL.
 // If the file system cannot be mounted due to aborted erase operation and
 // SPIFFS_USE_MAGIC is enabled, SPIFFS_ERR_RO_ABORTED_OPERATION will be
@@ -267,7 +267,7 @@
 // Enable this to add a temporal file cache using the fd buffer.
 // The effects of the cache is that SPIFFS_open will find the file faster in
 // certain cases. It will make it a lot easier for spiffs to find files
-// opened frequently, reducing number of readings from the spi flash for
+// opened frequently, reducing number of readings from the SPI flash for
 // finding those files.
 // This will grow each fd by 6 bytes. If your files are opened in patterns
 // with a degree of temporal locality, the system is optimized.
@@ -323,7 +323,7 @@
 #endif
 
 // Set SPIFFS_TEST_VISUALISATION to non-zero to enable SPIFFS_vis function
-// in the api. This function will visualize all filesystem using given printf
+// in the API. This function will visualize all filesystem using given printf
 // function.
 #ifndef SPIFFS_TEST_VISUALISATION
 #define SPIFFS_TEST_VISUALISATION         1

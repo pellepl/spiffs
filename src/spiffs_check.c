@@ -987,7 +987,7 @@ s32_t spiffs_object_index_consistency_check(spiffs *fs) {
   s32_t res = SPIFFS_OK;
   // impl note:
   // fs->work is used for a temporary object index memory, listing found object ids and
-  // indicating whether they can be reached or not. Acting as a fifo if object ids cannot fit.
+  // indicating whether they can be reached or not. Acting as a FIFO if object ids cannot fit.
   // In the temporary object index memory, SPIFFS_OBJ_ID_IX_FLAG bit is used to indicate
   // a reachable/unreachable object id.
   memset(fs->work, 0, SPIFFS_CFG_LOG_PAGE_SZ(fs));

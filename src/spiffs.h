@@ -81,20 +81,20 @@ struct spiffs_t;
 
 #if SPIFFS_HAL_CALLBACK_EXTRA
 
-/* spi read call function type */
+/* SPI read call function type */
 typedef s32_t (*spiffs_read)(struct spiffs_t *fs, u32_t addr, u32_t size, u8_t *dst);
-/* spi write call function type */
+/* SPI write call function type */
 typedef s32_t (*spiffs_write)(struct spiffs_t *fs, u32_t addr, u32_t size, u8_t *src);
-/* spi erase call function type */
+/* SPI erase call function type */
 typedef s32_t (*spiffs_erase)(struct spiffs_t *fs, u32_t addr, u32_t size);
 
 #else // SPIFFS_HAL_CALLBACK_EXTRA
 
-/* spi read call function type */
+/* SPI read call function type */
 typedef s32_t (*spiffs_read)(u32_t addr, u32_t size, u8_t *dst);
-/* spi write call function type */
+/* SPI write call function type */
 typedef s32_t (*spiffs_write)(u32_t addr, u32_t size, u8_t *src);
-/* spi erase call function type */
+/* SPI erase call function type */
 typedef s32_t (*spiffs_erase)(u32_t addr, u32_t size);
 #endif // SPIFFS_HAL_CALLBACK_EXTRA
 
@@ -196,7 +196,7 @@ typedef void (*spiffs_file_callback)(struct spiffs_t *fs, spiffs_fileop_type op,
 
 // phys structs
 
-// spiffs spi configuration struct
+// spiffs SPI configuration struct
 typedef struct {
   // physical read function
   spiffs_read hal_read_f;
@@ -205,9 +205,9 @@ typedef struct {
   // physical erase function
   spiffs_erase hal_erase_f;
 #if SPIFFS_SINGLETON == 0
-  // physical size of the spi flash
+  // physical size of the SPI flash
   u32_t phys_size;
-  // physical offset in spi flash used for spiffs,
+  // physical offset in SPI flash used for spiffs,
   // must be on block boundary
   u32_t phys_addr;
   // physical size when erasing a block
@@ -437,7 +437,7 @@ spiffs_file SPIFFS_open_by_dirent(spiffs *fs, struct spiffs_dirent *e, spiffs_fl
 /**
  * Opens a file by given page index.
  * Optimization purposes, opens a file by directly pointing to the page
- * index in the spi flash.
+ * index in the SPI flash.
  * If the page index does not point to a file header SPIFFS_ERR_NOT_A_FILE
  * is returned.
  * @param fs            the file system struct
@@ -478,7 +478,7 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len);
  * @param offs          how much/where to move the offset
  * @param whence        if SPIFFS_SEEK_SET, the file offset shall be set to offset bytes
  *                      if SPIFFS_SEEK_CUR, the file offset shall be set to its current location plus offset
- *                      if SPIFFS_SEEK_END, the file offset shall be set to the size of the file plus offse, which should be negative
+ *                      if SPIFFS_SEEK_END, the file offset shall be set to the size of the file plus offset, which should be negative
  */
 s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence);
 
@@ -606,7 +606,7 @@ s32_t SPIFFS_check(spiffs *fs);
 
 /**
  * Returns number of total bytes available and number of used bytes.
- * This is an estimation, and depends on if there a many files with little
+ * This is an estimation, and depends on if there are many files with little
  * data or few files with much data.
  * NB: If used number of bytes exceeds total bytes, a SPIFFS_check should
  * run. This indicates a power loss in midst of things. In worst case
@@ -641,7 +641,7 @@ u8_t SPIFFS_mounted(spiffs *fs);
 
 /**
  * Tries to find a block where most or all pages are deleted, and erase that
- * block if found. Does not care for wear levelling. Will not move pages
+ * block if found. Does not care for wear leveling. Will not move pages
  * around.
  * If parameter max_free_pages are set to 0, only blocks with only deleted
  * pages will be selected.
@@ -703,8 +703,8 @@ s32_t SPIFFS_tell(spiffs *fs, spiffs_file fh);
  * mechanisms. Any operations on the actual file system being callbacked from
  * in this callback will mess things up for sure - do not do this.
  * This can be used to track where files are and move around during garbage
- * collection, which in turn can be used to build location tables in ram.
- * Used in conjuction with SPIFFS_open_by_page this may improve performance
+ * collection, which in turn can be used to build location tables in RAM.
+ * Used in conjunction with SPIFFS_open_by_page this may improve performance
  * when opening a lot of files.
  * Must be invoked after mount.
  *
@@ -719,7 +719,7 @@ s32_t SPIFFS_set_file_callback_func(spiffs *fs, spiffs_file_callback cb_func);
  * Maps the first level index lookup to a given memory map.
  * This will make reading big files faster, as the memory map will be used for
  * looking up data pages instead of searching for the indices on the physical
- * medium. When mapping, all affected indicies are found and the information is
+ * medium. When mapping, all affected indices are found and the information is
  * copied to the array.
  * Whole file or only parts of it may be mapped. The index map will cover file
  * contents from argument offset until and including arguments (offset+len).
@@ -760,7 +760,7 @@ s32_t SPIFFS_ix_unmap(spiffs *fs, spiffs_file fh);
 
 /**
  * Moves the offset for the index map given in function SPIFFS_ix_map. Parts or
- * all of the map buffer will repopulated.
+ * all of the map buffer will be repopulated.
  * @param fs      the file system struct
  * @param fh      the mapped file handle of the file to remap
  * @param offset  new absolute file offset where to start the index map

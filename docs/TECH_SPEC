@@ -6,11 +6,11 @@ TODO
 * SPIFFS DESIGN
 
 Spiffs is inspired by YAFFS. However, YAFFS is designed for NAND flashes, and
-for bigger targets with much more ram. Nevertheless, many wise thoughts have
+for bigger targets with much more RAM. Nevertheless, many wise thoughts have
 been borrowed from YAFFS when writing spiffs. Kudos!
 
 The main complication writing spiffs was that it cannot be assumed the target
-has a heap. Spiffs must go along only with the work ram buffer given to it. 
+has a heap. Spiffs must go along only with the work RAM buffer given to it. 
 This forces extra implementation on many areas of spiffs.
 
 
@@ -23,7 +23,7 @@ SPI flash devices are physically divided in blocks. On some SPI flash devices,
 blocks are further divided into sectors. Datasheets sometimes name blocks as 
 sectors and vice versa.
 
-Common memory capacaties for SPI flashes are 512kB up to 8MB of data, where
+Common memory capacities for SPI flashes are 512kB up to 8MB of data, where
 blocks may be 64kB. Sectors can be e.g. 4kB, if supported. Many SPI flashes 
 have uniform block sizes, whereas others have non-uniform - the latter meaning 
 that e.g. the first 16 blocks are 4kB big, and the rest are 64kB.
@@ -99,7 +99,7 @@ small page size will make metadata occupy a lot of the memory on the flash. A
 page size of 64 bytes will waste 8-14% on metadata, while 256 bytes 2-4%.
 So it seems it is good to select a big page size.
 
-Also, spiffs uses a ram buffer being two times the page size. This ram buffer
+Also, spiffs uses a RAM buffer being two times the page size. This RAM buffer
 is used for loading and manipulating pages, but it is also used for algorithms 
 to find free file ids, scanning the file system, etc. Having too small a page
 size means less work buffer for spiffs, ending up in more reads operations and
@@ -108,12 +108,12 @@ eventually gives a slower file system.
 Choosing the page size for the system involves many factors:
  - How big is the logical block size
  - What is the normal size of most files
- - How much ram can be spent
+ - How much RAM can be spent
  - How much data (vs metadata) must be crammed into the file system
  - How fast must spiffs be
  - Other things impossible to find out
  
-So, chosing the Optimal Page Size (tm) seems tricky, to say the least. Don't 
+So, choosing the Optimal Page Size (tm) seems tricky, to say the least. Don't 
 fret - there is no optimal page size. This varies from how the target will use
 spiffs. Use the golden rule:
 
@@ -179,7 +179,7 @@ object index array correlates with the data page span index.
         PAGE 4, DATA, SPAN_IX 2    --------/
         
 Things to be unveiled in page 0 - well.. Spiffs is designed for systems low on 
-ram. We cannot keep a dynamic list on the whereabouts of each object index 
+RAM. We cannot keep a dynamic list on the whereabouts of each object index 
 header so we can find a file fast. There might not even be a heap! But, we do 
 not want to scan all page headers on the flash to find the object index header.
 
@@ -187,7 +187,7 @@ The first page(s) of each block contains the so called object look-up. These
 are not normal pages, they do not have a header. Instead, they are arrays 
 pointing out what object-id the rest of all pages in the block belongs to.
 
-By this look-up, only the first page(s) in each block must to scanned to find 
+By this look-up, only the first page(s) in each block must be scanned to find 
 the actual page which contains the object index header of the desired object.
 
 The object lookup is redundant metadata. The assumption is that it presents 
@@ -195,7 +195,7 @@ less overhead reading a full page of data to memory from each block and search
 that, instead of reading a small amount of data from each page (i.e. the page 
 header) in all blocks. Each read operation from SPI flash normally contains 
 extra data as the read command itself and the flash address. Also, depending on
-the underlying implementation, other criterions may need to be passed for each 
+the underlying implementation, other criteria may need to be passed for each 
 read transaction, like mutexes and such.
 
 The veiled example unveiled would look like this, with some extra pages:
@@ -217,7 +217,7 @@ PAGE 12 page header:   [obj_id:23  span_ix:2  flags:DELETED|DATA] ...
 
 Ok, so why are page 9 to 12 marked as 0 when they belong to object id 23? These
 pages are deleted, so this is marked both in page header flags and in the look
-up. This is an example where spiffs uses NOR flashes "nand-way" of writing.
+up. This is an example where spiffs uses NOR flash's "nand-way" of writing.
 
 As a matter of fact, there are two object id's which are special:
 
@@ -231,9 +231,9 @@ would look like this:
 
 PAGE 0  [  12   12  545   12  *12   34   34   *4    0    0    0    0 ...]
 
-where the asterisk means the msb of the object id is set.
+where the asterisk means the MSB of the object id is set.
 
 This is another way to speed up the searches when looking for object indices.
-By looking on the object id's msb in the object lookup, it is also possible 
+By looking on the object id's MSB in the object lookup, it is also possible 
 to find out whether the page is an object index page or a data page.
 

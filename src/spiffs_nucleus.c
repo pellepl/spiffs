@@ -342,7 +342,7 @@ static s32_t spiffs_obj_lu_scan_v(
 }
 
 
-// Scans thru all obj lu and counts free, deleted and used pages
+// Scans through all obj lu and counts free, deleted and used pages
 // Find the maximum block erase count
 // Checks magic if enabled
 s32_t spiffs_obj_lu_scan(
@@ -2138,7 +2138,7 @@ static s32_t spiffs_obj_lu_find_free_obj_id_compact_v(spiffs *fs, spiffs_obj_id 
   return SPIFFS_VIS_COUNTINUE;
 }
 
-// Scans thru all object lookup for object index header pages. If total possible number of
+// Scans through all object lookup for object index header pages. If total possible number of
 // object ids cannot fit into a work buffer, these are grouped. When a group containing free
 // object ids is found, the object lu is again scanned for object ids within group and bitmasked.
 // Finally, the bitmask is searched for a free id

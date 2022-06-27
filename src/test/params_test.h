@@ -10,11 +10,11 @@
 
 //////////////// TEST PARAMS ////////////////
 
-// default test total emulated spi flash size
+// default test total emulated SPI flash size
 #define PHYS_FLASH_SIZE       (16*1024*1024)
 // default test spiffs file system size
 #define SPIFFS_FLASH_SIZE     (2*1024*1024)
-// default test spiffs file system offset in emulated spi flash
+// default test spiffs file system offset in emulated SPI flash
 #define SPIFFS_PHYS_ADDR      (4*1024*1024)
 // default test sector size
 #define SECTOR_SIZE         65536
@@ -28,7 +28,7 @@
 #define DEFAULT_NUM_CACHE_PAGES   8
 
 // When testing, test bench create reference files for comparison on
-// the actual hard drive. By default, put these on ram drive for speed.
+// the actual hard drive. By default, put these on RAM drive for speed.
 #define TEST_PATH "/dev/shm/spiffs/test-data/"
 
 #define ASSERT(c, m) real_assert((c),(m), __FILE__, __LINE__);
