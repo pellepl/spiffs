@@ -602,7 +602,7 @@ TEST(temporal_fd_cache) {
 static int run_fuzz_test(FILE *f, int maxfds, int debuglog) {
   // There are a bunch of arbitrary constants in this test case. Changing them will
   // almost certainly change the effets of an input file. It *may* be worth
-  // making some of these constants to come from the input file. 
+  // making some of these constants to come from the input file.
   int setup = fgetc(f);
 
   int page_size = 128 << (setup & 3);
@@ -952,7 +952,7 @@ TEST(small_free_space) {
       char fileDelName[64];
       sprintf(fileDelName, "%s%d%s", filename, fileDelNumber, fileext);
       //printf("Deleting %s (free space %d)\n", fileDelName, total - used);
-  
+
       res = SPIFFS_remove(FS, fileDelName);
 
       TEST_CHECK(res == SPIFFS_OK);
@@ -1231,6 +1231,23 @@ TEST(certain_file_size_fail_165) {
 } TEST_END
 
 
+TEST(multiple_unflushed_writes_fdoffset_tell_292)
+{
+  fs_reset_specific(0, 0, 64*1024, 4096, 4096, 256);
+
+  spiffs_file fh = SPIFFS_open(FS, "test.txt", SPIFFS_O_CREAT | SPIFFS_O_APPEND | SPIFFS_O_WRONLY, 0);
+  SPIFFS_write(FS, fh, "abcdefghij", 5);
+  SPIFFS_write(FS, fh, "abcdefghij", 8);
+  TEST_CHECK_EQ(13, SPIFFS_tell(FS, fh))
+  SPIFFS_write(FS, fh, "abcdefghij", 2);
+  SPIFFS_write(FS, fh, "abcdefghij", 2);
+  TEST_CHECK_EQ(17, SPIFFS_tell(FS, fh))
+  SPIFFS_close(FS, fh);
+  return TEST_RES_OK;
+}
+TEST_END
+
+
 SUITE_TESTS(bug_tests)
   ADD_TEST(nodemcu_full_fs_1)
   ADD_TEST(nodemcu_full_fs_2)
@@ -1253,6 +1270,7 @@ SUITE_TESTS(bug_tests)
   ADD_TEST(fuzzer_found_4)
   ADD_TEST(remove_release_fd_152)
   ADD_TEST(certain_file_size_fail_165)
+  ADD_TEST(multiple_unflushed_writes_fdoffset_tell_292)
   ADD_TEST_NON_DEFAULT(fuzzer_found_single_1)
   ADD_TEST_NON_DEFAULT(log_afl_test)
   ADD_TEST_NON_DEFAULT(afl_test)

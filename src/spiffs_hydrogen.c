@@ -479,7 +479,9 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
   }
 
   if ((fd->flags & SPIFFS_O_APPEND)) {
-    fd->fdoffset = fd->size == SPIFFS_UNDEFINED_LEN ? 0 : fd->size;
+    if (fd->size != SPIFFS_UNDEFINED_LEN && fd->size > fd->fdoffset) {
+      fd->fdoffset = fd->size;
+    }
   }
   offset = fd->fdoffset;
 
