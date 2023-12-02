@@ -432,7 +432,7 @@ s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
 
 
 #if !SPIFFS_READ_ONLY
-static s32_t spiffs_hydro_write(spiffs *fs, spiffs_fd *fd, void *buf, u32_t offset, s32_t len) {
+static s32_t spiffs_hydro_write(spiffs *fs, spiffs_fd *fd, const void *buf, u32_t offset, s32_t len) {
   (void)fs;
   s32_t res = SPIFFS_OK;
   s32_t remaining = len;
@@ -455,7 +455,7 @@ static s32_t spiffs_hydro_write(spiffs *fs, spiffs_fd *fd, void *buf, u32_t offs
 }
 #endif // !SPIFFS_READ_ONLY
 
-s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
+s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, const void *buf, s32_t len) {
   SPIFFS_API_DBG("%s "_SPIPRIfd " "_SPIPRIi "\n", __func__, fh, len);
 #if SPIFFS_READ_ONLY
   (void)fs; (void)fh; (void)buf; (void)len;
