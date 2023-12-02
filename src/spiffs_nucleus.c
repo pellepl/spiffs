@@ -749,7 +749,7 @@ s32_t spiffs_populate_ix_map(spiffs *fs, spiffs_fd *fd, u32_t vec_entry_start, u
 #if !SPIFFS_READ_ONLY
 // Allocates a free defined page with given obj_id
 // Occupies object lookup entry and page
-// data may be NULL; where only page header is stored, len and page_offs is ignored
+// len may be 0; where only page header is stored, data and page_offs is ignored
 s32_t spiffs_page_allocate_data(
     spiffs *fs,
     spiffs_obj_id obj_id,
@@ -781,7 +781,7 @@ s32_t spiffs_page_allocate_data(
   SPIFFS_CHECK_RES(res);
 
   // write page data
-  if (data) {
+  if (len) {
     res = _spiffs_wr(fs,  SPIFFS_OP_T_OBJ_DA | SPIFFS_OP_C_UPDT,
         0,SPIFFS_OBJ_LOOKUP_ENTRY_TO_PADDR(fs, bix, entry) + sizeof(spiffs_page_header) + page_offs, len, data);
     SPIFFS_CHECK_RES(res);
