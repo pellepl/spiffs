@@ -390,7 +390,7 @@ static s32_t spiffs_hydro_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len)
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   }
 
-#if SPIFFS_CACHE_WR
+#if SPIFFS_CACHE && SPIFFS_CACHE_WR
   spiffs_fflush_cache(fs, fh);
 #endif
 
@@ -485,7 +485,7 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
   }
   offset = fd->fdoffset;
 
-#if SPIFFS_CACHE_WR
+#if SPIFFS_CACHE && SPIFFS_CACHE_WR
   if (fd->cache_page == 0) {
     // see if object id is associated with cache already
     fd->cache_page = spiffs_cache_page_get_by_fd(fs, fd);
@@ -497,14 +497,14 @@ s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len) {
     } else {
       offset = fd->size;
     }
-#if SPIFFS_CACHE_WR
+#if SPIFFS_CACHE && SPIFFS_CACHE_WR
     if (fd->cache_page) {
       offset = MAX(offset, fd->cache_page->offset + fd->cache_page->size);
     }
 #endif
   }
 
-#if SPIFFS_CACHE_WR
+#if SPIFFS_CACHE && SPIFFS_CACHE_WR
   if ((fd->flags & SPIFFS_O_DIRECT) == 0) {
     if (len < (s32_t)SPIFFS_CFG_LOG_PAGE_SZ(fs)) {
       // small write, try to cache it
@@ -608,7 +608,7 @@ s32_t SPIFFS_lseek(spiffs *fs, spiffs_file fh, s32_t offs, int whence) {
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
-#if SPIFFS_CACHE_WR
+#if SPIFFS_CACHE && SPIFFS_CACHE_WR
   spiffs_fflush_cache(fs, fh);
 #endif
 
@@ -712,7 +712,7 @@ s32_t SPIFFS_fremove(spiffs *fs, spiffs_file fh) {
     SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
   }
 
-#if SPIFFS_CACHE_WR
+#if SPIFFS_CACHE && SPIFFS_CACHE_WR
   spiffs_cache_fd_release(fs, fd->cache_page);
 #endif
 
@@ -826,7 +826,7 @@ s32_t SPIFFS_fstat(spiffs *fs, spiffs_file fh, spiffs_stat *s) {
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
-#if SPIFFS_CACHE_WR
+#if SPIFFS_CACHE && SPIFFS_CACHE_WR
   spiffs_fflush_cache(fs, fh);
 #endif
 
@@ -844,7 +844,7 @@ static s32_t spiffs_fflush_cache(spiffs *fs, spiffs_file fh) {
   (void)fs;
   (void)fh;
   s32_t res = SPIFFS_OK;
-#if !SPIFFS_READ_ONLY && SPIFFS_CACHE_WR
+#if !SPIFFS_READ_ONLY && SPIFFS_CACHE && SPIFFS_CACHE_WR
 
   spiffs_fd *fd;
   res = spiffs_fd_get(fs, fh, &fd);
@@ -879,7 +879,7 @@ s32_t SPIFFS_fflush(spiffs *fs, spiffs_file fh) {
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
   s32_t res = SPIFFS_OK;
-#if !SPIFFS_READ_ONLY && SPIFFS_CACHE_WR
+#if !SPIFFS_READ_ONLY && SPIFFS_CACHE && SPIFFS_CACHE_WR
   SPIFFS_LOCK(fs);
   fh = SPIFFS_FH_UNOFFS(fs, fh);
   res = spiffs_fflush_cache(fs, fh);
@@ -1240,7 +1240,7 @@ s32_t SPIFFS_eof(spiffs *fs, spiffs_file fh) {
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
-#if SPIFFS_CACHE_WR
+#if SPIFFS_CACHE && SPIFFS_CACHE_WR
   res = spiffs_fflush_cache(fs, fh);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 #endif
@@ -1264,7 +1264,7 @@ s32_t SPIFFS_tell(spiffs *fs, spiffs_file fh) {
   res = spiffs_fd_get(fs, fh, &fd);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 
-#if SPIFFS_CACHE_WR
+#if SPIFFS_CACHE && SPIFFS_CACHE_WR
   res = spiffs_fflush_cache(fs, fh);
   SPIFFS_API_CHECK_RES_UNLOCK(fs, res);
 #endif
