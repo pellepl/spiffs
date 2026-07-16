@@ -720,6 +720,12 @@ TEST(name_too_long) {
   TEST_CHECK_LT(SPIFFS_rename(FS, "a", name), SPIFFS_OK);
   TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NAME_TOO_LONG);
 
+#if SPIFFS_OBJ_META_LEN
+  u8_t meta[SPIFFS_OBJ_META_LEN] = {0};
+  TEST_CHECK_LT(SPIFFS_update_meta(FS, name, meta), SPIFFS_OK);
+  TEST_CHECK_EQ(SPIFFS_errno(FS), SPIFFS_ERR_NAME_TOO_LONG);
+#endif
+
   return TEST_RES_OK;
 } TEST_END
 

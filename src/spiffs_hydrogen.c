@@ -975,6 +975,9 @@ s32_t SPIFFS_update_meta(spiffs *fs, const char *name, const void *meta) {
 #else
   SPIFFS_API_CHECK_CFG(fs);
   SPIFFS_API_CHECK_MOUNT(fs);
+  if (strlen(name) > SPIFFS_OBJ_NAME_LEN - 1) {
+    SPIFFS_API_CHECK_RES(fs, SPIFFS_ERR_NAME_TOO_LONG);
+  }
   SPIFFS_LOCK(fs);
 
   spiffs_page_ix pix, pix_dummy;
