@@ -468,7 +468,7 @@ s32_t SPIFFS_read(spiffs *fs, spiffs_file fh, void *buf, s32_t len);
  * @param len           how much to write
  * @returns number of bytes written, or -1 if error
  */
-s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, void *buf, s32_t len);
+s32_t SPIFFS_write(spiffs *fs, spiffs_file fh, const void *buf, s32_t len);
 
 /**
  * Moves the read/write file offset. Resulting offset is returned or negative if error.
