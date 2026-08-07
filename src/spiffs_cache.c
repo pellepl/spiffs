@@ -43,7 +43,7 @@ static s32_t spiffs_cache_page_free(spiffs *fs, int ix, u8_t write_back) {
       res = SPIFFS_HAL_WRITE(fs, SPIFFS_PAGE_TO_PADDR(fs, cp->pix), SPIFFS_CFG_LOG_PAGE_SZ(fs), mem);
     }
 
-#if SPIFFS_CACHE_WR
+#if SPIFFS_CACHE && SPIFFS_CACHE_WR
     if (cp->flags & SPIFFS_CACHE_FLAG_TYPE_WR) {
       SPIFFS_CACHE_DBG("CACHE_FREE: free cache page "_SPIPRIi" objid "_SPIPRIid"\n", ix, cp->obj_id);
     } else
@@ -134,7 +134,7 @@ s32_t spiffs_phys_rd(
   cache->last_access++;
   if (cp) {
     // we've already got one, you see
-#if SPIFFS_CACHE_STATS
+#if SPIFFS_CACHE && SPIFFS_CACHE_STATS
     fs->cache_hits++;
 #endif
     cp->last_access = cache->last_access;
@@ -145,7 +145,7 @@ s32_t spiffs_phys_rd(
       // for second layer lookup functions, we do not cache in order to prevent shredding
       return SPIFFS_HAL_READ(fs, addr, len, dst);
     }
-#if SPIFFS_CACHE_STATS
+#if SPIFFS_CACHE && SPIFFS_CACHE_STATS
     fs->cache_misses++;
 #endif
     // this operation will always free one cache page (unless all already free),
@@ -222,7 +222,7 @@ s32_t spiffs_phys_wr(
   }
 }
 
-#if SPIFFS_CACHE_WR
+#if SPIFFS_CACHE && SPIFFS_CACHE_WR
 // returns the cache page that this fd refers, or null if no cache page
 spiffs_cache_page *spiffs_cache_page_get_by_fd(spiffs *fs, spiffs_fd *fd) {
   spiffs_cache *cache = spiffs_get_cache(fs);
