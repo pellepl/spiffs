@@ -33,6 +33,9 @@ static spiffs_cache_page *spiffs_cache_page_get(spiffs *fs, spiffs_page_ix pix) 
 static s32_t spiffs_cache_page_free(spiffs *fs, int ix, u8_t write_back) {
   s32_t res = SPIFFS_OK;
   spiffs_cache *cache = spiffs_get_cache(fs);
+  if (ix < 0 || ix >= (int)cache->cpage_count) {
+    return SPIFFS_ERR_INTERNAL;
+  }
   spiffs_cache_page *cp = spiffs_get_cache_page_hdr(fs, cache, ix);
   if (cache->cpage_use_map & (1<<ix)) {
     if (write_back &&
